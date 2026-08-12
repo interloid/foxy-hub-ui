@@ -18,28 +18,23 @@ export function ThemeSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="icon" className="relative">
-          <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-
-          <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-
+          <Sun className="h-4 w-4 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+          <Moon className="absolute h-4 w-4 scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>
-
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme('light')}>
-          <Sun className="mr-2 h-4 w-4" />
-          Light
+        <DropdownMenuItem onClick={() => setTheme('light')} className="gap-2">
+          <Sun className="h-4 w-4" />
+          <span>Light</span>
         </DropdownMenuItem>
-
-        <DropdownMenuItem onClick={() => setTheme('dark')}>
-          <Moon className="mr-2 h-4 w-4" />
-          Dark
+        <DropdownMenuItem onClick={() => setTheme('dark')} className="gap-2">
+          <Moon className="h-4 w-4" />
+          <span>Dark</span>
         </DropdownMenuItem>
-
-        <DropdownMenuItem onClick={() => setTheme('system')}>
-          <Laptop className="mr-2 h-4 w-4" />
-          System
+        <DropdownMenuItem onClick={() => setTheme('system')} className="gap-2">
+          <Laptop className="h-4 w-4" />
+          <span>System</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
