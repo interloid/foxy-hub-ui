@@ -1,6 +1,8 @@
 import { ThemeProvider } from '@/components/theme-provider'
+import { siteConfig } from '@/config/site'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { Toaster } from 'sonner'
 import './globals.css'
 
 const geistSans = Geist({
@@ -14,8 +16,33 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Foxy Hub',
-  description: 'Foxy Hub Agency Client Portal',
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: siteConfig.name,
+    template: `%s | ${siteConfig.name}`,
+  },
+  description: siteConfig.description,
+  applicationName: siteConfig.name,
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: 'website',
+    url: '/',
+    siteName: siteConfig.name,
+    title: siteConfig.name,
+    description: siteConfig.description,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: siteConfig.name,
+    description: siteConfig.description,
+    ...(siteConfig.twitterHandle ? { site: siteConfig.twitterHandle } : {}),
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({
@@ -37,6 +64,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <Toaster position="top-right" richColors closeButton />
         </ThemeProvider>
       </body>
     </html>
