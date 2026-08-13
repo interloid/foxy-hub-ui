@@ -1,9 +1,10 @@
-import { ThemeProvider } from '@/components/theme-provider'
 import { siteConfig } from '@/config/site'
+import { ThemeProvider } from '@/context/theme-provider'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import './globals.css'
+import { FloatingThemeToggle } from '@/components/shared/floating-theme-toggle'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -57,12 +58,8 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <body className="antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <ThemeProvider>
+          {/* <FloatingThemeToggle /> */}
           {children}
           <Toaster position="top-right" richColors closeButton />
         </ThemeProvider>

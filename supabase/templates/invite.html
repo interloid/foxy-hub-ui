@@ -1,0 +1,34 @@
+<!--
+  Invitation email — the link that makes `auth.admin.inviteUserByEmail` usable.
+
+  The STOCK template uses `{{ .ConfirmationURL }}`, which points at Supabase's own
+  `/auth/v1/verify` and returns the session in a URL FRAGMENT. A fragment never reaches the
+  server, so `/auth/callback` would only ever see `missing_code` and the invitation could be
+  sent but never accepted. Handling it in the browser instead would need a browser auth
+  client, which decisions.md D016 forbids.
+
+  `{{ .TokenHash }}` lets `/auth/confirm` redeem the token server-side with
+  `verifyOtp({ token_hash, type })`, which writes cookies. See decisions.md D023.
+
+  `next` is where the invitee goes AFTER choosing a password — NOT the set-password screen
+  itself. `/auth/confirm` already sends anyone without `password_set` to `/set-password`, and
+  passes `next` through to the form, which redirects there once the password is saved. Naming
+  `/set-password` here would land them back on "Choose a password" after saving it.
+
+  The hosted project needs the same URL pasted into Authentication → Email Templates →
+  Invite user. This file only configures the LOCAL stack (supabase/config.toml).
+-->
+<h2>You have been invited</h2>
+
+<p>
+  You have been invited to join a workspace on FoxyHub. Accept the invitation to choose a password
+  and get started.
+</p>
+
+<p>
+  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/"
+    >Accept the invitation</a
+  >
+</p>
+
+<p>If you were not expecting this invitation you can safely ignore this email.</p>

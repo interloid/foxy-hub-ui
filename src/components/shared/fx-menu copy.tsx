@@ -1,0 +1,181 @@
+'use client'
+
+import * as React from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
+
+import {
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
+import { PopoverContent } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
+
+const fxMenuPanelVariants = cva(
+  'bg-popover border-border shadow-panel rounded-xl border',
+  {
+    variants: {
+      inset: {
+        /** Menu list — the panel's own 4px gutter, items supply the rest. */
+        menu: 'p-1',
+        /** Form popover (the custom date range) — 14px all round. */
+        form: 'p-3.5',
+        /** Full-bleed (the command palette draws its own internal rules). */
+        none: 'overflow-hidden p-0',
+      },
+    },
+    defaultVariants: { inset: 'menu' },
+  }
+)
+
+function FxMenuPanel({
+  className,
+  inset,
+  ...props
+}: React.ComponentProps<'div'> & VariantProps<typeof fxMenuPanelVariants>) {
+  return (
+    <div
+      data-slot="fx-menu-panel"
+      className={cn(fxMenuPanelVariants({ inset }), className)}
+      {...props}
+    />
+  )
+}
+
+const fxMenuItemVariants = cva(
+  'flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-base font-medium',
+  {
+    variants: {
+      tone: {
+        default: 'text-foreground',
+        destructive: 'text-destructive',
+      },
+      highlighted: {
+        true: 'bg-accent',
+        false: 'bg-transparent',
+      },
+    },
+    defaultVariants: { tone: 'default', highlighted: false },
+  }
+)
+
+function FxMenuItem({
+  className,
+  tone,
+  highlighted,
+  ...props
+}: React.ComponentProps<'div'> & VariantProps<typeof fxMenuItemVariants>) {
+  return (
+    <div
+      data-slot="fx-menu-item"
+      className={cn(fxMenuItemVariants({ tone, highlighted }), className)}
+      {...props}
+    />
+  )
+}
+
+/**
+ * v2's placeholder glyph: a 14px rounded square in `currentColor` at 50% — it stands in for
+ * whatever icon the real menu row carries, and inherits the row's tone.
+ */
+function FxMenuIcon({ className, ...props }: React.ComponentProps<'span'>) {
+  return (
+    <span
+      data-slot="fx-menu-icon"
+      aria-hidden
+      className={cn(
+        'size-3.5 shrink-0 rounded-[4px] bg-current opacity-50',
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function FxPopoverContent({
+  className,
+  ...props
+}: React.ComponentProps<typeof PopoverContent>) {
+  return (
+    <PopoverContent
+      data-slot="fx-popover-content"
+      align="start"
+      sideOffset={8}
+      className={cn(
+        'border-border shadow-panel w-[270px] gap-3 rounded-xl border p-3.5 ring-0',
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+const fxDropdownContentVariants = cva(
+  'w-56 min-w-0 rounded-xl border border-border shadow-panel ring-0',
+  {
+    variants: {
+      inset: {
+        /** Plain menu list — the panel's own 4px gutter, items supply the rest. */
+        menu: 'p-1',
+        /** The panel draws its own internal rules and blocks. */
+        none: 'overflow-hidden p-0',
+      },
+    },
+    defaultVariants: { inset: 'menu' },
+  }
+)
+
+function FxDropdownMenuContent({
+  className,
+  inset,
+  align = 'end',
+  sideOffset = 6,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuContent> &
+  VariantProps<typeof fxDropdownContentVariants>) {
+  return (
+    <DropdownMenuContent
+      data-slot="fx-dropdown-menu-content"
+      align={align}
+      sideOffset={sideOffset}
+      className={cn(fxDropdownContentVariants({ inset }), className)}
+      {...props}
+    />
+  )
+}
+
+function FxDropdownMenuItem({
+  className,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuItem>) {
+  return (
+    <DropdownMenuItem
+      data-slot="fx-dropdown-menu-item"
+      className={cn(
+        'cursor-pointer gap-2.5 rounded-md px-2.5 py-2 text-base font-medium',
+        'data-[variant=destructive]:focus:bg-destructive-subtle dark:data-[variant=destructive]:focus:bg-destructive-subtle',
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  FxMenuPanel,
+  FxMenuItem,
+  FxMenuIcon,
+  FxPopoverContent,
+  FxDropdownMenuContent,
+  FxDropdownMenuItem,
+  fxMenuPanelVariants,
+  fxMenuItemVariants,
+  fxDropdownContentVariants,
+}
+export { Popover, PopoverTrigger } from '@/components/ui/popover'
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
