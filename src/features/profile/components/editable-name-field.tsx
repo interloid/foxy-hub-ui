@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as React from 'react'
-import { useForm } from 'react-hook-form'
+import { useController, useForm } from 'react-hook-form'
 import { NAV_ICONS } from '@/components/layout/nav-icons'
 import {
   FxButton,
@@ -38,8 +38,10 @@ export function EditableNameField({
     defaultValues: { fullName: fullName ?? '' },
   })
 
-  const { errors } = form.formState
-  const { ref: registerRef, ...nameField } = form.register('fullName')
+  const { field, fieldState } = useController({
+    control: form.control,
+    name: 'fullName',
+  })
 
   function beginEdit() {
     setError(null)
@@ -74,7 +76,7 @@ export function EditableNameField({
   )
 
   return (
-    <FxField data-invalid={Boolean(errors.fullName) || undefined}>
+    <FxField data-invalid={Boolean(fieldState.error) || undefined}>
       <FxLabel htmlFor="full-name" className="block leading-normal">
         {PROFILE.fields.name}
       </FxLabel>
@@ -84,18 +86,21 @@ export function EditableNameField({
           id="full-name"
           inputSize="sm"
           readOnly={!editing}
-          aria-invalid={Boolean(errors.fullName) || undefined}
+          aria-invalid={Boolean(fieldState.error) || undefined}
           placeholder={PROFILE.noName}
-          {...nameField}
+          name={field.name}
+          value={field.value}
+          onChange={field.onChange}
+          onBlur={field.onBlur}
           ref={(node) => {
-            registerRef(node)
+            field.ref(node)
             inputRef.current = node
           }}
           onKeyDown={(event) => {
             if (!editing) return
             if (event.key === 'Enter') {
               event.preventDefault()
-              void save()
+              save()
             }
             if (event.key === 'Escape') {
               event.preventDefault()
@@ -142,7 +147,7 @@ export function EditableNameField({
         </FxInputGroupAddon>
       </FxInputGroup>
 
-      <FxFieldError errors={[errors.fullName]} />
+      <FxFieldError errors={[fieldState.error]} />
       {error ? (
         <p role="alert" className="text-destructive text-sm">
           {error}

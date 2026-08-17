@@ -1,8 +1,8 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
 import { verifySession } from '@/lib/dal'
 import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
 import { fullNameSchema } from './schemas'
 
 export type ProfileResult =
@@ -31,7 +31,6 @@ export async function updateFullName(fullName: string): Promise<ProfileResult> {
     )
     .select('full_name')
     .maybeSingle()
-
   if (error) {
     console.error('update full name failed:', error.message)
     return { ok: false, error: 'Could not save your name.' }

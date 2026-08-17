@@ -119,7 +119,6 @@ export async function setPassword(
   })
 
   if (error) {
-    console.error('set password failed:', error.message)
     return { ok: false, error: error.message }
   }
   return { ok: true }
