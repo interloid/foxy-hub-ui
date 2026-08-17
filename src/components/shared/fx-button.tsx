@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { Slot } from 'radix-ui'
-
 import { cn } from '@/lib/utils'
 
 const fxButtonVariants = cva(
@@ -25,7 +24,6 @@ const fxButtonVariants = cva(
           'border-border bg-muted text-foreground hover:border-border-strong',
       },
       size: {
-        // 26px — the § 06 / § 07 card-header actions. Radius drops a rung to match.
         xxs: 'h-6.5 rounded-sm px-[11px] text-xs',
 
         xs: 'h-7 px-[11px] text-[12px]',
@@ -34,7 +32,6 @@ const fxButtonVariants = cva(
         lg: 'h-11 rounded-lg px-4 text-md',
         block: 'h-11 w-full rounded-lg px-4 text-md',
         icon: 'size-9',
-        // 34px — v2's square icon control (§ 07 notification bell).
         'icon-sm': 'size-8.5',
       },
     },

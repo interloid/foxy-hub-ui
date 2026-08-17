@@ -1,5 +1,4 @@
 import Image from 'next/image'
-
 import { NAV_ICONS, type NavIconName } from '@/components/layout/nav-icons'
 import { cn } from '@/lib/utils'
 

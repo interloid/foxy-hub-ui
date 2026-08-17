@@ -1,6 +1,5 @@
 import * as React from 'react'
-
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 function FxCard({ className, ...props }: React.ComponentProps<typeof Card>) {
@@ -16,21 +15,6 @@ function FxCard({ className, ...props }: React.ComponentProps<typeof Card>) {
   )
 }
 
-/** Bordered strip: 13px 16px + `border-bottom`. Title is 14px/600 at the call site. */
-function FxCardHeader({
-  className,
-  ...props
-}: React.ComponentProps<typeof CardHeader>) {
-  return (
-    <CardHeader
-      data-slot="fx-card-header"
-      className={cn('border-b py-[13px] [.border-b]:pb-[13px]', className)}
-      {...props}
-    />
-  )
-}
-
-/** Body: 16px all round. The generated one is horizontal-only. */
 function FxCardContent({
   className,
   ...props
@@ -44,18 +28,4 @@ function FxCardContent({
   )
 }
 
-/** Footer already matches: `p-(--card-spacing)` + `border-t`. */
-function FxCardFooter({
-  className,
-  ...props
-}: React.ComponentProps<typeof CardFooter>) {
-  return (
-    <CardFooter
-      data-slot="fx-card-footer"
-      className={cn(className)}
-      {...props}
-    />
-  )
-}
-
-export { FxCard, FxCardHeader, FxCardContent, FxCardFooter }
+export { FxCard, FxCardContent }

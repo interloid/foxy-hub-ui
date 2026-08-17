@@ -8,7 +8,6 @@ export const metadata: Metadata = {
   title: 'Sign in',
   description: SIGN_IN.subtitle,
   alternates: { canonical: '/sign-in' },
-  // A sign-in page is a dead end for a crawler and duplicates no useful content.
   robots: { index: false, follow: true },
 }
 

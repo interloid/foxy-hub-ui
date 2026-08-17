@@ -16,8 +16,19 @@ export async function proxy(request: NextRequest) {
         },
 
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value)
+          const cookieOptions = {
+            path: '/',
+            sameSite: 'lax' as const,
+            secure: process.env.NODE_ENV === 'production',
+          }
+
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set({
+              name,
+              value,
+              ...options,
+              ...cookieOptions,
+            })
           })
 
           response = NextResponse.next({
@@ -25,7 +36,12 @@ export async function proxy(request: NextRequest) {
           })
 
           cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options)
+            response.cookies.set({
+              name,
+              value,
+              ...options,
+              ...cookieOptions,
+            })
           })
         },
       },
@@ -38,14 +54,24 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  const isAuthRoute = pathname.startsWith('/sign-in')
+  const publicRoute = isPublicRoute(pathname)
 
-  if (!user && !isAuthRoute) {
+  if (!user && !publicRoute) {
     return NextResponse.redirect(new URL('/sign-in', request.url))
   }
 
-  if (user && isAuthRoute) {
-    return NextResponse.redirect(new URL('/', request.url))
+  if (user && publicRoute) {
+    const isReset = request.nextUrl.searchParams.get('reset') === '1'
+
+    const isPostAuthStep =
+      isAuthHandler(pathname) ||
+      isOnboardCompleteRoute(pathname) ||
+      (isRouteMatch(pathname, '/set-password') &&
+        (isReset || !user.user_metadata?.password_set))
+
+    if (!isPostAuthStep) {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
   }
 
   return response
@@ -55,4 +81,29 @@ export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|css|js)$).*)',
   ],
+}
+
+const PUBLIC_ROUTES = [
+  '/sign-in',
+  '/sign-up',
+  '/onboard',
+  '/set-password',
+  '/auth',
+  '/forgot-password',
+] as const
+
+function isRouteMatch(pathname: string, route: string) {
+  return pathname === route || pathname.startsWith(`${route}/`)
+}
+
+function isPublicRoute(pathname: string) {
+  return PUBLIC_ROUTES.some((route) => isRouteMatch(pathname, route))
+}
+
+function isAuthHandler(pathname: string) {
+  return isRouteMatch(pathname, '/auth')
+}
+
+function isOnboardCompleteRoute(pathname: string) {
+  return isRouteMatch(pathname, '/onboard/complete')
 }

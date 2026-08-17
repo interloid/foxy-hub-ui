@@ -2,9 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-
+import { siteConfig } from '@/config/site'
 import { createClient } from '@/lib/supabase/server'
-
+import { toast } from 'sonner'
 import {
   changePasswordSchema,
   firstIssue,
@@ -24,7 +24,7 @@ export async function signInWithPassword(
   const { email: address, password: secret } = parsed.data
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: address,
     password: secret,
   })
@@ -32,7 +32,27 @@ export async function signInWithPassword(
   if (error) {
     return { ok: false, error: 'That email and password do not match.' }
   }
-  redirect('/')
+
+  const userId = data.user.id
+  const { data: membership, error: membershipError } = await supabase
+    .from('memberships')
+    .select('organizations(slug)')
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle()
+
+  const orgSlug = (
+    membership?.organizations as unknown as { slug: string } | null
+  )?.slug
+
+  if (membershipError || !orgSlug) {
+    return {
+      ok: false,
+      error: 'No workspace found for this account.',
+    }
+  }
+
+  redirect(`/${orgSlug}`)
 }
 
 export async function sendPasswordReset(email: string): Promise<AuthResult> {
@@ -42,12 +62,11 @@ export async function sendPasswordReset(email: string): Promise<AuthResult> {
 
   const supabase = await createClient()
   const { error } = await supabase.auth.resetPasswordForEmail(address, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/auth/callback?reset=1`,
+    redirectTo: `${siteConfig.url}/auth/callback?reset=1`,
   })
 
   if (error) {
-    // Logged, not surfaced — see the enumeration note above.
-    console.error('password reset failed:', error.message)
+    toast.error(`password reset failed:, ${error.message}`)
   }
   return { ok: true }
 }
@@ -104,6 +123,17 @@ export async function setPassword(
     return { ok: false, error: error.message }
   }
   return { ok: true }
+}
+
+export async function getSlug() {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('organizations')
+    .select('slug')
+    .single()
+  if (error) return { ok: false, error: error.message }
+
+  return { ok: true, slug: data.slug }
 }
 
 export async function changePassword(

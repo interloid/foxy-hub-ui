@@ -1,10 +1,11 @@
+import { FloatingThemeToggle } from '@/components/shared/floating-theme-toggle'
 import { siteConfig } from '@/config/site'
 import { ThemeProvider } from '@/context/theme-provider'
+import { themeInitScript } from '@/lib/theme'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import './globals.css'
-import { FloatingThemeToggle } from '@/components/shared/floating-theme-toggle'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -57,9 +58,25 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
-      <body className="antialiased">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: siteConfig.name,
+              description: siteConfig.description,
+              url: siteConfig.url,
+            }),
+          }}
+        />
+      </head>
+
+      <body className="bg-background text-foreground antialiased">
         <ThemeProvider>
-          {/* <FloatingThemeToggle /> */}
+          <FloatingThemeToggle />
           {children}
           <Toaster position="top-right" richColors closeButton />
         </ThemeProvider>

@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import { CheckIcon } from 'lucide-react'
-
 import { cn } from '@/lib/utils'
 
 export type Step = { label: string }
@@ -20,7 +19,6 @@ function Stepper({
   steps: readonly Step[]
   current: number
   density?: StepperDensity
-  /** Keep the active step centred whenever the rail overflows. */
   autoScrollActive?: boolean
 }) {
   const product = density === 'product'
@@ -34,21 +32,15 @@ function Stepper({
     const first = !mounted.current
     mounted.current = true
     if (!autoScrollActive || !scroller || !item) return
-    // Desktop fits every step, so there is nothing to centre. This check IS the
-    // mobile gate: it fires exactly when the rail is actually clipped, which
-    // stays true for long labels and longer flows without a breakpoint to sync.
+
     if (scroller.scrollWidth <= scroller.clientWidth) return
 
-    // Rect deltas, not offsetLeft — the scroller is not a positioned ancestor,
-    // so offsetLeft would measure against the wrong box and mis-centre.
     const box = scroller.getBoundingClientRect()
     const target = item.getBoundingClientRect()
     const left = target.left + target.width / 2 - (box.left + box.width / 2)
     const reduced = window.matchMedia(
       '(prefers-reduced-motion: reduce)'
     ).matches
-    // scrollBy on the rail, never scrollIntoView: the latter also scrolls
-    // ancestors, and the pages that host this one scroll vertically.
     scroller.scrollBy({ left, behavior: first || reduced ? 'auto' : 'smooth' })
   }, [current, autoScrollActive])
 
@@ -67,13 +59,7 @@ function Stepper({
         const active = index === current
         const last = index === steps.length - 1
         return (
-          <div
-            key={step.label}
-            className={cn(
-              'flex items-center',
-              !last || product ? 'flex-1' : 'flex-none'
-            )}
-          >
+          <React.Fragment key={step.label}>
             <div
               ref={(node) => {
                 itemRefs.current[index] = node
@@ -112,15 +98,17 @@ function Stepper({
               <span
                 aria-hidden
                 className={cn(
-                  'mx-3 flex-1 transition-colors',
+                  'mx-3 min-w-6 flex-1 transition-colors',
                   product ? 'h-0.5 rounded-[2px]' : 'h-px',
                   done ? 'bg-success' : 'bg-border'
                 )}
               />
             )}
-          </div>
+          </React.Fragment>
         )
       })}
+
+      {product ? <span aria-hidden className="min-w-6 flex-1" /> : null}
     </div>
   )
 }

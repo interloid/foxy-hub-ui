@@ -168,7 +168,7 @@ Deno.serve(async () => {
       // No client on the project, or no address on the account. The old code still called
       // sendGmail here, producing a literal `To: undefined` that Gmail rejected every run.
       // The invoice is still genuinely overdue, so it is still marked below.
-      console.warn(`No client email for invoice ${invoice.invoice_number}; not emailed`);
+      console.warn(`No client email for invoice ${invoice.invoice_number} not emailed`);
       skipped++;
     }
 

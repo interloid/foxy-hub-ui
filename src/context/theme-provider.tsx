@@ -17,13 +17,11 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
+import { toast } from 'sonner'
 
 type ThemeContextValue = {
-  /** The user's preference: "light" | "dark" | "system". */
   theme: Theme
-  /** What's actually applied to the DOM after resolving "system": "light" | "dark". */
   resolvedTheme: ResolvedTheme
-  /** The OS's current preference, tracked live. */
   systemTheme: ResolvedTheme
   setTheme: (theme: Theme) => void
 }
@@ -80,9 +78,10 @@ export function ThemeProvider({
   const setTheme = useCallback((next: Theme) => {
     try {
       localStorage.setItem(THEME_STORAGE_KEY, next)
-    } catch {
-      // Ignore storage failures (private mode, quota): the choice still applies
-      // for this session via the dispatched event, it just won't persist.
+    } catch (err) {
+      if (process.env.NODE_ENV === 'development' && err instanceof Error) {
+        toast.warning(`Failed to persist theme choice to localStorage: ${err}`)
+      }
     }
     window.dispatchEvent(new Event(THEME_CHANGE_EVENT))
   }, [])

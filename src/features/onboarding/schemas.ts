@@ -52,7 +52,6 @@ export const teamStepSchema = z.object({
     ),
 })
 
-/** Everything the wizard holds — what `useForm` is typed on. */
 export const wizardSchema = accountStepSchema
   .extend(planStepSchema.shape)
   .extend(teamStepSchema.shape)
@@ -73,10 +72,10 @@ export const createWorkspaceSchema = accountStepSchema.extend({
 
 export type CreateWorkspaceInput = z.input<typeof createWorkspaceSchema>
 
-/** Just the slug, for the availability check's own parse. */
 export const slugSchema = z.object({ slug })
 
-/** The fields each step owns, so the wizard can validate only what is on screen. */
+export const emailSchema = z.object({ email: workEmail })
+
 export const STEP_FIELDS = [
   ['fullName', 'email', 'agencyName', 'slug'],
   ['planId', 'cycle'],
@@ -84,7 +83,6 @@ export const STEP_FIELDS = [
   [],
 ] as const satisfies ReadonlyArray<ReadonlyArray<keyof WizardInput>>
 
-/** First message from a failed parse, for an action that answers with one error string. */
 export function firstIssue(error: z.ZodError): string {
   return error.issues[0]?.message ?? 'Check the details and try again.'
 }

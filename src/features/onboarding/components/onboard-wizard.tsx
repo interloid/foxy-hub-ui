@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowRight, CheckIcon, MailCheck, Plus } from 'lucide-react'
 import Link from 'next/link'
@@ -11,8 +10,8 @@ import {
   useWatch,
   type UseFormReturn,
 } from 'react-hook-form'
-
 import { Stepper } from '@/components/shared/app/stepper'
+import { ThemeToggle } from '@/components/shared/theme-toggle'
 import {
   FxButton,
   FxEmpty,
@@ -29,12 +28,15 @@ import {
   FxLabel,
 } from '@/components/shared/fx'
 import { cn } from '@/lib/utils'
-
 import {
   BillingCycleToggle,
   type BillingCycle,
 } from '@/components/shared/app/billing-cycle-toggle'
-import { checkSlugAvailable, createWorkspace } from '../actions'
+import {
+  checkEmailAvailable,
+  checkSlugAvailable,
+  createWorkspace,
+} from '../actions'
 import {
   ONBOARD_ACCOUNT,
   ONBOARD_BRAND,
@@ -43,16 +45,22 @@ import {
   ONBOARD_PLANS,
   ONBOARD_PLANS_COPY,
   ONBOARD_STEPS,
+  ONBOARD_TAKEN,
   ONBOARD_TEAM,
 } from '../data'
 import { STEP_FIELDS, wizardSchema, type WizardInput } from '../schemas'
 import { OnboardPlanCard } from './onboard-plan-card'
 
-type SlugState = 'idle' | 'checking' | 'free' | 'taken'
+type CheckState = 'idle' | 'checking' | 'free' | 'taken'
+
+function hasError(value: unknown): boolean {
+  return Array.isArray(value) ? value.some(hasError) : Boolean(value)
+}
 
 export function OnboardWizard() {
   const [step, setStep] = React.useState(0)
-  const [slugState, setSlugState] = React.useState<SlugState>('idle')
+  const [slugState, setSlugState] = React.useState<CheckState>('idle')
+  const [emailState, setEmailState] = React.useState<CheckState>('idle')
   const [error, setError] = React.useState<string | null>(null)
   const [sentTo, setSentTo] = React.useState<string | null>(null)
   const [pending, startTransition] = React.useTransition()
@@ -87,25 +95,52 @@ export function OnboardWizard() {
     startTransition(async () => {
       const result = await checkSlugAvailable(candidate)
       if (!result.ok) {
-        // A format complaint from the server belongs on the field, like every other rule.
         form.setError('slug', { message: result.error })
         setSlugState('idle')
         return
       }
       setSlugState(result.data ? 'free' : 'taken')
       if (!result.data) {
-        form.setError('slug', {
-          message: 'That workspace URL is already taken.',
-        })
+        form.setError('slug', { message: ONBOARD_TAKEN.slug })
       }
     })
   }
 
-  /** Continue — advances only if the fields THIS step owns are valid. */
+  const checkEmail = async () => {
+    const candidate = form.getValues('email').trim()
+    if (!candidate || !(await form.trigger('email'))) {
+      setEmailState('idle')
+      return
+    }
+    setEmailState('checking')
+    startTransition(async () => {
+      const result = await checkEmailAvailable(candidate)
+      if (!result.ok) {
+        form.setError('email', { message: result.error })
+        setEmailState('idle')
+        return
+      }
+      setEmailState(result.data ? 'free' : 'taken')
+      if (!result.data) {
+        form.setError('email', { message: ONBOARD_TAKEN.email })
+      }
+    })
+  }
+
   const goNext = async () => {
     const fields = STEP_FIELDS[step]
     if (fields && fields.length > 0 && !(await form.trigger([...fields])))
       return
+    if (step === 0) {
+      if (emailState === 'taken') {
+        form.setError('email', { message: ONBOARD_TAKEN.email })
+        return
+      }
+      if (slugState === 'taken') {
+        form.setError('slug', { message: ONBOARD_TAKEN.slug })
+        return
+      }
+    }
     setStep((value) => value + 1)
   }
 
@@ -123,7 +158,6 @@ export function OnboardWizard() {
       })
       if (!result.ok) {
         setError(result.error)
-        // Send them back to the step that owns every field this can fail on.
         setStep(0)
         return
       }
@@ -140,10 +174,21 @@ export function OnboardWizard() {
 
   const last = ONBOARD_STEPS.length - 1
 
+  const errors = form.formState.errors
+  const stepInvalid = (STEP_FIELDS[step] ?? []).some((field) =>
+    hasError(errors[field])
+  )
+  const blocked =
+    stepInvalid ||
+    pending ||
+    (step === 0 &&
+      [emailState, slugState].some(
+        (state) => state === 'taken' || state === 'checking'
+      ))
+
   return (
     <div className="bg-background min-h-svh overflow-y-auto">
       <div className="animate-fx-rise mx-auto max-w-230 px-6 pt-9 pb-15">
-        {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="bg-primary text-primary-foreground flex size-7.5 shrink-0 items-center justify-center rounded-md text-[15px] font-bold">
@@ -153,22 +198,22 @@ export function OnboardWizard() {
               {ONBOARD_BRAND.name}
             </span>
           </div>
-          <Link
-            href="/sign-in"
-            className="text-subtle-foreground hover:text-foreground text-base transition-colors duration-(--duration-fast)"
-          >
-            {ONBOARD_NAV.signInInstead}
-          </Link>
+
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <FxButton asChild variant="secondary" size="sm">
+              <Link href="/sign-in">{ONBOARD_NAV.signInInstead}</Link>
+            </FxButton>
+          </div>
         </div>
 
         <Stepper
           steps={ONBOARD_STEPS}
           current={step}
           density="product"
-          className="mb-8 max-w-160"
+          className="mb-8"
         />
 
-        {/* Panel */}
         <div className="border-border bg-card shadow-panel rounded-2xl border p-7">
           {sentTo ? (
             <FxEmpty>
@@ -212,6 +257,9 @@ export function OnboardWizard() {
                       name="email"
                       type="email"
                       form={form}
+                      onBlur={() => void checkEmail()}
+                      onChange={() => setEmailState('idle')}
+                      status={emailState === 'checking' ? 'Checking…' : null}
                       {...ONBOARD_ACCOUNT.fields.email}
                     />
                     <AccountField
@@ -238,6 +286,7 @@ export function OnboardWizard() {
                           aria-describedby="onb-slug-status"
                           {...form.register('slug', {
                             onBlur: () => void checkSlug(),
+                            onChange: () => setSlugState('idle'),
                           })}
                         />
                         <FxInputGroupAddon
@@ -277,7 +326,6 @@ export function OnboardWizard() {
                       }
                     />
                   </div>
-                  {/* 3-up above 560px, stacked below — the prototype's `gInv3`. */}
                   <div className="grid grid-cols-1 gap-3.5 min-[561px]:grid-cols-3">
                     {ONBOARD_PLANS.map((plan) => (
                       <OnboardPlanCard
@@ -407,6 +455,7 @@ export function OnboardWizard() {
                   <FxButton
                     type="button"
                     className="h-9.5 rounded-lg px-5 text-[13.5px]"
+                    disabled={blocked}
                     onClick={goNext}
                   >
                     {ONBOARD_NAV.next}
@@ -415,7 +464,7 @@ export function OnboardWizard() {
                   <FxButton
                     type="button"
                     className="h-9.5 gap-1.75 rounded-lg px-5 text-[13.5px]"
-                    disabled={pending}
+                    disabled={blocked}
                     onClick={launch}
                   >
                     {pending ? 'Creating…' : ONBOARD_NAV.launch}
@@ -431,7 +480,6 @@ export function OnboardWizard() {
   )
 }
 
-/** 22px/600/-0.02em title over a 14px muted line — repeated on all four steps. */
 function StepHeading({
   title,
   subtitle,
@@ -443,7 +491,6 @@ function StepHeading({
 }) {
   return (
     <div>
-      {/* text-3xl bakes in leading 1.3; the design inherits the global 1.45. */}
       <h1 className="mb-1 text-3xl leading-normal font-semibold">{title}</h1>
       <p
         className={cn(
@@ -475,6 +522,9 @@ function AccountField({
   placeholder,
   type = 'text',
   form,
+  onBlur,
+  onChange,
+  status,
 }: {
   id: string
   name: 'fullName' | 'email' | 'agencyName'
@@ -482,8 +532,12 @@ function AccountField({
   placeholder: string
   type?: string
   form: UseFormReturn<WizardInput>
+  onBlur?: () => void
+  onChange?: () => void
+  status?: React.ReactNode
 }) {
   const invalid = Boolean(form.formState.errors[name]) || undefined
+  const statusId = status === undefined ? undefined : `${id}-status`
   return (
     <FxField data-invalid={invalid}>
       <OnboardLabel htmlFor={id}>{label}</OnboardLabel>
@@ -492,8 +546,21 @@ function AccountField({
         type={type}
         placeholder={placeholder}
         aria-invalid={invalid}
-        {...form.register(name)}
+        aria-describedby={statusId}
+        {...form.register(name, {
+          ...(onBlur ? { onBlur: () => onBlur() } : {}),
+          ...(onChange ? { onChange: () => onChange() } : {}),
+        })}
       />
+      {statusId ? (
+        <p
+          id={statusId}
+          aria-live="polite"
+          className="text-muted-foreground text-sm empty:hidden"
+        >
+          {status}
+        </p>
+      ) : null}
       <FxFieldError errors={[form.formState.errors[name]]} />
     </FxField>
   )

@@ -4,7 +4,6 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export class CheckoutServiceError extends Error {}
 
-/** Either a Stripe URL to send them to, or a message explaining why there isn't one. */
 export type CheckoutResult = { url: string | null; message?: string }
 
 export async function createCheckoutSession(
@@ -13,7 +12,6 @@ export async function createCheckoutSession(
     planName: string
     cycle: 'monthly' | 'yearly'
     orgId: string
-    /** Passed in so this module never reads `process.env`. */
     returnUrl: string
   }
 ): Promise<CheckoutResult> {
@@ -40,10 +38,8 @@ export async function createCheckoutSession(
   })
 
   if (error) {
-    // The reason is in the response BODY, never in `error.message` — see `describeFunctionError`.
     throw new CheckoutServiceError(await describeFunctionError(error))
   }
-  // The function answers business-rule refusals with 200 + { success: false, message }.
   if (data?.success === false)
     return { url: null, message: data.message as string }
   if (!data?.url)

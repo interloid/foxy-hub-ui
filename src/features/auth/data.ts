@@ -25,7 +25,6 @@ export const SIGN_IN = {
   ],
 } as const
 
-/** `/forgot-password` — the request screen. D032. */
 export const FORGOT_PASSWORD = {
   title: 'Reset your password',
   subtitle:
@@ -49,7 +48,6 @@ export const CHANGE_PASSWORD = {
   saved: 'Password updated successfully.',
 } as const
 
-/** The stacked layout's brand card — shown only below 761px, in place of the hero panel. */
 export const AUTH_CARD_TAGLINE =
   'Projects, approvals & invoices — one polished client portal.'
 

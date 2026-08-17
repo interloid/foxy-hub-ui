@@ -1,6 +1,7 @@
 import {
   Bell,
   ChartColumn,
+  Check,
   ChevronDown,
   ChevronLeft,
   Clock,
@@ -36,12 +37,10 @@ export const NAV_ICONS = {
   collapse: ChevronLeft,
   chevron: ChevronDown,
   bell: Bell,
-
+  check: Check,
   zap: Zap,
-
   profile: User,
   signOut: LogOut,
-
   edit: Pencil,
   cancel: X,
   approvals: SquareCheckBig,

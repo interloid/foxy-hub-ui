@@ -1,11 +1,9 @@
 'use client'
 
 import * as React from 'react'
-
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
-
 import { NAV_ICONS } from '@/components/layout/nav-icons'
 import {
   FxButton,
@@ -14,7 +12,6 @@ import {
   FxInput,
   FxLabel,
 } from '@/components/shared/fx/index'
-
 import { toast } from 'sonner'
 import { signInAsDemo, signInWithPassword } from '../actions'
 import { SIGN_IN } from '../data'
@@ -34,7 +31,6 @@ export function SignInForm({ initialError }: { initialError?: string }) {
     setError(null)
     startTransition(async () => {
       const result = await fn()
-      // A successful sign-in redirects server-side and never returns.
       if (!result.ok) {
         setError(result.error ?? 'Something went wrong.')
         toast.error(error)

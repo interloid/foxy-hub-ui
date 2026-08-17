@@ -1,7 +1,5 @@
 import 'server-only'
-
 import type { SupabaseClient } from '@supabase/supabase-js'
-
 import type { InviteOutcome, TeamInvite } from '../types'
 
 export async function sendInvitations(
@@ -11,7 +9,6 @@ export async function sendInvitations(
     orgId: string
     invitedBy: string
     invites: readonly TeamInvite[]
-    /** Where the invitee lands. Passed in so this module never reads `process.env`. */
     siteUrl: string
   }
 ): Promise<InviteOutcome> {
@@ -26,7 +23,6 @@ export async function sendInvitations(
   let emailed = 0
   const failed: string[] = []
 
-  // One at a time, so a single bad address cannot cost everyone else their invitation.
   for (const invite of wanted) {
     const rawToken = `${crypto.randomUUID()}${crypto.randomUUID()}`
 
@@ -35,7 +31,6 @@ export async function sendInvitations(
       .insert({
         org_id: params.orgId,
         email: invite.email,
-        // The table's check constraint is lowercase; the wizard's select is capitalised.
         role: invite.role.toLowerCase(),
         token_hash: await sha256Hex(rawToken),
         invited_by: params.invitedBy,
@@ -77,7 +72,6 @@ export async function sendInvitations(
   return { created, emailed, failed }
 }
 
-/** The org the caller owns. RLS scopes this, so there is no user filter to get wrong. */
 export async function findOwnedOrgId(
   supabase: SupabaseClient
 ): Promise<string | null> {
@@ -90,7 +84,6 @@ export async function findOwnedOrgId(
   return (data?.org_id as string | undefined) ?? null
 }
 
-/** SHA-256, hex. Only the digest is ever stored; the plaintext goes to the mailer. */
 async function sha256Hex(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value)
   const digest = await crypto.subtle.digest('SHA-256', bytes)

@@ -1,27 +1,32 @@
 'use server'
 
+import { siteConfig } from '@/config/site'
 import { logActivity } from '@/lib/activity'
 import { getAccount } from '@/lib/dal'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
-import { createWorkspaceSchema, firstIssue, slugSchema } from './schemas'
+import { ONBOARD_TAKEN } from './data'
+import {
+  createWorkspaceSchema,
+  emailSchema,
+  firstIssue,
+  slugSchema,
+} from './schemas'
 import { createCheckoutSession, CheckoutServiceError } from './services/billing'
 import { findOwnedOrgId, sendInvitations } from './services/invitations'
 import {
   buildSignupNext,
+  isEmailRegistered,
   isSlugAvailable,
   startWorkspaceSignup,
 } from './services/workspace'
 import type { ActionResult, InviteOutcome, TeamInvite } from './types'
 
-const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL ?? ''
-
-/** Step 1's live check on the workspace URL. */
+const siteUrl = () => siteConfig.url
 export async function checkSlugAvailable(
   slug: string
 ): Promise<ActionResult<boolean>> {
-  // The format rule lives in `slugSchema` — one regex, shared with the form's resolver.
   const parsed = slugSchema.safeParse({ slug })
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) }
 
@@ -34,7 +39,20 @@ export async function checkSlugAvailable(
   }
 }
 
-/** Creates the account and, through the signup trigger, the workspace. */
+export async function checkEmailAvailable(
+  email: string
+): Promise<ActionResult<boolean>> {
+  const parsed = emailSchema.safeParse({ email })
+  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) }
+
+  try {
+    return { ok: true, data: !(await isEmailRegistered(parsed.data.email)) }
+  } catch (err) {
+    console.error((err as Error).message)
+    return { ok: false, error: 'Could not check that email. Try again.' }
+  }
+}
+
 export async function createWorkspace(
   input: unknown
 ): Promise<ActionResult<{ email: string }>> {
@@ -46,7 +64,14 @@ export async function createWorkspace(
 
   try {
     if (!(await isSlugAvailable(supabase, slug))) {
-      return { ok: false, error: 'That workspace URL is already taken.' }
+      return { ok: false, error: ONBOARD_TAKEN.slug }
+    }
+    try {
+      if (await isEmailRegistered(email)) {
+        return { ok: false, error: ONBOARD_TAKEN.email }
+      }
+    } catch (err) {
+      console.error((err as Error).message)
     }
 
     await startWorkspaceSignup(supabase, {
@@ -70,7 +95,6 @@ export async function createWorkspace(
   return { ok: true, data: { email } }
 }
 
-/** Writes step 3's invitations AND emails them. */
 export async function inviteTeam(
   orgId: string,
   invites: readonly TeamInvite[]
@@ -105,7 +129,7 @@ export async function inviteTeam(
   })
 
   if (data.created > 0) {
-    const account = await getAccount()
+    const account = await getAccount(orgId)
     const actor = account?.fullName?.trim() || 'Someone'
     const who =
       data.created === 1
@@ -132,7 +156,6 @@ export async function inviteTeam(
   return { ok: true, data }
 }
 
-/** Starts Stripe Checkout for the plan chosen on step 2. */
 export async function startPlanCheckout(
   planName: string,
   cycle: 'monthly' | 'yearly'
@@ -159,7 +182,6 @@ export async function startPlanCheckout(
     return { ok: true, data: result }
   } catch (err) {
     console.error('create-checkout failed:', (err as Error).message)
-    // A missing plan row is the caller's mistake and is worth naming; anything else is ours.
     const message =
       err instanceof CheckoutServiceError &&
       (err.message.startsWith('No active') ? err.message : null)

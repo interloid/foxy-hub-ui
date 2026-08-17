@@ -39,7 +39,6 @@ export function applyTheme(
     )
     document.head.appendChild(style)
     restore = () => {
-      // Force a reflow so the "no transitions" style is flushed before we remove it.
       document.body.getBoundingClientRect()
       document.head.removeChild(style)
     }

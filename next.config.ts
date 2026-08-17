@@ -61,12 +61,42 @@ const nextConfig: NextConfig = {
   // agree and avoid version skew). Reads NEXT_BUILD_ID if set; otherwise returns null,
   // which tells Next.js to use its own per-build default (fine for single-instance).
   generateBuildId: async () => process.env.NEXT_BUILD_ID || null,
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        'localhost:3000',
+        '*.localhost:3000',
+        'foxyhub.localhost:3000',
+        '*.foxyhub.localhost:3000',
+      ],
+    },
+  },
+
   async headers() {
     return [
+      // 1. Your existing security headers
       {
         source: '/(.*)',
         headers: securityHeaders,
       },
+      // 2. Local development CORS headers for subdomains (prevents "Failed to fetch RSC payload")
+      ...(isDev
+        ? [
+            {
+              source: '/:path*',
+              headers: [
+                {
+                  key: 'Access-Control-Allow-Origin',
+                  value: '*',
+                },
+                {
+                  key: 'Access-Control-Allow-Credentials',
+                  value: 'true',
+                },
+              ],
+            },
+          ]
+        : []),
     ]
   },
 }

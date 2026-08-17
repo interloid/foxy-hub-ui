@@ -13,9 +13,7 @@ function OnboardPlanCard({
   ...props
 }: Omit<React.ComponentProps<'button'>, 'children'> & {
   plan: OnboardPlan
-  /** Pre-formatted, e.g. "$49" — the wizard owns the monthly/yearly choice. */
   price: string
-  /** "/ mo" or "/ yr". */
   cadence: string
   selected?: boolean
 }) {
@@ -42,7 +40,6 @@ function OnboardPlanCard({
       ) : null}
 
       <div className="text-[15px] font-semibold">{plan.name}</div>
-      {/* min-h keeps the price rows level across the three cards. */}
       <div className="text-subtle-foreground mb-3 min-h-8.5 text-sm">
         {plan.blurb}
       </div>

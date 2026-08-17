@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
-
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 
@@ -27,7 +26,6 @@ const fxToggleGroupItemVariants = cva(
     variants: {
       density: {
         segment: 'h-6.5 rounded-sm px-[11px] text-xs',
-        // 7px: v2's own off-scale value — treatments.md § 15.
         cycle: 'h-7 rounded-[7px] px-[13px] text-sm capitalize',
 
         'cycle-product':
@@ -47,7 +45,6 @@ function FxToggleGroup({
   return (
     <ToggleGroup
       data-slot="fx-toggle-group"
-      // spacing is in --spacing units (0.25rem), so 0.5 → the design's 2px gap.
       spacing={0.5}
       className={cn(fxToggleGroupVariants({ density }), className)}
       {...props}

@@ -1,10 +1,10 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "npm:stripe@14";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import Stripe from 'npm:stripe@14'
 
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-  apiVersion: "2023-10-16",
-});
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+  apiVersion: '2023-10-16',
+})
 
 /**
  * Origin allowlist, comma separated: `supabase secrets set ALLOWED_ORIGINS=https://app.example.com`
@@ -13,19 +13,25 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
  * These endpoints authenticate by Authorization header rather than cookies, so a wildcard
  * is not itself a CSRF hole — but pinning the origin removes a free layer of defence.
  */
-const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
-  .split(",")
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+  .split(',')
   .map((o) => o.trim())
-  .filter(Boolean);
+  .filter(Boolean)
 
 function corsHeadersFor(req: Request): Record<string, string> {
-  const origin = req.headers.get("Origin") ?? "";
-  const allow = ALLOWED_ORIGINS.length === 0 ? "*" : ALLOWED_ORIGINS.includes(origin) ? origin : "";
+  const origin = req.headers.get('Origin') ?? ''
+  const allow =
+    ALLOWED_ORIGINS.length === 0
+      ? '*'
+      : ALLOWED_ORIGINS.includes(origin)
+        ? origin
+        : ''
   return {
-    "Access-Control-Allow-Origin": allow,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    Vary: "Origin",
-  };
+    'Access-Control-Allow-Origin': allow,
+    'Access-Control-Allow-Headers':
+      'authorization, x-client-info, apikey, content-type',
+    Vary: 'Origin',
+  }
 }
 
 /**
@@ -43,7 +49,7 @@ const PLAN_TIERS = {
   Starter: 1,
   Studio: 2,
   Agency: 3,
-} as const;
+} as const
 
 /**
  * Starts a Stripe Checkout session for an organisation's subscription.
@@ -65,52 +71,52 @@ const PLAN_TIERS = {
  * they are answers, not errors.
  */
 serve(async (req) => {
-  const corsHeaders = corsHeadersFor(req);
+  const corsHeaders = corsHeadersFor(req)
 
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
   }
 
   const json = (body: unknown, status: number) =>
     new Response(JSON.stringify(body), {
       status,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
 
-  const authHeader = req.headers.get("Authorization");
+  const authHeader = req.headers.get('Authorization')
   if (!authHeader) {
-    return json({ success: false, error: "Missing Authorization header" }, 401);
+    return json({ success: false, error: 'Missing Authorization header' }, 401)
   }
 
   // ANON key + the caller's token, so every query runs under their RLS.
   const supabase = createClient(
-    Deno.env.get("SUPABASE_URL") || "",
-    Deno.env.get("SUPABASE_ANON_KEY") || "",
-    { global: { headers: { Authorization: authHeader } } },
-  );
+    Deno.env.get('SUPABASE_URL') || '',
+    Deno.env.get('SUPABASE_ANON_KEY') || '',
+    { global: { headers: { Authorization: authHeader } } }
+  )
 
   // Authenticate BEFORE doing any work, rather than after the lookups as before.
   const {
     data: { user },
     error: userError,
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser()
   if (userError || !user) {
-    return json({ success: false, message: "Invalid token" }, 401);
+    return json({ success: false, message: 'Invalid token' }, 401)
   }
 
-  let planId: unknown;
-  let orgId: unknown;
-  let returnUrl: unknown;
+  let planId: unknown
+  let orgId: unknown
+  let returnUrl: unknown
   try {
-    ({ planId, orgId, returnUrl } = await req.json());
+    ;({ planId, orgId, returnUrl } = await req.json())
   } catch {
-    return json({ success: false, error: "Malformed JSON body" }, 400);
+    return json({ success: false, error: 'Malformed JSON body' }, 400)
   }
-  if (typeof planId !== "string" || !planId) {
-    return json({ success: false, error: "planId is required" }, 400);
+  if (typeof planId !== 'string' || !planId) {
+    return json({ success: false, error: 'planId is required' }, 400)
   }
-  if (typeof orgId !== "string" || !orgId) {
-    return json({ success: false, error: "orgId is required" }, 400);
+  if (typeof orgId !== 'string' || !orgId) {
+    return json({ success: false, error: 'orgId is required' }, 400)
   }
 
   // **Billing is OWNER-only, and this is now the check that says so.**
@@ -128,16 +134,23 @@ serve(async (req) => {
   // Deployed BEFORE the widened policy is pushed, or there is a window in which any admin can
   // change the org's plan.
   const { data: membership } = await supabase
-    .from("memberships")
-    .select("role")
-    .eq("org_id", orgId)
-    .eq("user_id", user.id)
-    .maybeSingle();
+    .from('memberships')
+    .select('role, organizations(slug)')
+    .eq('org_id', orgId)
+    .eq('user_id', user.id)
+    .maybeSingle()
 
-  if (membership?.role !== "owner") {
+  if (membership?.role !== 'owner') {
     // 403, not 404: they may legitimately see this subscription, they just may not buy for it.
-    return json({ success: false, error: "Only the workspace owner can change billing" }, 403);
+    return json(
+      { success: false, error: 'Only the workspace owner can change billing' },
+      403
+    )
   }
+
+  const orgSlug = (
+    membership?.organizations as unknown as { slug: string } | null
+  )?.slug
 
   // Where Stripe sends the customer afterwards.
   //
@@ -150,18 +163,23 @@ serve(async (req) => {
   // checked against the SAME allowlist as CORS. Without that it is an open redirect on the
   // far side of a completed charge. When ALLOWED_ORIGINS is unset the Origin header is the
   // only accepted source, which keeps local development working without opening a hole.
-  const originHeader = req.headers.get("origin") ?? "";
-  const requested = typeof returnUrl === "string" && returnUrl ? returnUrl : originHeader;
+  const originHeader = req.headers.get('origin') ?? ''
+  const requested =
+    typeof returnUrl === 'string' && returnUrl ? returnUrl : originHeader
 
   // With an allowlist configured, the requested base must be on it — no exceptions.
   // With none (local development), accept what was asked for. **Set ALLOWED_ORIGINS in
   // production**: it is the only thing standing between this and an open redirect.
   const base =
-    ALLOWED_ORIGINS.length > 0 ? (ALLOWED_ORIGINS.includes(requested) ? requested : "") : requested;
+    ALLOWED_ORIGINS.length > 0
+      ? ALLOWED_ORIGINS.includes(requested)
+        ? requested
+        : ''
+      : requested
 
   if (!base) {
-    console.error(`Rejected return URL "${requested}" — not in ALLOWED_ORIGINS`);
-    return json({ success: false, error: "Invalid return URL" }, 400);
+    console.error(`Rejected return URL "${requested}" — not in ALLOWED_ORIGINS`)
+    return json({ success: false, error: 'Invalid return URL' }, 400)
   }
 
   // Being non-empty is not the same as being usable. A base with no scheme — `undefined`, or
@@ -174,30 +192,32 @@ serve(async (req) => {
   // truth is that our own URL was malformed, which is a 400 and ours to fix. Note that
   // `new URL("localhost:3000")` PARSES — with protocol `localhost:` — so parsing alone is
   // not enough and the protocol has to be checked explicitly. See decisions.md **D026**.
-  let parsedBase: URL;
+  let parsedBase: URL
   try {
-    parsedBase = new URL(base);
+    parsedBase = new URL(base)
   } catch {
-    console.error(`Rejected return URL "${base}" — not a valid absolute URL`);
-    return json({ success: false, error: "Invalid return URL" }, 400);
+    console.error(`Rejected return URL "${base}" — not a valid absolute URL`)
+    return json({ success: false, error: 'Invalid return URL' }, 400)
   }
-  if (parsedBase.protocol !== "http:" && parsedBase.protocol !== "https:") {
-    console.error(`Rejected return URL "${base}" — scheme "${parsedBase.protocol}" is not http(s)`);
-    return json({ success: false, error: "Invalid return URL" }, 400);
+  if (parsedBase.protocol !== 'http:' && parsedBase.protocol !== 'https:') {
+    console.error(
+      `Rejected return URL "${base}" — scheme "${parsedBase.protocol}" is not http(s)`
+    )
+    return json({ success: false, error: 'Invalid return URL' }, 400)
   }
 
   const { data: plan, error: planError } = await supabase
-    .from("plans")
-    .select("*")
-    .eq("id", planId)
-    .maybeSingle();
+    .from('plans')
+    .select('*')
+    .eq('id', planId)
+    .maybeSingle()
 
   if (planError) {
-    console.error(planError.message);
-    return json({ success: false, error: "Could not load plan" }, 500);
+    console.error(planError.message)
+    return json({ success: false, error: 'Could not load plan' }, 500)
   }
   if (!plan) {
-    return json({ success: false, error: "Plan not found" }, 404);
+    return json({ success: false, error: 'Plan not found' }, 404)
   }
 
   // A plan with no Stripe price cannot be checked out. Two rows are like this today:
@@ -208,86 +228,98 @@ serve(async (req) => {
   // Without this check `line_items: [{ price: null }]` reaches Stripe and throws, which
   // used to surface as an opaque crash.
   if (!plan.price_id) {
-    console.error(`Plan ${plan.id} (${plan.name}) has no price_id`);
-    return json({ success: false, message: "This plan is not available for purchase yet." }, 409);
+    console.error(`Plan ${plan.id} (${plan.name}) has no price_id`)
+    return json(
+      {
+        success: false,
+        message: 'This plan is not available for purchase yet.',
+      },
+      409
+    )
   }
 
   // Scoped to the org the caller named. RLS decides whether they may see it, so a missing
   // row means "no such subscription, or not yours" — indistinguishable on purpose.
   const { data: subscription, error: subscriptionError } = await supabase
-    .from("subscriptions")
+    .from('subscriptions')
     .select(
-      "id, current_period_end, organizations(id, name), plans(name, duration_months, price_cents)",
+      'id, current_period_end, organizations(id, name), plans(name, duration_months, price_cents)'
     )
-    .eq("org_id", orgId)
-    .maybeSingle();
+    .eq('org_id', orgId)
+    .maybeSingle()
 
   if (subscriptionError) {
-    console.error(subscriptionError.message);
-    return json({ success: false, error: "Could not load subscription" }, 500);
+    console.error(subscriptionError.message)
+    return json({ success: false, error: 'Could not load subscription' }, 500)
   }
   if (!subscription) {
-    return json({ success: false, error: "Subscription not found" }, 404);
+    return json({ success: false, error: 'Subscription not found' }, 404)
   }
 
-  const rawEndDate = subscription.current_period_end;
+  const rawEndDate = subscription.current_period_end
   const currentPlan = subscription.plans as {
-    name: string;
-    duration_months: number;
-    price_cents: number;
-  };
-  const currentTier = PLAN_TIERS[currentPlan.name as keyof typeof PLAN_TIERS];
-  const newTier = PLAN_TIERS[plan.name as keyof typeof PLAN_TIERS];
-  const currentDuration = currentPlan.duration_months;
-  const newDuration = plan.duration_months;
+    name: string
+    duration_months: number
+    price_cents: number
+  }
+  const currentTier = PLAN_TIERS[currentPlan.name as keyof typeof PLAN_TIERS]
+  const newTier = PLAN_TIERS[plan.name as keyof typeof PLAN_TIERS]
+  const currentDuration = currentPlan.duration_months
+  const newDuration = plan.duration_months
 
-  const now = new Date();
-  const subscriptionEndDate = rawEndDate ? new Date(rawEndDate) : null;
-  const isExpired = subscriptionEndDate ? subscriptionEndDate < now : true;
+  const now = new Date()
+  const subscriptionEndDate = rawEndDate ? new Date(rawEndDate) : null
+  const isExpired = subscriptionEndDate ? subscriptionEndDate < now : true
 
   // ---- Business rules. These stay 200: they are answers, not failures. ----------------
   if (newTier < currentTier && !isExpired) {
     return json(
       {
         success: false,
-        message: "You cannot downgrade until your current subscription expires.",
+        message:
+          'You cannot downgrade until your current subscription expires.',
       },
-      200,
-    );
+      200
+    )
   }
 
   if (newTier === currentTier) {
     if (newDuration === currentDuration) {
-      return json({ success: false, message: "You are already subscribed to this plan." }, 200);
+      return json(
+        { success: false, message: 'You are already subscribed to this plan.' },
+        200
+      )
     }
 
     if (newDuration < currentDuration && !isExpired) {
       return json(
         {
           success: false,
-          message: "You cannot reduce your subscription duration until it expires.",
+          message:
+            'You cannot reduce your subscription duration until it expires.',
         },
-        200,
-      );
+        200
+      )
     }
   }
 
   try {
+    const orgPrefix = orgSlug ? `/${orgSlug}` : ''
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
+      payment_method_types: ['card'],
       line_items: [{ price: plan.price_id, quantity: 1 }],
-      mode: "subscription",
+      mode: 'subscription',
       customer_email: user.email, // Optional: prefills email
-      success_url: `${base}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${base}/billing/canceled`,
+      success_url: `${base}${orgPrefix}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${base}${orgPrefix}/billing/canceled`,
       // Crucial: links Stripe back to the DB rows. orgId is the value the caller asked
       // for and RLS approved, not whatever the embedded row happened to carry.
       metadata: { orgId, subId: subscription.id },
-    });
+    })
 
-    return json({ url: session.url }, 200);
+    return json({ url: session.url }, 200)
   } catch (err) {
-    console.error("Stripe checkout session failed:", (err as Error).message);
-    return json({ success: false, error: "Could not start checkout" }, 502);
+    console.error('Stripe checkout session failed:', (err as Error).message)
+    return json({ success: false, error: 'Could not start checkout' }, 502)
   }
-});
+})

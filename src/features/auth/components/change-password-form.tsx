@@ -1,0 +1,126 @@
+'use client'
+
+import * as React from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import Link from 'next/link'
+import { useForm } from 'react-hook-form'
+import { NAV_ICONS } from '@/components/layout/nav-icons'
+import {
+  FxAlert,
+  FxButton,
+  FxCard,
+  FxCardContent,
+  FxField,
+  FxFieldError,
+  FxInput,
+  FxLabel,
+} from '@/components/shared/fx'
+import { changePassword } from '../actions'
+import { CHANGE_PASSWORD } from '../data'
+import { changePasswordSchema, type ChangePasswordInput } from '../schemas'
+
+export function ChangePasswordForm() {
+  const [saved, setSaved] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const [pending, startTransition] = React.useTransition()
+
+  const form = useForm<ChangePasswordInput>({
+    resolver: zodResolver(changePasswordSchema),
+    mode: 'onTouched',
+    defaultValues: { current: '', password: '', confirm: '' },
+  })
+
+  const submit = form.handleSubmit((values) => {
+    setError(null)
+    setSaved(false)
+    startTransition(async () => {
+      const result = await changePassword(
+        values.current,
+        values.password,
+        values.confirm
+      )
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      form.reset({ current: '', password: '', confirm: '' })
+      setSaved(true)
+    })
+  })
+
+  const { errors } = form.formState
+
+  const fields = [
+    {
+      name: 'current',
+      id: 'current-password',
+      label: CHANGE_PASSWORD.current,
+      autoComplete: 'current-password',
+    },
+    {
+      name: 'password',
+      id: 'new-password',
+      label: CHANGE_PASSWORD.next,
+      autoComplete: 'new-password',
+    },
+    {
+      name: 'confirm',
+      id: 'confirm-new-password',
+      label: CHANGE_PASSWORD.confirm,
+      autoComplete: 'new-password',
+    },
+  ] as const
+
+  return (
+    <FxCard>
+      <FxCardContent className="flex flex-col gap-3.5 p-5">
+        <form onSubmit={submit} noValidate className="flex flex-col gap-3.5">
+          {error ? (
+            <FxAlert role="alert" tone="destructive" className="font-medium">
+              {error}
+            </FxAlert>
+          ) : null}
+
+          {fields.map((field) => (
+            <FxField
+              key={field.name}
+              data-invalid={Boolean(errors[field.name]) || undefined}
+            >
+              <FxLabel htmlFor={field.id} className="block leading-normal">
+                {field.label}
+              </FxLabel>
+              <FxInput
+                id={field.id}
+                type="password"
+                inputSize="sm"
+                autoComplete={field.autoComplete}
+                placeholder="••••••••"
+                aria-invalid={Boolean(errors[field.name]) || undefined}
+                {...form.register(field.name)}
+              />
+              <FxFieldError errors={[errors[field.name]]} />
+            </FxField>
+          ))}
+
+          {saved ? (
+            <FxAlert role="status" tone="success" className="font-medium">
+              <NAV_ICONS.check strokeWidth={2.2} />
+              {CHANGE_PASSWORD.saved}
+            </FxAlert>
+          ) : null}
+
+          <div className="mt-1 flex justify-end gap-2">
+            <FxButton type="button" variant="inset" asChild>
+              <Link href={CHANGE_PASSWORD.back.href}>
+                {CHANGE_PASSWORD.cancel}
+              </Link>
+            </FxButton>
+            <FxButton type="submit" disabled={pending}>
+              {pending ? 'Saving…' : CHANGE_PASSWORD.submit}
+            </FxButton>
+          </div>
+        </form>
+      </FxCardContent>
+    </FxCard>
+  )
+}

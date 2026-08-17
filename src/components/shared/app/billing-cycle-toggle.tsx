@@ -3,7 +3,6 @@
 import { FxToggleGroup, FxToggleGroupItem } from '@/components/shared/fx'
 
 export type BillingCycle = 'monthly' | 'yearly'
-
 export type BillingCycleVariant = 'default' | 'product'
 
 const CYCLES: readonly { value: BillingCycle; label: string; hint?: string }[] =
@@ -31,7 +30,6 @@ function BillingCycleToggle({
       type="single"
       density={density}
       value={value}
-      // Radix emits "" when the active item is re-clicked; the cycle is not deselectable.
       onValueChange={(next: string) =>
         next && onValueChange(next as BillingCycle)
       }

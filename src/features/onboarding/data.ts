@@ -22,6 +22,12 @@ export const ONBOARD_ACCOUNT = {
   },
 } as const
 
+/** Said by both the live field check and the server that re-checks on Launch. */
+export const ONBOARD_TAKEN = {
+  email: 'An account already exists for that email. Sign in instead.',
+  slug: 'That workspace URL is already taken.',
+} as const
+
 export const ONBOARD_PLANS_COPY = {
   title: 'Choose your plan',
   subtitle: 'Start with a 14-day free trial. Cancel anytime.',

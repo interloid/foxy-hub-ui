@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
-
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -15,11 +14,8 @@ const fxMenuPanelVariants = cva(
   {
     variants: {
       inset: {
-        /** Menu list — the panel's own 4px gutter, items supply the rest. */
         menu: 'p-1',
-        /** Form popover (the custom date range) — 14px all round. */
         form: 'p-3.5',
-        /** Full-bleed (the command palette draws its own internal rules). */
         none: 'overflow-hidden p-0',
       },
     },
@@ -110,9 +106,7 @@ const fxDropdownContentVariants = cva(
   {
     variants: {
       inset: {
-        /** Plain menu list — the panel's own 4px gutter, items supply the rest. */
         menu: 'p-1',
-        /** The panel draws its own internal rules and blocks. */
         none: 'overflow-hidden p-0',
       },
     },

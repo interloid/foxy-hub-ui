@@ -1,10 +1,9 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-
 import { ThemeToggle } from './theme-toggle'
 
-const ROUTES_WITH_OWN_TOGGLE = ['/design-system', '/']
+const ROUTES_WITH_OWN_TOGGLE = ['/design-system', '/onboard', '/']
 
 export function FloatingThemeToggle() {
   const pathname = usePathname()

@@ -1,10 +1,8 @@
 'use client'
 
 import * as React from 'react'
-
 import { InputGroup, InputGroupAddon } from '@/components/ui/input-group'
 import { cn } from '@/lib/utils'
-
 import { FxInput } from './fx-field'
 
 function FxInputGroup({
@@ -23,7 +21,6 @@ function FxInputGroup({
   )
 }
 
-/** Prefix / suffix. `align` decides which edge carries the rule, matching v2's two uses. */
 function FxInputGroupAddon({
   className,
   align = 'inline-start',

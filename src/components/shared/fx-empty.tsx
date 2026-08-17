@@ -1,8 +1,6 @@
 import * as React from 'react'
-
 import {
   Empty,
-  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -33,7 +31,6 @@ function FxEmptyHeader({
   )
 }
 
-/** 40px tile. Gap on the stack replaces the stock `mb-2`, so it is cancelled here. */
 function FxEmptyMedia({
   className,
   ...props
@@ -77,24 +74,10 @@ function FxEmptyDescription({
   )
 }
 
-function FxEmptyContent({
-  className,
-  ...props
-}: React.ComponentProps<typeof EmptyContent>) {
-  return (
-    <EmptyContent
-      data-slot="fx-empty-content"
-      className={cn('mt-1 max-w-none', className)}
-      {...props}
-    />
-  )
-}
-
 export {
   FxEmpty,
   FxEmptyHeader,
   FxEmptyMedia,
   FxEmptyTitle,
   FxEmptyDescription,
-  FxEmptyContent,
 }

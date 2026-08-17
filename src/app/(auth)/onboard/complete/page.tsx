@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-
 import { FxButton } from '@/components/shared/fx'
 import { verifySession } from '@/lib/dal'
 import {
@@ -32,12 +31,10 @@ export default async function OnboardCompletePage({
   const planName = params.plan?.trim()
   const cycle = params.cycle === 'yearly' ? 'yearly' : 'monthly'
 
-  // No plan named — the workspace is built and sitting on Free. Nothing to buy.
   if (!planName) redirect('/')
 
   const result = await startPlanCheckout(planName, cycle)
 
-  // A Stripe URL means go, immediately.
   if (result.ok && result.data.url) redirect(result.data.url)
 
   const message = result.ok
