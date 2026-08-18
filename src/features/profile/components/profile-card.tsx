@@ -1,22 +1,23 @@
 'use client'
 
-import Link from 'next/link'
-import * as React from 'react'
-import { signOut } from '@/features/auth/actions'
-import type { AccountDTO } from '@/lib/dal'
-import { initialsOf } from '@/lib/initials'
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard } from '@/components/shared/fx-card'
 import { FxField, FxInput, FxLabel } from '@/components/shared/fx-field'
+import { signOut } from '@/features/auth/actions'
+import type { AccountDTO } from '@/lib/dal'
+import { initialsOf } from '@/lib/initials'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
+import { useState, useTransition } from 'react'
 import { PROFILE } from '../data'
 import { EditableNameField } from './editable-name-field'
 
 export function ProfileCard({ account }: { account: AccountDTO }) {
-  const [signingOut, startSignOut] = React.useTransition()
+  const [signingOut, startSignOut] = useTransition()
 
-  const [fullName, setFullName] = React.useState(account.fullName)
-  const [serverName, setServerName] = React.useState(account.fullName)
+  const [fullName, setFullName] = useState<string | null>(account.fullName)
+  const [serverName, setServerName] = useState<string | null>(account.fullName)
   if (account.fullName !== serverName) {
     setServerName(account.fullName)
     setFullName(account.fullName)
@@ -24,6 +25,8 @@ export function ProfileCard({ account }: { account: AccountDTO }) {
 
   const name = fullName?.trim() || PROFILE.noName
   const initials = initialsOf(fullName, account.email)
+  const params = useParams()
+  const org = params.org as string
 
   return (
     <FxCard>
@@ -36,11 +39,11 @@ export function ProfileCard({ account }: { account: AccountDTO }) {
           <div className="text-subtle-foreground mb-2 truncate text-base">
             {account.email}
           </div>
-          {account.role ? (
+          {account.role && (
             <FxBadge variant="default" dot>
               {account.role}
             </FxBadge>
-          ) : null}
+          )}
         </div>
       </div>
 
@@ -76,7 +79,9 @@ export function ProfileCard({ account }: { account: AccountDTO }) {
           {signingOut ? 'Signing out…' : PROFILE.signOut}
         </FxButton>
         <FxButton asChild>
-          <Link href={PROFILE.passwordHref}>{PROFILE.changePassword}</Link>
+          <Link href={`/${org}/${PROFILE.passwordHref}`}>
+            {PROFILE.changePassword}
+          </Link>
         </FxButton>
       </div>
     </FxCard>

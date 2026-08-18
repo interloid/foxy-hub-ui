@@ -1,7 +1,7 @@
+import { cn } from '@/lib/utils'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { Slot } from 'radix-ui'
-import * as React from 'react'
-import { cn } from '@/lib/utils'
+import { ComponentProps } from 'react'
 
 const fxBadgeVariants = cva(
   'inline-flex w-fit shrink-0 items-center gap-1.5 border border-transparent leading-relaxed font-semibold whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-3',
@@ -40,7 +40,7 @@ function FxBadge({
   asChild = false,
   children,
   ...props
-}: React.ComponentProps<'span'> &
+}: ComponentProps<'span'> &
   VariantProps<typeof fxBadgeVariants> & { asChild?: boolean; dot?: boolean }) {
   const Comp = asChild ? Slot.Root : 'span'
 
@@ -51,9 +51,7 @@ function FxBadge({
       className={cn(fxBadgeVariants({ variant, shape, size }), className)}
       {...props}
     >
-      {dot ? (
-        <span className="size-1.5 shrink-0 rounded-full bg-current" />
-      ) : null}
+      {dot && <span className="size-1.5 shrink-0 rounded-full bg-current" />}
       {children}
     </Comp>
   )

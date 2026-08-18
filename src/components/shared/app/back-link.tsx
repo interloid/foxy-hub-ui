@@ -1,14 +1,14 @@
 import { ChevronLeftIcon } from 'lucide-react'
 import { Slot } from 'radix-ui'
-import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { ComponentProps } from 'react'
 
 function BackLink({
   className,
   children,
   asChild = false,
   ...props
-}: React.ComponentProps<'a'> & { asChild?: boolean }) {
+}: ComponentProps<'a'> & { asChild?: boolean }) {
   const Comp = asChild ? Slot.Root : 'a'
 
   return (

@@ -1,8 +1,8 @@
-import * as React from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { ComponentProps } from 'react'
 
-function FxCard({ className, ...props }: React.ComponentProps<typeof Card>) {
+function FxCard({ className, ...props }: ComponentProps<typeof Card>) {
   return (
     <Card
       data-slot="fx-card"
@@ -18,7 +18,7 @@ function FxCard({ className, ...props }: React.ComponentProps<typeof Card>) {
 function FxCardContent({
   className,
   ...props
-}: React.ComponentProps<typeof CardContent>) {
+}: ComponentProps<typeof CardContent>) {
   return (
     <CardContent
       data-slot="fx-card-content"

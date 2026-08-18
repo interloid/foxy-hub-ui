@@ -1,12 +1,12 @@
 'use client'
 
-import * as React from 'react'
 import {
   readCollapsed,
   subscribeCollapsed,
   writeCollapsed,
 } from '@/lib/sidebar'
 import { cn } from '@/lib/utils'
+import { Fragment, useSyncExternalStore } from 'react'
 import { NAV_ICONS, type NavIconName } from './nav-icons'
 import { NavItem } from './nav-item'
 
@@ -42,7 +42,7 @@ export function AppSidebar({
   onSearch?: () => void
   className?: string
 }) {
-  const collapsed = React.useSyncExternalStore(
+  const collapsed = useSyncExternalStore(
     subscribeCollapsed,
     readCollapsed,
     () => false
@@ -82,7 +82,7 @@ export function AppSidebar({
           {workspace.name.charAt(0)}
         </button>
 
-        {collapsed ? null : (
+        {!collapsed && (
           <>
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="text-md truncate font-semibold">
@@ -115,7 +115,7 @@ export function AppSidebar({
           )}
         >
           <NAV_ICONS.search size={15} strokeWidth={1.7} />
-          {collapsed ? null : (
+          {!collapsed && (
             <>
               <span className="flex-1 text-left">Search</span>
               <span className="bg-accent text-2xs rounded-[4px] px-1.25 py-px font-mono">
@@ -126,17 +126,17 @@ export function AppSidebar({
         </button>
 
         {sections.map((section, i) => (
-          <React.Fragment key={section.label ?? `section-${i}`}>
-            {section.label ? (
+          <Fragment key={section.label ?? `section-${i}`}>
+            {section.label && (
               <>
                 <div className="bg-border mx-1 my-1.5 h-px" />
-                {collapsed ? null : (
+                {!collapsed && (
                   <div className="text-2xs text-subtle-foreground px-2.5 pt-1 pb-1.5 leading-4 font-semibold">
                     {section.label}
                   </div>
                 )}
               </>
-            ) : null}
+            )}
             {section.items.map((item) => (
               <NavItem
                 key={item.href}
@@ -153,7 +153,7 @@ export function AppSidebar({
                 {item.label}
               </NavItem>
             ))}
-          </React.Fragment>
+          </Fragment>
         ))}
       </div>
 
@@ -169,7 +169,7 @@ export function AppSidebar({
           <span className="bg-brand-gradient text-2xs text-primary-foreground flex size-7.5 shrink-0 items-center justify-center rounded-full font-semibold">
             {account.initials}
           </span>
-          {collapsed ? null : (
+          {!collapsed && (
             <span className="flex min-w-0 flex-col">
               <span className="truncate text-base leading-3.75 font-medium">
                 {account.name}

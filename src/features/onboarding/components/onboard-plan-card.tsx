@@ -33,11 +33,11 @@ function OnboardPlanCard({
       )}
       {...props}
     >
-      {plan.popular ? (
+      {plan.popular && (
         <span className="bg-primary text-primary-foreground absolute -top-2.5 right-3.5 rounded-[20px] px-2.25 py-0.5 text-[10.5px] font-bold tracking-[.03em]">
           POPULAR
         </span>
-      ) : null}
+      )}
 
       <div className="text-[15px] font-semibold">{plan.name}</div>
       <div className="text-subtle-foreground mb-3 min-h-8.5 text-sm">

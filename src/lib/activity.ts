@@ -6,12 +6,9 @@ export type ActivityKind = 'system' | 'client' | 'member'
 
 export type ActivityInput = {
   orgId: string
-  /** Null only for a `system` event, which service_role writes (webhooks). */
   actorId: string | null
   actorKind: ActivityKind
-  /** Open vocabulary — `text` in the schema, not an enum. See D047. */
   type: string
-
   summary: string
   projectId?: string | null
   entityType?: string | null

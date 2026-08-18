@@ -1,14 +1,14 @@
 'use client'
 
-import * as React from 'react'
 import { InputGroup, InputGroupAddon } from '@/components/ui/input-group'
 import { cn } from '@/lib/utils'
+import { ComponentProps } from 'react'
 import { FxInput } from './fx-field'
 
 function FxInputGroup({
   className,
   ...props
-}: React.ComponentProps<typeof InputGroup>) {
+}: ComponentProps<typeof InputGroup>) {
   return (
     <InputGroup
       data-slot="fx-input-group"
@@ -25,7 +25,7 @@ function FxInputGroupAddon({
   className,
   align = 'inline-start',
   ...props
-}: React.ComponentProps<typeof InputGroupAddon>) {
+}: ComponentProps<typeof InputGroupAddon>) {
   return (
     <InputGroupAddon
       data-slot="fx-input-group-addon"
@@ -43,7 +43,7 @@ function FxInputGroupAddon({
 function FxInputGroupInput({
   className,
   ...props
-}: React.ComponentProps<typeof FxInput>) {
+}: ComponentProps<typeof FxInput>) {
   return (
     <FxInput
       data-slot="input-group-control"

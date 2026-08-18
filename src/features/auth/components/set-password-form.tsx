@@ -1,9 +1,5 @@
 'use client'
 
-import * as React from 'react'
-import { useRouter } from 'next/navigation'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
 import {
   FxButton,
   FxField,
@@ -11,13 +7,17 @@ import {
   FxInput,
   FxLabel,
 } from '@/components/shared/fx'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useRouter } from 'next/navigation'
+import { useState, useTransition } from 'react'
+import { useForm } from 'react-hook-form'
 import { setPassword } from '../actions'
 import { setPasswordSchema, type SetPasswordInput } from '../schemas'
 
 export function SetPasswordForm({ next }: { next: string }) {
   const router = useRouter()
-  const [error, setError] = React.useState<string | null>(null)
-  const [pending, startTransition] = React.useTransition()
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
 
   const form = useForm<SetPasswordInput>({
     resolver: zodResolver(setPasswordSchema),
@@ -43,14 +43,14 @@ export function SetPasswordForm({ next }: { next: string }) {
       noValidate
       className="flex max-w-100 flex-col gap-3.5"
     >
-      {error ? (
+      {error && (
         <div
           role="alert"
           className="border-destructive bg-destructive-subtle text-destructive rounded-lg border px-4 py-3 text-base"
         >
           {error}
         </div>
-      ) : null}
+      )}
 
       <FxField
         data-invalid={Boolean(form.formState.errors.password) || undefined}

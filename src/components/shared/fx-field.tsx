@@ -1,10 +1,10 @@
 'use client'
 
-import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { Field, FieldError } from '@/components/ui/field'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { ComponentProps } from 'react'
 
 const fxInputVariants = cva(
   'w-full min-w-0 border border-border bg-muted text-foreground transition-colors duration-(--duration-fast) outline-none placeholder:text-subtle-foreground focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive',
@@ -24,7 +24,7 @@ function FxInput({
   inputSize,
   type,
   ...props
-}: React.ComponentProps<'input'> & VariantProps<typeof fxInputVariants>) {
+}: ComponentProps<'input'> & VariantProps<typeof fxInputVariants>) {
   return (
     <input
       type={type}
@@ -35,7 +35,7 @@ function FxInput({
   )
 }
 
-function FxLabel({ className, ...props }: React.ComponentProps<typeof Label>) {
+function FxLabel({ className, ...props }: ComponentProps<typeof Label>) {
   return (
     <Label
       data-slot="fx-label"
@@ -45,7 +45,7 @@ function FxLabel({ className, ...props }: React.ComponentProps<typeof Label>) {
   )
 }
 
-function FxField({ className, ...props }: React.ComponentProps<typeof Field>) {
+function FxField({ className, ...props }: ComponentProps<typeof Field>) {
   return (
     <Field
       data-slot="fx-field"
@@ -58,7 +58,7 @@ function FxField({ className, ...props }: React.ComponentProps<typeof Field>) {
 function FxFieldError({
   className,
   ...props
-}: React.ComponentProps<typeof FieldError>) {
+}: ComponentProps<typeof FieldError>) {
   return (
     <FieldError data-slot="fx-field-error" className={className} {...props} />
   )

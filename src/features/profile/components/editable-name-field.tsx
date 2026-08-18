@@ -1,8 +1,5 @@
 'use client'
 
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as React from 'react'
-import { useController, useForm } from 'react-hook-form'
 import { NAV_ICONS } from '@/components/layout/nav-icons'
 import {
   FxButton,
@@ -13,6 +10,9 @@ import {
   FxInputGroupInput,
   FxLabel,
 } from '@/components/shared/fx'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useRef, useState, useTransition } from 'react'
+import { useController, useForm } from 'react-hook-form'
 import { updateFullName } from '../actions'
 import { PROFILE } from '../data'
 import { fullNameSchema, type FullNameInput } from '../schemas'
@@ -24,11 +24,11 @@ export function EditableNameField({
   fullName: string | null
   onSaved: (fullName: string) => void
 }) {
-  const [editing, setEditing] = React.useState(false)
-  const [saved, setSaved] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [pending, startTransition] = React.useTransition()
-  const inputRef = React.useRef<HTMLInputElement | null>(null)
+  const [editing, setEditing] = useState<boolean>(false)
+  const [saved, setSaved] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   const savedName = fullName ?? ''
 
@@ -148,16 +148,16 @@ export function EditableNameField({
       </FxInputGroup>
 
       <FxFieldError errors={[fieldState.error]} />
-      {error ? (
+      {error && (
         <p role="alert" className="text-destructive text-sm">
           {error}
         </p>
-      ) : null}
-      {saved && !editing ? (
+      )}
+      {saved && !editing && (
         <p role="status" className="text-success text-sm">
           {PROFILE.saved}
         </p>
-      ) : null}
+      )}
     </FxField>
   )
 }

@@ -1,8 +1,8 @@
 'use client'
 
-import * as React from 'react'
-import { CheckIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { CheckIcon } from 'lucide-react'
+import { ComponentProps, Fragment, useEffect, useRef } from 'react'
 
 export type Step = { label: string }
 
@@ -15,18 +15,18 @@ function Stepper({
   autoScrollActive = true,
   className,
   ...props
-}: React.ComponentProps<'div'> & {
+}: ComponentProps<'div'> & {
   steps: readonly Step[]
   current: number
   density?: StepperDensity
   autoScrollActive?: boolean
 }) {
   const product = density === 'product'
-  const scrollerRef = React.useRef<HTMLDivElement>(null)
-  const itemRefs = React.useRef<(HTMLDivElement | null)[]>([])
-  const mounted = React.useRef(false)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([])
+  const mounted = useRef<boolean>(false)
 
-  React.useEffect(() => {
+  useEffect(() => {
     const scroller = scrollerRef.current
     const item = itemRefs.current[current]
     const first = !mounted.current
@@ -59,7 +59,7 @@ function Stepper({
         const active = index === current
         const last = index === steps.length - 1
         return (
-          <React.Fragment key={step.label}>
+          <Fragment key={step.label}>
             <div
               ref={(node) => {
                 itemRefs.current[index] = node
@@ -94,7 +94,7 @@ function Stepper({
                 {step.label}
               </span>
             </div>
-            {last ? null : (
+            {!last && (
               <span
                 aria-hidden
                 className={cn(
@@ -104,11 +104,11 @@ function Stepper({
                 )}
               />
             )}
-          </React.Fragment>
+          </Fragment>
         )
       })}
 
-      {product ? <span aria-hidden className="min-w-6 flex-1" /> : null}
+      {product && <span aria-hidden className="min-w-6 flex-1" />}
     </div>
   )
 }

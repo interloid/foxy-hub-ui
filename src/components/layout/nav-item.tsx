@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils'
 import { cva, type VariantProps } from 'class-variance-authority'
 import Link from 'next/link'
-import * as React from 'react'
+import { ComponentProps, ReactNode } from 'react'
 
 const navItemVariants = cva(
   'flex w-full cursor-pointer items-center rounded-md transition-colors duration-(--duration-fast)',
@@ -31,10 +31,10 @@ function NavItem({
   collapsed = false,
   children,
   ...props
-}: Omit<React.ComponentProps<typeof Link>, 'href'> &
+}: Omit<ComponentProps<typeof Link>, 'href'> &
   VariantProps<typeof navItemVariants> & {
-    icon?: boolean | React.ReactNode
-    count?: React.ReactNode
+    icon?: boolean | ReactNode
+    count?: ReactNode
     collapsed?: boolean
     href: string
   }) {
@@ -63,11 +63,12 @@ function NavItem({
       ) : (
         icon || null
       )}
-      {collapsed ? null : (
+      {!collapsed && (
         <span className="min-w-0 flex-1 truncate">{children}</span>
       )}
-      {count && !collapsed ? (
-        isProduct ? (
+      {Boolean(count) &&
+        !collapsed &&
+        (isProduct ? (
           <span className="bg-sidebar-accent text-2xs text-sidebar-accent-foreground shrink-0 rounded-[20px] px-1.75 py-px leading-3.5 font-semibold">
             {count}
           </span>
@@ -80,8 +81,7 @@ function NavItem({
           >
             {count}
           </span>
-        )
-      ) : null}
+        ))}
     </Link>
   )
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { env } from '@/config/env'
 import {
   applyTheme,
   getSystemTheme,
@@ -79,7 +80,7 @@ export function ThemeProvider({
     try {
       localStorage.setItem(THEME_STORAGE_KEY, next)
     } catch (err) {
-      if (process.env.NODE_ENV === 'development' && err instanceof Error) {
+      if (env.NODE_ENV === 'development' && err instanceof Error) {
         toast.warning(`Failed to persist theme choice to localStorage: ${err}`)
       }
     }

@@ -2,7 +2,7 @@
 
 import { ThemeToggle } from '@/components/shared/theme-toggle'
 import { cn } from '@/lib/utils'
-import * as React from 'react'
+import { ReactNode } from 'react'
 import { AccountMenu } from './account-menu'
 import { NAV_ICONS } from './nav-icons'
 
@@ -12,7 +12,7 @@ export function TopBar({
   notificationCount = 0,
   className,
 }: {
-  breadcrumb: React.ReactNode
+  breadcrumb: ReactNode
   account: { name: string; email: string; initials: string; org?: string }
   notificationCount?: number
   className?: string
@@ -42,9 +42,9 @@ export function TopBar({
         className="border-border bg-muted text-muted-foreground hover:text-foreground focus-visible:ring-ring relative flex size-8.5 shrink-0 items-center justify-center rounded-md border transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
         <NAV_ICONS.bell size={17} strokeWidth={1.6} />
-        {notificationCount > 0 ? (
+        {notificationCount > 0 && (
           <span className="border-muted bg-primary absolute top-1.5 right-1.75 size-1.5 rounded-full border" />
-        ) : null}
+        )}
       </button>
 
       <AccountMenu account={account} />

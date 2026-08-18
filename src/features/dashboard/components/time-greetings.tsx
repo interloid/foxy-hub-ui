@@ -1,6 +1,6 @@
 'use client'
 
-import * as React from 'react'
+import { useSyncExternalStore } from 'react'
 
 function getTimeBasedGreeting(): string {
   if (typeof window === 'undefined') return 'Good day'
@@ -15,7 +15,7 @@ function getTimeBasedGreeting(): string {
 }
 
 function useClientGreeting() {
-  return React.useSyncExternalStore(
+  return useSyncExternalStore(
     () => () => {},
     () => getTimeBasedGreeting(),
     () => 'Good day'

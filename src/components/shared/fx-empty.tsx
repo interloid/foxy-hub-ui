@@ -1,4 +1,3 @@
-import * as React from 'react'
 import {
   Empty,
   EmptyDescription,
@@ -7,8 +6,9 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { cn } from '@/lib/utils'
+import { ComponentProps } from 'react'
 
-function FxEmpty({ className, ...props }: React.ComponentProps<typeof Empty>) {
+function FxEmpty({ className, ...props }: ComponentProps<typeof Empty>) {
   return (
     <Empty
       data-slot="fx-empty"
@@ -21,7 +21,7 @@ function FxEmpty({ className, ...props }: React.ComponentProps<typeof Empty>) {
 function FxEmptyHeader({
   className,
   ...props
-}: React.ComponentProps<typeof EmptyHeader>) {
+}: ComponentProps<typeof EmptyHeader>) {
   return (
     <EmptyHeader
       data-slot="fx-empty-header"
@@ -34,7 +34,7 @@ function FxEmptyHeader({
 function FxEmptyMedia({
   className,
   ...props
-}: React.ComponentProps<typeof EmptyMedia>) {
+}: ComponentProps<typeof EmptyMedia>) {
   return (
     <EmptyMedia
       data-slot="fx-empty-media"
@@ -51,7 +51,7 @@ function FxEmptyMedia({
 function FxEmptyTitle({
   className,
   ...props
-}: React.ComponentProps<typeof EmptyTitle>) {
+}: ComponentProps<typeof EmptyTitle>) {
   return (
     <EmptyTitle
       data-slot="fx-empty-title"
@@ -64,7 +64,7 @@ function FxEmptyTitle({
 function FxEmptyDescription({
   className,
   ...props
-}: React.ComponentProps<typeof EmptyDescription>) {
+}: ComponentProps<typeof EmptyDescription>) {
   return (
     <EmptyDescription
       data-slot="fx-empty-description"

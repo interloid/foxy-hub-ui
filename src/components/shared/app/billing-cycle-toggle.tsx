@@ -1,5 +1,3 @@
-'use client'
-
 import { FxToggleGroup, FxToggleGroupItem } from '@/components/shared/fx'
 
 export type BillingCycle = 'monthly' | 'yearly'
@@ -43,15 +41,15 @@ function BillingCycleToggle({
           density={density}
         >
           {product ? cycle.label : cycle.value}
-          {product ? (
-            cycle.value === 'yearly' ? (
-              <span className="text-success ml-1">−17%</span>
-            ) : null
-          ) : cycle.hint ? (
-            <span className="text-2xs font-medium opacity-80">
-              {cycle.hint}
-            </span>
-          ) : null}
+          {product
+            ? cycle.value === 'yearly' && (
+                <span className="text-success ml-1">−17%</span>
+              )
+            : cycle.hint && (
+                <span className="text-2xs font-medium opacity-80">
+                  {cycle.hint}
+                </span>
+              )}
         </FxToggleGroupItem>
       ))}
     </FxToggleGroup>

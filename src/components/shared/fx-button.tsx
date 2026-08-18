@@ -1,7 +1,7 @@
-import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { Slot } from 'radix-ui'
 import { cn } from '@/lib/utils'
+import { ComponentProps } from 'react'
 
 const fxButtonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-transparent whitespace-nowrap font-semibold transition-colors duration-(--duration-fast) outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
@@ -45,7 +45,7 @@ function FxButton({
   size,
   asChild = false,
   ...props
-}: React.ComponentProps<'button'> &
+}: ComponentProps<'button'> &
   VariantProps<typeof fxButtonVariants> & { asChild?: boolean }) {
   const Comp = asChild ? Slot.Root : 'button'
 

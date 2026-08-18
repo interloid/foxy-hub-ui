@@ -1,12 +1,12 @@
-import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { FxButton } from '@/components/shared/fx'
-import { verifySession } from '@/lib/dal'
 import {
   redeemPendingInvites,
   startPlanCheckout,
 } from '@/features/onboarding/actions'
+import { verifySession } from '@/lib/dal'
 import type { Metadata } from 'next'
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
 export const metadata: Metadata = {
   title: 'Finishing setup',
@@ -57,12 +57,11 @@ export default async function OnboardCompletePage({
           Workspace created
         </h1>
         <p className="text-md text-muted-foreground mb-2">{message}</p>
-        {sentNote ? (
-          <p className="text-success mb-2 text-sm">{sentNote}</p>
-        ) : null}
-        {failedNote ? (
+        {sentNote && <p className="text-success mb-2 text-sm">{sentNote}</p>}
+
+        {failedNote && (
           <p className="text-destructive mb-2 text-sm">{failedNote}</p>
-        ) : null}
+        )}
         <div className="mb-6" />
         <FxButton asChild size="block" className="rounded-lg">
           <Link href="/">Go to your dashboard</Link>

@@ -1,7 +1,7 @@
-import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { Alert } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
+import { ComponentProps } from 'react'
 
 const fxAlertVariants = cva(
   'grid items-start gap-2.5 rounded-md border px-3.5 py-3 text-base leading-snug has-[>svg]:grid-cols-[auto_1fr] *:[svg]:mt-px *:[svg]:size-4',
@@ -25,7 +25,7 @@ function FxAlert({
   className,
   tone,
   ...props
-}: React.ComponentProps<typeof Alert> & VariantProps<typeof fxAlertVariants>) {
+}: ComponentProps<typeof Alert> & VariantProps<typeof fxAlertVariants>) {
   return (
     <Alert
       data-slot="fx-alert"

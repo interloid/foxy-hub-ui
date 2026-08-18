@@ -1,9 +1,5 @@
 'use client'
 
-import * as React from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
-import Link from 'next/link'
-import { useForm } from 'react-hook-form'
 import { NAV_ICONS } from '@/components/layout/nav-icons'
 import {
   FxButton,
@@ -12,14 +8,18 @@ import {
   FxInput,
   FxLabel,
 } from '@/components/shared/fx/index'
+import { zodResolver } from '@hookform/resolvers/zod'
+import Link from 'next/link'
+import { Fragment, useState, useTransition } from 'react'
+import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { signInAsDemo, signInWithPassword } from '../actions'
 import { SIGN_IN } from '../data'
 import { signInSchema, type SignInInput } from '../schemas'
 
 export function SignInForm({ initialError }: { initialError?: string }) {
-  const [error, setError] = React.useState<string | null>(initialError ?? null)
-  const [pending, startTransition] = React.useTransition()
+  const [error, setError] = useState<string | null>(initialError ?? null)
+  const [pending, startTransition] = useTransition()
 
   const form = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
@@ -121,16 +121,16 @@ export function SignInForm({ initialError }: { initialError?: string }) {
 
       <div className="text-muted-foreground mt-4.5 flex flex-wrap items-center gap-2 text-base">
         {SIGN_IN.alternatives.map((alt, i) => (
-          <React.Fragment key={alt.href}>
+          <Fragment key={alt.href}>
             {i > 0 && <span className="text-border-strong">·</span>}
-            {alt.prompt ? <span>{alt.prompt}</span> : null}
+            {alt.prompt && <span>{alt.prompt}</span>}
             <Link
               href={alt.href}
               className="text-primary-accent hover:text-primary font-semibold"
             >
               {alt.label}
             </Link>
-          </React.Fragment>
+          </Fragment>
         ))}
       </div>
     </>

@@ -1,9 +1,5 @@
 'use client'
 
-import * as React from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
-import Link from 'next/link'
-import { useForm } from 'react-hook-form'
 import { NAV_ICONS } from '@/components/layout/nav-icons'
 import {
   FxAlert,
@@ -15,14 +11,18 @@ import {
   FxInput,
   FxLabel,
 } from '@/components/shared/fx'
+import { zodResolver } from '@hookform/resolvers/zod'
+import Link from 'next/link'
+import { useState, useTransition } from 'react'
+import { useForm } from 'react-hook-form'
 import { changePassword } from '../actions'
 import { CHANGE_PASSWORD } from '../data'
 import { changePasswordSchema, type ChangePasswordInput } from '../schemas'
 
 export function ChangePasswordForm() {
-  const [saved, setSaved] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-  const [pending, startTransition] = React.useTransition()
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
 
   const form = useForm<ChangePasswordInput>({
     resolver: zodResolver(changePasswordSchema),
@@ -75,11 +75,11 @@ export function ChangePasswordForm() {
     <FxCard>
       <FxCardContent className="flex flex-col gap-3.5 p-5">
         <form onSubmit={submit} noValidate className="flex flex-col gap-3.5">
-          {error ? (
+          {error && (
             <FxAlert role="alert" tone="destructive" className="font-medium">
               {error}
             </FxAlert>
-          ) : null}
+          )}
 
           {fields.map((field) => (
             <FxField
@@ -102,12 +102,12 @@ export function ChangePasswordForm() {
             </FxField>
           ))}
 
-          {saved ? (
+          {saved && (
             <FxAlert role="status" tone="success" className="font-medium">
               <NAV_ICONS.check strokeWidth={2.2} />
               {CHANGE_PASSWORD.saved}
             </FxAlert>
-          ) : null}
+          )}
 
           <div className="mt-1 flex justify-end gap-2">
             <FxButton type="button" variant="inset" asChild>

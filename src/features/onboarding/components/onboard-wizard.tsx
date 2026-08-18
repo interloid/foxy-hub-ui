@@ -1,17 +1,10 @@
 'use client'
 
-import * as React from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowRight, CheckIcon, MailCheck, Plus } from 'lucide-react'
-import Link from 'next/link'
 import {
-  useFieldArray,
-  useForm,
-  useWatch,
-  type UseFormReturn,
-} from 'react-hook-form'
+  BillingCycleToggle,
+  type BillingCycle,
+} from '@/components/shared/app/billing-cycle-toggle'
 import { Stepper } from '@/components/shared/app/stepper'
-import { ThemeToggle } from '@/components/shared/theme-toggle'
 import {
   FxButton,
   FxEmpty,
@@ -27,11 +20,18 @@ import {
   FxInputGroupInput,
   FxLabel,
 } from '@/components/shared/fx'
+import { ThemeToggle } from '@/components/shared/theme-toggle'
 import { cn } from '@/lib/utils'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { ArrowRight, CheckIcon, MailCheck, Plus } from 'lucide-react'
+import Link from 'next/link'
+import { ComponentProps, ReactNode, useState, useTransition } from 'react'
 import {
-  BillingCycleToggle,
-  type BillingCycle,
-} from '@/components/shared/app/billing-cycle-toggle'
+  useFieldArray,
+  useForm,
+  useWatch,
+  type UseFormReturn,
+} from 'react-hook-form'
 import {
   checkEmailAvailable,
   checkSlugAvailable,
@@ -58,12 +58,12 @@ function hasError(value: unknown): boolean {
 }
 
 export function OnboardWizard() {
-  const [step, setStep] = React.useState(0)
-  const [slugState, setSlugState] = React.useState<CheckState>('idle')
-  const [emailState, setEmailState] = React.useState<CheckState>('idle')
-  const [error, setError] = React.useState<string | null>(null)
-  const [sentTo, setSentTo] = React.useState<string | null>(null)
-  const [pending, startTransition] = React.useTransition()
+  const [step, setStep] = useState<number>(0)
+  const [slugState, setSlugState] = useState<CheckState>('idle')
+  const [emailState, setEmailState] = useState<CheckState>('idle')
+  const [error, setError] = useState<string | null>(null)
+  const [sentTo, setSentTo] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
 
   const form = useForm<WizardInput>({
     resolver: zodResolver(wizardSchema),
@@ -231,15 +231,15 @@ export function OnboardWizard() {
             </FxEmpty>
           ) : (
             <>
-              {error ? (
+              {error && (
                 <div
                   role="alert"
                   className="border-destructive bg-destructive-subtle text-destructive mb-5 rounded-lg border px-4 py-3 text-base"
                 >
                   {error}
                 </div>
-              ) : null}
-              {step === 0 ? (
+              )}
+              {step === 0 && (
                 <>
                   <StepHeading
                     title={ONBOARD_ACCOUNT.title}
@@ -308,9 +308,9 @@ export function OnboardWizard() {
                     </FxField>
                   </div>
                 </>
-              ) : null}
+              )}
 
-              {step === 1 ? (
+              {step === 1 && (
                 <>
                   <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
                     <StepHeading
@@ -343,9 +343,9 @@ export function OnboardWizard() {
                     ))}
                   </div>
                 </>
-              ) : null}
+              )}
 
-              {step === 2 ? (
+              {step === 2 && (
                 <>
                   <StepHeading
                     title={ONBOARD_TEAM.title}
@@ -400,9 +400,9 @@ export function OnboardWizard() {
                     </FxButton>
                   </div>
                 </>
-              ) : null}
+              )}
 
-              {step === 3 ? (
+              {step === 3 && (
                 <>
                   <StepHeading
                     title={ONBOARD_CONFIRM.title}
@@ -433,14 +433,14 @@ export function OnboardWizard() {
                     </div>
                   </div>
                 </>
-              ) : null}
+              )}
             </>
           )}
 
-          {sentTo ? null : (
+          {!sentTo && (
             <>
               <div className="border-border mt-6.5 flex items-center justify-between gap-2.5 border-t pt-5">
-                {step > 0 ? (
+                {step > 0 && (
                   <FxButton
                     type="button"
                     variant="inset"
@@ -449,7 +449,7 @@ export function OnboardWizard() {
                   >
                     {ONBOARD_NAV.back}
                   </FxButton>
-                ) : null}
+                )}
 
                 {step < last ? (
                   <FxButton
@@ -504,10 +504,7 @@ function StepHeading({
   )
 }
 
-function OnboardLabel({
-  children,
-  ...props
-}: React.ComponentProps<typeof FxLabel>) {
+function OnboardLabel({ children, ...props }: ComponentProps<typeof FxLabel>) {
   return (
     <FxLabel {...props} className="block text-[12px] leading-normal">
       {children}
@@ -534,7 +531,7 @@ function AccountField({
   form: UseFormReturn<WizardInput>
   onBlur?: () => void
   onChange?: () => void
-  status?: React.ReactNode
+  status?: ReactNode
 }) {
   const invalid = Boolean(form.formState.errors[name]) || undefined
   const statusId = status === undefined ? undefined : `${id}-status`
@@ -552,7 +549,7 @@ function AccountField({
           ...(onChange ? { onChange: () => onChange() } : {}),
         })}
       />
-      {statusId ? (
+      {statusId && (
         <p
           id={statusId}
           aria-live="polite"
@@ -560,7 +557,7 @@ function AccountField({
         >
           {status}
         </p>
-      ) : null}
+      )}
       <FxFieldError errors={[form.formState.errors[name]]} />
     </FxField>
   )

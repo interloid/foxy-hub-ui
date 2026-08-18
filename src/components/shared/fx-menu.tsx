@@ -1,13 +1,13 @@
 'use client'
 
-import * as React from 'react'
-import { cva, type VariantProps } from 'class-variance-authority'
 import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
 import { PopoverContent } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { cva, type VariantProps } from 'class-variance-authority'
+import { ComponentProps } from 'react'
 
 const fxMenuPanelVariants = cva(
   'bg-popover border-border shadow-panel rounded-xl border',
@@ -27,7 +27,7 @@ function FxMenuPanel({
   className,
   inset,
   ...props
-}: React.ComponentProps<'div'> & VariantProps<typeof fxMenuPanelVariants>) {
+}: ComponentProps<'div'> & VariantProps<typeof fxMenuPanelVariants>) {
   return (
     <div
       data-slot="fx-menu-panel"
@@ -59,7 +59,7 @@ function FxMenuItem({
   tone,
   highlighted,
   ...props
-}: React.ComponentProps<'div'> & VariantProps<typeof fxMenuItemVariants>) {
+}: ComponentProps<'div'> & VariantProps<typeof fxMenuItemVariants>) {
   return (
     <div
       data-slot="fx-menu-item"
@@ -69,7 +69,7 @@ function FxMenuItem({
   )
 }
 
-function FxMenuIcon({ className, ...props }: React.ComponentProps<'span'>) {
+function FxMenuIcon({ className, ...props }: ComponentProps<'span'>) {
   return (
     <span
       data-slot="fx-menu-icon"
@@ -86,7 +86,7 @@ function FxMenuIcon({ className, ...props }: React.ComponentProps<'span'>) {
 function FxPopoverContent({
   className,
   ...props
-}: React.ComponentProps<typeof PopoverContent>) {
+}: ComponentProps<typeof PopoverContent>) {
   return (
     <PopoverContent
       data-slot="fx-popover-content"
@@ -120,7 +120,7 @@ function FxDropdownMenuContent({
   align = 'end',
   sideOffset = 6,
   ...props
-}: React.ComponentProps<typeof DropdownMenuContent> &
+}: ComponentProps<typeof DropdownMenuContent> &
   VariantProps<typeof fxDropdownContentVariants>) {
   return (
     <DropdownMenuContent
@@ -136,7 +136,7 @@ function FxDropdownMenuContent({
 function FxDropdownMenuItem({
   className,
   ...props
-}: React.ComponentProps<typeof DropdownMenuItem>) {
+}: ComponentProps<typeof DropdownMenuItem>) {
   return (
     <DropdownMenuItem
       data-slot="fx-dropdown-menu-item"
@@ -151,21 +151,21 @@ function FxDropdownMenuItem({
 }
 
 export {
-  FxMenuPanel,
-  FxMenuItem,
-  FxMenuIcon,
-  FxPopoverContent,
-  FxDropdownMenuContent,
-  FxDropdownMenuItem,
-  fxMenuPanelVariants,
-  fxMenuItemVariants,
-  fxDropdownContentVariants,
-}
-export { Popover, PopoverTrigger } from '@/components/ui/popover'
-export {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+export { Popover, PopoverTrigger } from '@/components/ui/popover'
+export {
+  fxDropdownContentVariants,
+  FxDropdownMenuContent,
+  FxDropdownMenuItem,
+  FxMenuIcon,
+  FxMenuItem,
+  fxMenuItemVariants,
+  FxMenuPanel,
+  fxMenuPanelVariants,
+  FxPopoverContent,
+}

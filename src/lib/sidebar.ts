@@ -1,3 +1,4 @@
+import { env } from '@/config/env'
 import { toast } from 'sonner'
 
 export const SIDEBAR_STORAGE_KEY = 'sidebar-collapsed'
@@ -16,7 +17,7 @@ export function writeCollapsed(collapsed: boolean): void {
   try {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? '1' : '0')
   } catch (err) {
-    if (process.env.NODE_ENV === 'development' && err instanceof Error) {
+    if (env.NODE_ENV === 'development' && err instanceof Error) {
       toast.warning(
         `Failed to persist sidebar state to localStorage, ${err?.message}`
       )

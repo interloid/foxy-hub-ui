@@ -1,12 +1,9 @@
-'use client'
-
-import * as React from 'react'
-
 import { cn } from '@/lib/utils'
 import { AppFooter } from './app-footer'
 import { AppSidebar, NavIcon, type NavSection } from './app-sidebar'
 import { NavItem } from './nav-item'
 import { TopBar } from './top-bar'
+import { ComponentProps, ReactNode } from 'react'
 
 export function AppShell({
   sections,
@@ -30,11 +27,11 @@ export function AppShell({
     initials: string
     org?: string
   }
-  breadcrumb: React.ReactNode
-  footer: React.ComponentProps<typeof AppFooter>
+  breadcrumb: ReactNode
+  footer: ComponentProps<typeof AppFooter>
   notificationCount?: number
   onSearch?: () => void
-  children: React.ReactNode
+  children: ReactNode
   className?: string
 }) {
   const primary = sections[0]?.items ?? []

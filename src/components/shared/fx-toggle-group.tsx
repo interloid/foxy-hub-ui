@@ -1,9 +1,9 @@
 'use client'
 
-import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
+import { ComponentProps } from 'react'
 
 const fxToggleGroupVariants = cva(
   'bg-muted border-border w-fit border p-[2px]',
@@ -40,7 +40,7 @@ function FxToggleGroup({
   className,
   density,
   ...props
-}: React.ComponentProps<typeof ToggleGroup> &
+}: ComponentProps<typeof ToggleGroup> &
   VariantProps<typeof fxToggleGroupVariants>) {
   return (
     <ToggleGroup
@@ -56,7 +56,7 @@ function FxToggleGroupItem({
   className,
   density,
   ...props
-}: React.ComponentProps<typeof ToggleGroupItem> &
+}: ComponentProps<typeof ToggleGroupItem> &
   VariantProps<typeof fxToggleGroupItemVariants>) {
   return (
     <ToggleGroupItem

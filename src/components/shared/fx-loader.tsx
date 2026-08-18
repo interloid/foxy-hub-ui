@@ -1,8 +1,8 @@
 'use client'
 
 import { cva, type VariantProps } from 'class-variance-authority'
-import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { ComponentProps } from 'react'
 
 const fxSpinnerVariants = cva(
   'animate-fx-spin inline-block rounded-full border-border-strong border-t-primary',
@@ -21,7 +21,7 @@ function FxSpinner({
   className,
   spinnerSize,
   ...props
-}: React.ComponentProps<'span'> & VariantProps<typeof fxSpinnerVariants>) {
+}: ComponentProps<'span'> & VariantProps<typeof fxSpinnerVariants>) {
   return (
     <span
       data-slot="fx-spinner"

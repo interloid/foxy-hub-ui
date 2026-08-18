@@ -92,7 +92,6 @@ export const ONBOARD_TEAM = {
   subtitle: 'Add teammates now, or skip and do it later from Settings.',
   placeholder: 'teammate@agency.com',
   roles: ['Admin', 'Member'] as const,
-  /** The prototype ships two rows, the first defaulting to Admin and the second to Member. */
   initialRows: [{ role: 'Admin' }, { role: 'Member' }] as const,
   addLabel: 'Add another',
 } as const

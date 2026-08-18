@@ -12,7 +12,7 @@ import {
 import { signOut } from '@/features/auth/actions'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
-import * as React from 'react'
+import { useTransition } from 'react'
 import { FxSpinner } from '../shared/fx-loader'
 import { NAV_ICONS } from './nav-icons'
 
@@ -23,7 +23,7 @@ export function AccountMenu({
   account: { name: string; email: string; initials: string; org?: string }
   className?: string
 }) {
-  const [signingOut, startSignOut] = React.useTransition()
+  const [signingOut, startSignOut] = useTransition()
 
   return (
     <DropdownMenu>
