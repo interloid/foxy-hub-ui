@@ -12,7 +12,7 @@ import {
   setPasswordSchema,
   signInSchema,
 } from './schemas'
-import { env } from '@/config/env'
+import { serverEnv } from '@/config/env.server'
 
 export type AuthResult = { ok: true } | { ok: false; error: string }
 
@@ -73,8 +73,8 @@ export async function sendPasswordReset(email: string): Promise<AuthResult> {
 }
 
 export async function signInAsDemo(): Promise<AuthResult> {
-  const email = env.DEMO_ACCOUNT_EMAIL
-  const password = env.DEMO_ACCOUNT_PASSWORD
+  const email = serverEnv.DEMO_ACCOUNT_EMAIL
+  const password = serverEnv.DEMO_ACCOUNT_PASSWORD
 
   if (!email || !password) {
     return { ok: false, error: 'The demo account is not configured.' }

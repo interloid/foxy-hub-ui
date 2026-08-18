@@ -1,5 +1,9 @@
 import { z } from 'zod'
 
+// Only variables that are safe to evaluate in the browser belong here.
+// Next.js inlines NEXT_PUBLIC_* and NODE_ENV into client bundles; every other
+// variable is `undefined` on the client, so validating it here would throw at
+// module evaluation in the browser. Server-only vars live in `env.server.ts`.
 const envSchema = z.object({
   NEXT_PUBLIC_SITE_URL: z.url(),
   NEXT_PUBLIC_SITE_NAME: z.string().min(1),
@@ -10,13 +14,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
 
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   NODE_ENV: z.enum(['development', 'production', 'test']),
-  DEMO_ACCOUNT_EMAIL: z.email(
-    'DEMO_ACCOUNT_EMAIL must be a valid email address'
-  ),
-
-  DEMO_ACCOUNT_PASSWORD: z.string().min(1, 'DEMO_ACCOUNT_PASSWORD is required'),
 })
 
 export const env = envSchema.parse({
@@ -27,8 +25,5 @@ export const env = envSchema.parse({
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
 
-  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   NODE_ENV: process.env.NODE_ENV,
-  DEMO_ACCOUNT_EMAIL: process.env.DEMO_ACCOUNT_EMAIL,
-  DEMO_ACCOUNT_PASSWORD: process.env.DEMO_ACCOUNT_PASSWORD,
 })
