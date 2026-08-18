@@ -10,7 +10,7 @@ import {
 } from '@/components/shared/fx/index'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
-import { Fragment, useState, useTransition } from 'react'
+import { Fragment, useEffect, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { signInAsDemo, signInWithPassword } from '../actions'
@@ -18,9 +18,12 @@ import { SIGN_IN } from '../data'
 import { signInSchema, type SignInInput } from '../schemas'
 
 export function SignInForm({ initialError }: { initialError?: string }) {
-  const [error, setError] = useState<string | null>(initialError ?? null)
   const [pending, startTransition] = useTransition()
-
+  useEffect(() => {
+    if (initialError) {
+      toast.error(initialError)
+    }
+  }, [initialError])
   const form = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
     mode: 'onTouched',
@@ -28,12 +31,10 @@ export function SignInForm({ initialError }: { initialError?: string }) {
   })
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
-    setError(null)
     startTransition(async () => {
       const result = await fn()
       if (!result.ok) {
-        setError(result.error ?? 'Something went wrong.')
-        toast.error(error)
+        toast.error(result.error)
       }
     })
   }
