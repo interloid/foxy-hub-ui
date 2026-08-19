@@ -63,7 +63,7 @@ export default async function OnboardCompletePage({
           <p className="text-destructive mb-2 text-sm">{failedNote}</p>
         )}
         <div className="mb-6" />
-        <FxButton asChild size="block" className="rounded-lg">
+        <FxButton asChild className="text-md h-11 w-full rounded-lg px-4">
           <Link href="/">Go to your dashboard</Link>
         </FxButton>
       </div>

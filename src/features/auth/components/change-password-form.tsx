@@ -15,6 +15,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 import { changePassword } from '../actions'
 import { CHANGE_PASSWORD } from '../data'
 import { changePasswordSchema, type ChangePasswordInput } from '../schemas'
@@ -41,8 +42,11 @@ export function ChangePasswordForm() {
       )
       if (!result.ok) {
         setError(result.error)
+        toast.error(result.error ?? 'An error occurred')
         return
       }
+      toast.success('Password updated successfully')
+
       form.reset({ current: '', password: '', confirm: '' })
       setSaved(true)
     })
@@ -110,7 +114,11 @@ export function ChangePasswordForm() {
           )}
 
           <div className="mt-1 flex justify-end gap-2">
-            <FxButton type="button" variant="inset" asChild>
+            <FxButton
+              type="button"
+              asChild
+              className="border-border bg-muted text-foreground hover:border-border-strong hover:bg-muted"
+            >
               <Link href={CHANGE_PASSWORD.back.href}>
                 {CHANGE_PASSWORD.cancel}
               </Link>

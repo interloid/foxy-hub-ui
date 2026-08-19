@@ -22,6 +22,7 @@ import {
 } from '@/components/shared/fx'
 import { ThemeToggle } from '@/components/shared/theme-toggle'
 import { cn } from '@/lib/utils'
+import { CheckEmailSkeleton } from '@/skeleton/verify-mail-skeleton'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowRight, CheckIcon, MailCheck, Plus } from 'lucide-react'
 import Link from 'next/link'
@@ -63,6 +64,8 @@ export function OnboardWizard() {
   const [emailState, setEmailState] = useState<CheckState>('idle')
   const [error, setError] = useState<string | null>(null)
   const [sentTo, setSentTo] = useState<string | null>(null)
+  const [checkingEmail, setCheckingEmail] = useState(false)
+  const [checkingSlug, setCheckingSlug] = useState(false)
   const [pending, startTransition] = useTransition()
 
   const form = useForm<WizardInput>({
@@ -85,6 +88,7 @@ export function OnboardWizard() {
   const invites = useFieldArray({ control: form.control, name: 'invites' })
   const planId = useWatch({ control: form.control, name: 'planId' })
   const cycle = useWatch({ control: form.control, name: 'cycle' })
+
   const checkSlug = async () => {
     const candidate = form.getValues('slug').trim()
     if (!candidate || !(await form.trigger('slug'))) {
@@ -92,7 +96,8 @@ export function OnboardWizard() {
       return
     }
     setSlugState('checking')
-    startTransition(async () => {
+    setCheckingSlug(true)
+    try {
       const result = await checkSlugAvailable(candidate)
       if (!result.ok) {
         form.setError('slug', { message: result.error })
@@ -103,7 +108,9 @@ export function OnboardWizard() {
       if (!result.data) {
         form.setError('slug', { message: ONBOARD_TAKEN.slug })
       }
-    })
+    } finally {
+      setCheckingSlug(false)
+    }
   }
 
   const checkEmail = async () => {
@@ -113,7 +120,8 @@ export function OnboardWizard() {
       return
     }
     setEmailState('checking')
-    startTransition(async () => {
+    setCheckingEmail(true)
+    try {
       const result = await checkEmailAvailable(candidate)
       if (!result.ok) {
         form.setError('email', { message: result.error })
@@ -124,7 +132,9 @@ export function OnboardWizard() {
       if (!result.data) {
         form.setError('email', { message: ONBOARD_TAKEN.email })
       }
-    })
+    } finally {
+      setCheckingEmail(false)
+    }
   }
 
   const goNext = async () => {
@@ -181,6 +191,8 @@ export function OnboardWizard() {
   const blocked =
     stepInvalid ||
     pending ||
+    checkingEmail ||
+    checkingSlug ||
     (step === 0 &&
       [emailState, slugState].some(
         (state) => state === 'taken' || state === 'checking'
@@ -215,7 +227,11 @@ export function OnboardWizard() {
         />
 
         <div className="border-border bg-card shadow-panel rounded-2xl border p-7">
-          {sentTo ? (
+          {pending ? (
+            /* 1. Show Skeleton ONLY while launching workspace */
+            <CheckEmailSkeleton />
+          ) : sentTo ? (
+            /* 2. Show Success Check Email state */
             <FxEmpty>
               <FxEmptyHeader>
                 <FxEmptyMedia>
@@ -230,6 +246,7 @@ export function OnboardWizard() {
               </FxEmptyHeader>
             </FxEmpty>
           ) : (
+            /* 3. Show Onboarding Form Steps */
             <>
               {error && (
                 <div
@@ -259,7 +276,7 @@ export function OnboardWizard() {
                       form={form}
                       onBlur={() => void checkEmail()}
                       onChange={() => setEmailState('idle')}
-                      status={emailState === 'checking' ? 'Checking…' : null}
+                      status={checkingEmail ? 'Checking…' : null}
                       {...ONBOARD_ACCOUNT.fields.email}
                     />
                     <AccountField
@@ -278,7 +295,6 @@ export function OnboardWizard() {
                       </OnboardLabel>
 
                       <FxInputGroup>
-                        {/* Prefix: Base domain path */}
                         <FxInputGroupAddon
                           align="inline-start"
                           className="text-muted-foreground self-center border-r-0 py-0 select-none"
@@ -286,7 +302,6 @@ export function OnboardWizard() {
                           foxy-hub-amber.vercel.app/
                         </FxInputGroupAddon>
 
-                        {/* Slug Input */}
                         <FxInputGroupInput
                           id="onb-slug"
                           placeholder={ONBOARD_ACCOUNT.fields.slug.placeholder}
@@ -306,8 +321,10 @@ export function OnboardWizard() {
                         aria-live="polite"
                         className="text-success mt-1 text-sm empty:hidden"
                       >
-                        {slugState === 'checking' ? 'Checking…' : null}
-                        {slugState === 'free' ? 'Available' : null}
+                        {checkingSlug ? 'Checking…' : null}
+                        {!checkingSlug && slugState === 'free'
+                          ? 'Available'
+                          : null}
                       </p>
 
                       <FxFieldError errors={[form.formState.errors.slug]} />
@@ -394,7 +411,6 @@ export function OnboardWizard() {
                     ))}
                     <FxButton
                       type="button"
-                      variant="inset"
                       size="sm"
                       className="border-border-strong mt-0.5 h-8 self-start rounded-md text-sm"
                       onClick={() =>
@@ -443,42 +459,40 @@ export function OnboardWizard() {
             </>
           )}
 
-          {!sentTo && (
-            <>
-              <div className="border-border mt-6.5 flex items-center justify-between gap-2.5 border-t pt-5">
-                {step > 0 && (
-                  <FxButton
-                    type="button"
-                    variant="inset"
-                    className="border-border-strong h-9.5 rounded-lg px-4 text-[13.5px] font-medium"
-                    onClick={() => setStep((value) => value - 1)}
-                  >
-                    {ONBOARD_NAV.back}
-                  </FxButton>
-                )}
+          {/* Hide bottom navigation bar during pending or sentTo states */}
+          {!sentTo && !pending && (
+            <div className="border-border mt-6.5 flex items-center justify-between gap-2.5 border-t pt-5">
+              {step > 0 && (
+                <FxButton
+                  type="button"
+                  className="bg-muted text-foreground border-border-strong hover:bg-muted h-9.5 rounded-lg px-4 text-[13.5px] font-medium"
+                  onClick={() => setStep((value) => value - 1)}
+                >
+                  {ONBOARD_NAV.back}
+                </FxButton>
+              )}
 
-                {step < last ? (
-                  <FxButton
-                    type="button"
-                    className="h-9.5 rounded-lg px-5 text-[13.5px]"
-                    disabled={blocked}
-                    onClick={goNext}
-                  >
-                    {ONBOARD_NAV.next}
-                  </FxButton>
-                ) : (
-                  <FxButton
-                    type="button"
-                    className="h-9.5 gap-1.75 rounded-lg px-5 text-[13.5px]"
-                    disabled={blocked}
-                    onClick={launch}
-                  >
-                    {pending ? 'Creating…' : ONBOARD_NAV.launch}
-                    <ArrowRight className="size-4" strokeWidth={2} />
-                  </FxButton>
-                )}
-              </div>
-            </>
+              {step < last ? (
+                <FxButton
+                  type="button"
+                  className="h-9.5 rounded-lg px-5 text-[13.5px]"
+                  disabled={blocked}
+                  onClick={goNext}
+                >
+                  {ONBOARD_NAV.next}
+                </FxButton>
+              ) : (
+                <FxButton
+                  type="button"
+                  className="h-9.5 gap-1.75 rounded-lg px-5 text-[13.5px]"
+                  disabled={blocked}
+                  onClick={launch}
+                >
+                  {ONBOARD_NAV.launch}
+                  <ArrowRight className="size-4" strokeWidth={2} />
+                </FxButton>
+              )}
+            </div>
           )}
         </div>
       </div>

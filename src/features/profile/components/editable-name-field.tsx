@@ -13,6 +13,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRef, useState, useTransition } from 'react'
 import { useController, useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 import { updateFullName } from '../actions'
 import { PROFILE } from '../data'
 import { fullNameSchema, type FullNameInput } from '../schemas'
@@ -64,8 +65,10 @@ export function EditableNameField({
         const result = await updateFullName(values.fullName)
         if (!result.ok) {
           setError(result.error)
+          toast.error(result.error)
           return
         }
+        toast.success('Name updated successfully')
         onSaved(result.fullName)
         form.reset({ fullName: result.fullName })
         setEditing(false)
@@ -114,7 +117,7 @@ export function EditableNameField({
             <>
               <FxButton
                 type="button"
-                variant="ghost"
+                className="text-success hover:text-success bg-transparent hover:bg-transparent"
                 size="icon-sm"
                 aria-label={PROFILE.edit.save}
                 disabled={pending}
@@ -124,9 +127,10 @@ export function EditableNameField({
               </FxButton>
               <FxButton
                 type="button"
-                variant="ghost"
+                variant={'destructive'}
                 size="icon-sm"
                 aria-label={PROFILE.edit.cancel}
+                className="bg-transparent hover:bg-transparent"
                 disabled={pending}
                 onClick={cancelEdit}
               >
@@ -136,9 +140,9 @@ export function EditableNameField({
           ) : (
             <FxButton
               type="button"
-              variant="ghost"
               size="icon-sm"
               aria-label={PROFILE.edit.start}
+              className="text-muted-foreground hover:text-foreground bg-transparent hover:bg-transparent"
               onClick={beginEdit}
             >
               <NAV_ICONS.edit strokeWidth={1.8} />

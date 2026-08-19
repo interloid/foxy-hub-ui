@@ -1,7 +1,7 @@
-// AppShell.tsx
 'use client'
 
 import { cn } from '@/lib/utils'
+import { usePathname } from 'next/navigation'
 import { ComponentProps, ReactNode, useState } from 'react'
 import { AppFooter } from './app-footer'
 import { AppSidebar, type NavSection } from './app-sidebar'
@@ -20,7 +20,7 @@ export function AppShell({
   className,
 }: {
   sections: NavSection[]
-  activeHref: string
+  activeHref?: string
   workspace: { name: string; org: string }
   account: {
     name: string
@@ -29,7 +29,7 @@ export function AppShell({
     initials: string
     org?: string
   }
-  breadcrumb: ReactNode
+  breadcrumb?: ReactNode
   footer: ComponentProps<typeof AppFooter>
   notificationCount?: number
   onSearch?: () => void
@@ -37,6 +37,11 @@ export function AppShell({
   className?: string
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const pathname = usePathname()
+
+  const currentActiveHref = activeHref ?? pathname
+
+  const currentBreadcrumb = breadcrumb ?? getBreadcrumbFromPath(pathname)
 
   return (
     <div
@@ -47,7 +52,7 @@ export function AppShell({
       <AppSidebar
         className="shell:flex hidden"
         sections={sections}
-        activeHref={activeHref}
+        activeHref={currentActiveHref}
         workspace={workspace}
         account={account}
         onSearch={onSearch}
@@ -62,12 +67,11 @@ export function AppShell({
             onClick={() => setMobileOpen(false)}
           />
 
-          {/* Drawer Content */}
           <div className="bg-sidebar relative z-10 flex w-72 max-w-[80vw] flex-col shadow-xl">
             <AppSidebar
               isMobile
               sections={sections}
-              activeHref={activeHref}
+              activeHref={currentActiveHref}
               workspace={workspace}
               account={account}
               onSearch={() => {
@@ -83,7 +87,7 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar
-          breadcrumb={breadcrumb}
+          breadcrumb={currentBreadcrumb}
           account={{ ...account, org: account.org ?? workspace.org }}
           notificationCount={notificationCount}
           onMenuClick={() => setMobileOpen(true)}
@@ -98,4 +102,10 @@ export function AppShell({
       </div>
     </div>
   )
+}
+
+function getBreadcrumbFromPath(pathname: string): ReactNode {
+  if (pathname.endsWith('/profile/password')) return 'Change password'
+  if (pathname.endsWith('/profile')) return 'Profile'
+  return 'Home'
 }

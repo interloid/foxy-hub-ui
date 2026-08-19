@@ -1,11 +1,12 @@
 'use client'
 
 import { cva, type VariantProps } from 'class-variance-authority'
+import type { ComponentProps } from 'react'
+
 import { cn } from '@/lib/utils'
-import { ComponentProps } from 'react'
 
 const fxSpinnerVariants = cva(
-  'animate-fx-spin inline-block rounded-full border-border-strong border-t-primary',
+  'inline-block rounded-full border-border-strong border-t-primary animate-fx-spin',
   {
     variants: {
       spinnerSize: {
@@ -13,7 +14,9 @@ const fxSpinnerVariants = cva(
         sm: 'size-4 border-2',
       },
     },
-    defaultVariants: { spinnerSize: 'default' },
+    defaultVariants: {
+      spinnerSize: 'default',
+    },
   }
 )
 
@@ -27,6 +30,7 @@ function FxSpinner({
       data-slot="fx-spinner"
       role="status"
       aria-label="Loading"
+      data-size={spinnerSize ?? 'default'}
       className={cn(fxSpinnerVariants({ spinnerSize }), className)}
       {...props}
     />

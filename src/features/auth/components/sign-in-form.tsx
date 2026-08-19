@@ -1,5 +1,6 @@
 'use client'
 
+import { clearLogoutNotification } from '@/components/common/tab-session-sync'
 import { NAV_ICONS } from '@/components/layout/nav-icons'
 import {
   FxButton,
@@ -16,7 +17,7 @@ import { toast } from 'sonner'
 import { signInAsDemo, signInWithPassword } from '../actions'
 import { SIGN_IN } from '../data'
 import { signInSchema, type SignInInput } from '../schemas'
-import { clearLogoutNotification } from '@/components/common/tab-session-sync'
+import { useRouter } from 'next/navigation'
 
 export function SignInForm({ initialError }: { initialError?: string }) {
   const [pending, startTransition] = useTransition()
@@ -35,12 +36,24 @@ export function SignInForm({ initialError }: { initialError?: string }) {
     mode: 'onTouched',
     defaultValues: { email: '', password: '' },
   })
+  const router = useRouter()
 
-  const run = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
+  const run = (
+    fn: () => Promise<{ ok: boolean; error?: string; redirectTo?: string }>
+  ) => {
     startTransition(async () => {
-      const result = await fn()
-      if (!result.ok) {
-        toast.error(result.error)
+      try {
+        const result = await fn()
+        if (!result.ok) {
+          toast.error(result.error ?? 'An error occurred')
+          return
+        }
+        toast.success('Logged in successfully')
+        if (result.redirectTo) {
+          router.push(result.redirectTo)
+        }
+      } catch (err) {
+        toast.error(err as string)
       }
     })
   }
@@ -96,8 +109,7 @@ export function SignInForm({ initialError }: { initialError?: string }) {
 
         <FxButton
           type="submit"
-          size="block"
-          className="mt-1.5"
+          className="text-md mt-1.5 h-11 w-full rounded-lg px-4"
           disabled={pending}
         >
           {pending ? 'Signing in…' : SIGN_IN.submit}
@@ -114,8 +126,7 @@ export function SignInForm({ initialError }: { initialError?: string }) {
         <FxButton
           type="button"
           variant="outline"
-          size="block"
-          className="bg-card"
+          className="bg-card text-md h-11 w-full rounded-lg px-4"
           disabled={pending}
           onClick={() => run(signInAsDemo)}
         >

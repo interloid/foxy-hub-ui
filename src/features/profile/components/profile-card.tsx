@@ -60,8 +60,6 @@ export function ProfileCard({ account }: { account: AccountDTO }) {
           label={PROFILE.fields.role}
           value={account.role ?? ''}
         />
-
-        <p className="text-subtle-foreground text-xs">{PROFILE.managed}</p>
       </div>
 
       <div className="border-border flex items-center justify-between gap-2 border-t px-5 py-3.5">

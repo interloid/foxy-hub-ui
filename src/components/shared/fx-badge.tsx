@@ -1,7 +1,8 @@
-import { cn } from '@/lib/utils'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { Slot } from 'radix-ui'
 import { ComponentProps } from 'react'
+
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 
 const fxBadgeVariants = cva(
   'inline-flex w-fit shrink-0 items-center gap-1.5 border border-transparent leading-relaxed font-semibold whitespace-nowrap [&>svg]:pointer-events-none [&>svg]:size-3',
@@ -27,7 +28,11 @@ const fxBadgeVariants = cva(
         tag: 'rounded-sm',
       },
     },
-    defaultVariants: { variant: 'secondary', shape: 'pill', size: 'default' },
+    defaultVariants: {
+      variant: 'secondary',
+      shape: 'pill',
+      size: 'default',
+    },
   }
 )
 
@@ -40,12 +45,13 @@ function FxBadge({
   asChild = false,
   children,
   ...props
-}: ComponentProps<'span'> &
-  VariantProps<typeof fxBadgeVariants> & { asChild?: boolean; dot?: boolean }) {
-  const Comp = asChild ? Slot.Root : 'span'
-
+}: ComponentProps<typeof Badge> &
+  VariantProps<typeof fxBadgeVariants> & {
+    dot?: boolean
+  }) {
   return (
-    <Comp
+    <Badge
+      asChild={asChild}
       data-slot="fx-badge"
       data-variant={variant ?? 'secondary'}
       className={cn(fxBadgeVariants({ variant, shape, size }), className)}
@@ -53,7 +59,7 @@ function FxBadge({
     >
       {dot && <span className="size-1.5 shrink-0 rounded-full bg-current" />}
       {children}
-    </Comp>
+    </Badge>
   )
 }
 

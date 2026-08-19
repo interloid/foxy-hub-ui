@@ -19,7 +19,7 @@ export default function BillingCanceledPage() {
           Nothing was charged. Your workspace is ready on the free plan, and you
           can upgrade whenever you like.
         </p>
-        <FxButton asChild size="block" className="rounded-lg">
+        <FxButton asChild className="text-md h-11 w-full rounded-lg px-4">
           <Link href="/">Go to your dashboard</Link>
         </FxButton>
       </div>

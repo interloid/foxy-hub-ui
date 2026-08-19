@@ -89,8 +89,7 @@ export function ForgotPasswordForm() {
 
       <FxButton
         type="submit"
-        size="block"
-        className="mt-1.5"
+        className="text-md mt-1.5 h-11 w-full rounded-lg px-4"
         disabled={pending}
       >
         {pending ? 'Sending…' : FORGOT_PASSWORD.submit}

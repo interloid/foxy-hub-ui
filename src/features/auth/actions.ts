@@ -14,7 +14,8 @@ import {
   signInSchema,
 } from './schemas'
 
-export type AuthResult = { ok: true } | { ok: false; error: string }
+export type AuthResult =
+  { ok: true; redirectTo?: string } | { ok: false; error: string }
 
 export async function signInWithPassword(
   email: string,
@@ -52,8 +53,8 @@ export async function signInWithPassword(
       error: 'No workspace found for this account.',
     }
   }
-
-  redirect(`/${orgSlug}`)
+  console.log(membershipError, error)
+  return { ok: true, redirectTo: `/${orgSlug}` }
 }
 
 export async function sendPasswordReset(email: string): Promise<AuthResult> {

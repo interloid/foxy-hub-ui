@@ -1,10 +1,11 @@
 'use client'
 
 import { cva, type VariantProps } from 'class-variance-authority'
+import type { ComponentProps } from 'react'
+
 import { Field, FieldError } from '@/components/ui/field'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
-import { ComponentProps } from 'react'
 
 const fxInputVariants = cva(
   'w-full min-w-0 border border-border bg-muted text-foreground transition-colors duration-(--duration-fast) outline-none placeholder:text-subtle-foreground focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive',
@@ -15,7 +16,9 @@ const fxInputVariants = cva(
         sm: 'rounded-md px-2.5 py-2 text-base',
       },
     },
-    defaultVariants: { inputSize: 'default' },
+    defaultVariants: {
+      inputSize: 'default',
+    },
   }
 )
 
@@ -29,6 +32,7 @@ function FxInput({
     <input
       type={type}
       data-slot="fx-input"
+      data-size={inputSize ?? 'default'}
       className={cn(fxInputVariants({ inputSize }), className)}
       {...props}
     />
@@ -64,4 +68,4 @@ function FxFieldError({
   )
 }
 
-export { FxInput, FxLabel, FxField, FxFieldError, fxInputVariants }
+export { FxField, FxFieldError, FxInput, fxInputVariants, FxLabel }
