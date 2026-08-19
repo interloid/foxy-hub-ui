@@ -27,12 +27,16 @@ export default async function ChangePasswordPage({
     <AppShell
       sections={getNavSections(org)}
       activeHref={`/${org}/profile`}
-      workspace={WORKSPACE}
+      workspace={{
+        name: account.orgName ?? WORKSPACE.name,
+        org: org,
+      }}
       account={{
         name: account.fullName ?? PROFILE.noName,
         email: account.email ?? '',
         role: account.role ?? '',
         initials: account.initials,
+        org,
       }}
       breadcrumb={CHANGE_PASSWORD.title}
       footer={getFooter(org)}

@@ -3,7 +3,7 @@ import { z } from 'zod'
 const email = z
   .string()
   .trim()
-  .min(1, 'Enter your work email.')
+  .min(1, 'Enter your email.')
   .pipe(z.email('Enter a valid email address.'))
   .transform((value) => value.toLowerCase())
 

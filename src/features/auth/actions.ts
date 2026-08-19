@@ -1,9 +1,10 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
+import { serverEnv } from '@/config/env.server'
 import { siteConfig } from '@/config/site'
 import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { toast } from 'sonner'
 import {
   changePasswordSchema,
@@ -12,7 +13,6 @@ import {
   setPasswordSchema,
   signInSchema,
 } from './schemas'
-import { serverEnv } from '@/config/env.server'
 
 export type AuthResult = { ok: true } | { ok: false; error: string }
 
@@ -90,14 +90,20 @@ export async function signInAsDemo(): Promise<AuthResult> {
   redirect('/')
 }
 
-export async function signOut(): Promise<never> {
+export async function signOut() {
   const supabase = await createClient()
-  const { error } = await supabase.auth.signOut()
+  try {
+    const { error } = await supabase.auth.signOut()
 
-  if (error) console.error('sign-out failed:', error.message)
-
+    if (error) {
+      // Log session errors, but do not block navigation if session is missing
+      console.error('sign-out failed:', error.message)
+    }
+  } catch (err) {
+    console.error('Unexpected error during sign-out:', err)
+  }
   revalidatePath('/', 'layout')
-  redirect('/sign-in')
+  return { success: true }
 }
 
 export async function setPassword(

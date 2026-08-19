@@ -1,12 +1,12 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { AppShell } from '@/components/layout/app-shell'
 import { BackLink } from '@/components/shared/app/back-link'
 import { getFooter, getNavSections, WORKSPACE } from '@/config/nav'
 import { ProfileCard } from '@/features/profile/components/profile-card'
 import { PROFILE } from '@/features/profile/data'
 import { getAccount } from '@/lib/dal'
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
 export const metadata: Metadata = {
   title: 'Profile',
@@ -26,12 +26,16 @@ export default async function ProfilePage({
     <AppShell
       sections={getNavSections(org)}
       activeHref={`/${org}/profile`}
-      workspace={{ ...WORKSPACE, org }}
+      workspace={{
+        name: account.orgName ?? WORKSPACE.name,
+        org,
+      }}
       account={{
         name: account.fullName ?? PROFILE.noName,
         email: account.email ?? '',
         role: account.role ?? '',
         initials: account.initials,
+        org,
       }}
       breadcrumb={PROFILE.title}
       footer={getFooter(org)}

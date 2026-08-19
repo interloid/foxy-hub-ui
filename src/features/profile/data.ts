@@ -7,7 +7,7 @@ export const PROFILE = {
     'Managed by your workspace admin — contact them to change your email or role.',
   signOut: 'Sign out',
   changePassword: 'Change password',
-  passwordHref: '/profile/password',
+  passwordHref: 'profile/password',
   edit: {
     start: 'Edit your name',
     save: 'Save name',

@@ -1,8 +1,8 @@
-import { FloatingThemeToggle } from '@/components/shared/floating-theme-toggle'
+import { TabSessionSync } from '@/components/common/tab-session-sync'
 import { siteConfig } from '@/config/site'
 import { ThemeProvider } from '@/context/theme-provider'
 import { themeInitScript } from '@/lib/theme'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import './globals.css'
@@ -17,6 +17,12 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
@@ -76,9 +82,9 @@ export default function RootLayout({
 
       <body className="bg-background text-foreground antialiased">
         <ThemeProvider>
-          <FloatingThemeToggle />
+          <TabSessionSync />
           {children}
-          <Toaster position="top-right" richColors closeButton />
+          <Toaster position="bottom-right" richColors closeButton />
         </ThemeProvider>
       </body>
     </html>

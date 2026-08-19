@@ -310,7 +310,7 @@ serve(async (req) => {
       line_items: [{ price: plan.price_id, quantity: 1 }],
       mode: 'subscription',
       customer_email: user.email, // Optional: prefills email
-      success_url: `${base}${orgPrefix}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${base}${orgPrefix}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}${orgPrefix}/billing/canceled`,
       // Crucial: links Stripe back to the DB rows. orgId is the value the caller asked
       // for and RLS approved, not whatever the embedded row happened to carry.

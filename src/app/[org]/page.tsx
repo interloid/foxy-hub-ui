@@ -1,9 +1,11 @@
+import { PaymentSuccessCard } from '@/components/billing/payment-success-card'
 import { AppShell } from '@/components/layout/app-shell'
 import { getFooter, withInvoiceCount, WORKSPACE } from '@/config/nav'
 import { TimeGreeting } from '@/features/dashboard/components/time-greetings'
 import { PROFILE } from '@/features/profile/data'
 import { getAccount, getDashboardMetrics, getWorkspace } from '@/lib/dal'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 
 export default async function WorkspaceHomePage({
   params,
@@ -35,10 +37,14 @@ export default async function WorkspaceHomePage({
         email: account.email ?? '',
         role: account.role ?? '',
         initials: account.initials,
+        org,
       }}
       breadcrumb="Home"
       footer={getFooter(org)}
     >
+      <Suspense fallback={null}>
+        <PaymentSuccessCard />
+      </Suspense>
       <TimeGreeting userName={account?.fullName ?? account?.email ?? null} />
     </AppShell>
   )

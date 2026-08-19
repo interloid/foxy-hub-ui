@@ -12,7 +12,9 @@ import {
 import { signOut } from '@/features/auth/actions'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
+import { notifyOtherTabsOnLogout } from '../common/tab-session-sync'
 import { FxSpinner } from '../shared/fx-loader'
 import { NAV_ICONS } from './nav-icons'
 
@@ -24,7 +26,13 @@ export function AccountMenu({
   className?: string
 }) {
   const [signingOut, startSignOut] = useTransition()
+  const router = useRouter()
+  const orgPath = account.org
+    ? `/${encodeURIComponent(account.org.toLowerCase().trim().replace(/\s+/g, '-'))}`
+    : ''
 
+  const profileHref = `${orgPath}/profile`
+  const passwordHref = `${orgPath}/profile/password`
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -70,14 +78,14 @@ export function AccountMenu({
 
         <DropdownMenuGroup className="p-1.5">
           <FxDropdownMenuItem asChild>
-            <Link href={`/${account.org}/profile`}>
+            <Link href={profileHref}>
               <NAV_ICONS.profile strokeWidth={1.7} />
               My profile
             </Link>
           </FxDropdownMenuItem>
 
           <FxDropdownMenuItem asChild>
-            <Link href={`/${account.org}/profile/password`}>
+            <Link href={passwordHref}>
               <NAV_ICONS.auth strokeWidth={1.7} />
               Change password
             </Link>
@@ -90,8 +98,11 @@ export function AccountMenu({
 
             onSelect={(event) => {
               event.preventDefault()
+              notifyOtherTabsOnLogout()
               startSignOut(async () => {
                 await signOut()
+                router.push('/sign-in')
+                router.refresh()
               })
             }}
           >

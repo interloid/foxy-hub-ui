@@ -276,7 +276,17 @@ export function OnboardWizard() {
                       <OnboardLabel htmlFor="onb-slug">
                         {ONBOARD_ACCOUNT.fields.slug.label}
                       </OnboardLabel>
+
                       <FxInputGroup>
+                        {/* Prefix: Base domain path */}
+                        <FxInputGroupAddon
+                          align="inline-start"
+                          className="text-muted-foreground self-center border-r-0 py-0 select-none"
+                        >
+                          foxy-hub-amber.vercel.app/
+                        </FxInputGroupAddon>
+
+                        {/* Slug Input */}
                         <FxInputGroupInput
                           id="onb-slug"
                           placeholder={ONBOARD_ACCOUNT.fields.slug.placeholder}
@@ -289,21 +299,17 @@ export function OnboardWizard() {
                             onChange: () => setSlugState('idle'),
                           })}
                         />
-                        <FxInputGroupAddon
-                          align="inline-end"
-                          className="self-center border-l-0 py-0"
-                        >
-                          {ONBOARD_ACCOUNT.fields.slug.suffix}
-                        </FxInputGroupAddon>
                       </FxInputGroup>
+
                       <p
                         id="onb-slug-status"
                         aria-live="polite"
-                        className="text-success text-sm empty:hidden"
+                        className="text-success mt-1 text-sm empty:hidden"
                       >
                         {slugState === 'checking' ? 'Checking…' : null}
                         {slugState === 'free' ? 'Available' : null}
                       </p>
+
                       <FxFieldError errors={[form.formState.errors.slug]} />
                     </FxField>
                   </div>

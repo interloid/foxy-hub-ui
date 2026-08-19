@@ -14,7 +14,7 @@ const slug = z
 const workEmail = z
   .string()
   .trim()
-  .min(1, 'A work email is required.')
+  .min(1, 'Email is required.')
   .pipe(z.email('Enter a valid email address.'))
   .transform((value) => value.toLowerCase())
 

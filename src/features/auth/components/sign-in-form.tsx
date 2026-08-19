@@ -16,9 +16,15 @@ import { toast } from 'sonner'
 import { signInAsDemo, signInWithPassword } from '../actions'
 import { SIGN_IN } from '../data'
 import { signInSchema, type SignInInput } from '../schemas'
+import { clearLogoutNotification } from '@/components/common/tab-session-sync'
 
 export function SignInForm({ initialError }: { initialError?: string }) {
   const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    clearLogoutNotification()
+  }, [])
+
   useEffect(() => {
     if (initialError) {
       toast.error(initialError)

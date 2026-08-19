@@ -14,6 +14,7 @@ export type AccountDTO = {
   role: string | null
   initials: string
   isAdmin: boolean
+  orgName: string | undefined
 }
 
 export type WorkspaceDTO = {
@@ -138,6 +139,7 @@ export const getAccount = cache(
         session.email
       ),
       isAdmin: isAdminRole(role),
+      orgName: workspace?.name,
     }
   }
 )

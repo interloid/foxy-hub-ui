@@ -1,9 +1,11 @@
+// AppShell.tsx
+'use client'
+
 import { cn } from '@/lib/utils'
+import { ComponentProps, ReactNode, useState } from 'react'
 import { AppFooter } from './app-footer'
-import { AppSidebar, NavIcon, type NavSection } from './app-sidebar'
-import { NavItem } from './nav-item'
+import { AppSidebar, type NavSection } from './app-sidebar'
 import { TopBar } from './top-bar'
-import { ComponentProps, ReactNode } from 'react'
 
 export function AppShell({
   sections,
@@ -34,13 +36,14 @@ export function AppShell({
   children: ReactNode
   className?: string
 }) {
-  const primary = sections[0]?.items ?? []
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
     <div
       data-slot="app-shell"
       className={cn('flex h-dvh overflow-hidden', className)}
     >
+      {/* Desktop Sidebar */}
       <AppSidebar
         className="shell:flex hidden"
         sections={sections}
@@ -50,36 +53,48 @@ export function AppShell({
         onSearch={onSearch}
       />
 
+      {/* Mobile Drawer Overlay */}
+      {mobileOpen && (
+        <div className="shell:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 transition-opacity"
+            onClick={() => setMobileOpen(false)}
+          />
+
+          {/* Drawer Content */}
+          <div className="bg-sidebar relative z-10 flex w-72 max-w-[80vw] flex-col shadow-xl">
+            <AppSidebar
+              isMobile
+              sections={sections}
+              activeHref={activeHref}
+              workspace={workspace}
+              account={account}
+              onSearch={() => {
+                setMobileOpen(false)
+                onSearch?.()
+              }}
+              onClose={() => setMobileOpen(false)}
+              className="w-full flex-1 border-r-0"
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar
           breadcrumb={breadcrumb}
           account={{ ...account, org: account.org ?? workspace.org }}
           notificationCount={notificationCount}
+          onMenuClick={() => setMobileOpen(true)}
         />
 
-        <main className="max-auth:px-4 max-auth:pt-4.5 max-auth:pb-19 min-h-0 flex-1 overflow-y-auto px-8 pt-7 pb-16">
+        <main className="shell:px-8 shell:pt-7 min-h-0 flex-1 overflow-y-auto px-4 pt-4.5 pb-16">
           <div className="max-w-content mx-auto flex min-h-full w-full flex-col">
             {children}
             <AppFooter {...footer} />
           </div>
         </main>
-
-        <nav className="border-border bg-sidebar shell:hidden flex shrink-0 items-center justify-around border-t px-1 py-1">
-          {primary.map((item) => (
-            <NavItem
-              href={item.href}
-              key={item.href}
-              density="product"
-              active={item.href === activeHref}
-              icon={<NavIcon name={item.icon} />}
-              role="link"
-              aria-current={item.href === activeHref ? 'page' : undefined}
-              className="text-2xs w-auto flex-col gap-0.5 px-2"
-            >
-              {item.label}
-            </NavItem>
-          ))}
-        </nav>
       </div>
     </div>
   )

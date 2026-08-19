@@ -34,6 +34,8 @@ export function AppSidebar({
   account,
   onSearch,
   className,
+  isMobile = false,
+  onClose,
 }: {
   sections: NavSection[]
   activeHref: string
@@ -41,12 +43,15 @@ export function AppSidebar({
   account: { name: string; role: string; initials: string }
   onSearch?: () => void
   className?: string
+  isMobile?: boolean
+  onClose?: () => void
 }) {
-  const collapsed = useSyncExternalStore(
+  const collapsedState = useSyncExternalStore(
     subscribeCollapsed,
     readCollapsed,
     () => false
   )
+  const collapsed = isMobile ? false : collapsedState
   const toggle = () => writeCollapsed(!collapsed)
 
   return (
@@ -56,7 +61,7 @@ export function AppSidebar({
       className={cn(
         'border-border bg-sidebar flex shrink-0 flex-col border-r',
         'transition-[width] duration-200 ease-out',
-        collapsed ? 'w-17' : 'w-59',
+        !isMobile && (collapsed ? 'w-17' : 'w-59'),
         className
       )}
     >
@@ -69,14 +74,9 @@ export function AppSidebar({
       >
         <button
           type="button"
-          onClick={toggle}
+          onClick={isMobile ? onClose : toggle}
           aria-expanded={!collapsed}
-          aria-label={
-            collapsed
-              ? 'Expand sidebar'
-              : `${workspace.name} — collapse sidebar`
-          }
-          title={collapsed ? 'Expand sidebar' : workspace.name}
+          aria-label={workspace.name}
           className="bg-primary text-primary-foreground shadow-card hover:bg-primary-hover focus-visible:ring-ring flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-[15px] font-bold transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           {workspace.name.charAt(0)}
@@ -92,14 +92,25 @@ export function AppSidebar({
                 {workspace.org}
               </span>
             </span>
-            <button
-              type="button"
-              onClick={toggle}
-              aria-label="Collapse sidebar"
-              className="border-border bg-muted text-muted-foreground hover:border-border-strong hover:text-foreground focus-visible:ring-ring flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-            >
-              <NAV_ICONS.collapse size={16} strokeWidth={1.8} />
-            </button>
+            {isMobile ? (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close menu"
+                className="border-border bg-muted text-muted-foreground hover:border-border-strong hover:text-foreground focus-visible:ring-ring flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              >
+                ✕
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={toggle}
+                aria-label="Collapse sidebar"
+                className="border-border bg-muted text-muted-foreground hover:border-border-strong hover:text-foreground focus-visible:ring-ring flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              >
+                <NAV_ICONS.collapse size={16} strokeWidth={1.8} />
+              </button>
+            )}
           </>
         )}
       </div>
@@ -148,6 +159,9 @@ export function AppSidebar({
                 collapsed={collapsed}
                 title={item.label}
                 role="link"
+                onClick={() => {
+                  if (isMobile) onClose?.()
+                }}
                 aria-current={item.href === activeHref ? 'page' : undefined}
               >
                 {item.label}

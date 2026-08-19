@@ -6,7 +6,7 @@ export const SIGN_IN = {
   subtitle:
     'Manage projects, collaborate with clients, and get paid — all in one portal.',
 
-  email: { label: 'Work email', placeholder: 'you@agency.com' },
+  email: { label: 'Email', placeholder: 'you@agency.com' },
   password: { label: 'Password' },
   submit: 'Sign in',
   divider: 'or',
@@ -28,7 +28,7 @@ export const SIGN_IN = {
 export const FORGOT_PASSWORD = {
   title: 'Reset your password',
   subtitle:
-    "Enter your work email and we'll send you a link to choose a new password.",
+    "Enter your email and we'll send you a link to choose a new password.",
   submit: 'Email me a reset link',
   back: 'Back to sign in',
 

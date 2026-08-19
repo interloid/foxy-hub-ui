@@ -12,7 +12,7 @@ export const ONBOARD_ACCOUNT = {
   subtitle: 'Tell us about your agency to get set up.',
   fields: {
     name: { label: 'Your name', placeholder: 'Jane Doe' },
-    email: { label: 'Work email', placeholder: 'you@agency.com' },
+    email: { label: 'Email', placeholder: 'you@agency.com' },
     agency: { label: 'Agency name', placeholder: 'Interloid Studio' },
     slug: {
       label: 'Workspace URL',
