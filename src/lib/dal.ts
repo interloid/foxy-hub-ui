@@ -15,6 +15,7 @@ export type AccountDTO = {
   initials: string
   isAdmin: boolean
   orgName: string | undefined
+  isMember: boolean
 }
 
 export type WorkspaceDTO = {
@@ -89,7 +90,8 @@ export const getWorkspace = cache(
     const supabase = await createClient()
     let query = supabase
       .from('memberships')
-      .select('role, organizations(id, name, slug)')
+      .select('role, organizations!inner(id, name, slug)')
+      .eq('user_id', session.id)
 
     if (slug) {
       query = query.eq('organizations.slug', slug)
@@ -118,28 +120,28 @@ export const getAccount = cache(
     if (!session) return null
 
     const supabase = await createClient()
+    const workspace = await getWorkspace(orgSlug)
 
-    const { data } = await supabase
+    const { data: profile } = await supabase
       .from('profiles')
       .select('full_name')
       .eq('id', session.id)
       .maybeSingle()
-
-    const workspace = await getWorkspace(orgSlug)
 
     const role = workspace?.role ?? null
 
     return {
       id: session.id,
       email: session.email,
-      fullName: (data?.full_name as string | null) ?? null,
+      fullName: (profile?.full_name as string | null) ?? null,
       role,
       initials: initialsOf(
-        (data?.full_name as string | null) ?? null,
+        (workspace?.slug as string | null) ?? null,
         session.email
       ),
       isAdmin: isAdminRole(role),
       orgName: workspace?.name,
+      isMember: Boolean(workspace),
     }
   }
 )

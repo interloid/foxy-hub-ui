@@ -13,7 +13,7 @@ import {
   firstIssue,
   slugSchema,
 } from './schemas'
-import { createCheckoutSession, CheckoutServiceError } from './services/billing'
+import { CheckoutServiceError, createCheckoutSession } from './services/billing'
 import { findOwnedOrgId, sendInvitations } from './services/invitations'
 import {
   buildSignupNext,
@@ -110,6 +110,25 @@ export async function inviteTeam(
   if (!user)
     return { ok: false, error: 'You need to be signed in to invite people.' }
 
+  const { data: membership, error: membershipError } = await supabase
+    .from('memberships')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (
+    membershipError ||
+    !membership ||
+    !['owner', 'admin'].includes(membership.role.toLowerCase())
+  ) {
+    return {
+      ok: false,
+      error:
+        'You do not have permission to invite members to this organization.',
+    }
+  }
+
   let admin
   try {
     admin = createAdminClient()
@@ -121,6 +140,7 @@ export async function inviteTeam(
     }
   }
 
+  // 3. Process invitations safely
   const data = await sendInvitations(supabase, admin, {
     orgId,
     invitedBy: user.id,

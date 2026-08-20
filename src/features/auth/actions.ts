@@ -1,6 +1,6 @@
 'use server'
 
-import { serverEnv } from '@/config/env.server'
+import { isDemoModeEnabled, serverEnv } from '@/config/env.server'
 import { siteConfig } from '@/config/site'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
@@ -74,12 +74,12 @@ export async function sendPasswordReset(email: string): Promise<AuthResult> {
 }
 
 export async function signInAsDemo(): Promise<AuthResult> {
-  const email = serverEnv.DEMO_ACCOUNT_EMAIL
-  const password = serverEnv.DEMO_ACCOUNT_PASSWORD
-
-  if (!email || !password) {
+  if (!isDemoModeEnabled()) {
     return { ok: false, error: 'The demo account is not configured.' }
   }
+
+  const email = serverEnv.DEMO_ACCOUNT_EMAIL!
+  const password = serverEnv.DEMO_ACCOUNT_PASSWORD!
 
   const supabase = await createClient()
   const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -88,6 +88,7 @@ export async function signInAsDemo(): Promise<AuthResult> {
     console.error('demo sign-in failed:', error.message)
     return { ok: false, error: 'The demo account is unavailable right now.' }
   }
+
   redirect('/')
 }
 

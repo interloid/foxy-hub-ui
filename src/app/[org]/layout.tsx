@@ -16,6 +16,9 @@ export default async function OrgLayout({
   const account = await getAccount(org)
 
   if (!account) redirect('/sign-in?error=session_expired')
+  if (!account.isMember) {
+    redirect(`/unauthorized?org=${encodeURIComponent(org)}`)
+  }
 
   const [workspace, metrics] = await Promise.all([
     getWorkspace(org),

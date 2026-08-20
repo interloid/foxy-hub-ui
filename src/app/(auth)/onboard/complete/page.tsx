@@ -1,11 +1,6 @@
-import { FxButton } from '@/components/shared/fx'
-import {
-  redeemPendingInvites,
-  startPlanCheckout,
-} from '@/features/onboarding/actions'
+import { OnboardCompleteClient } from '@/features/onboarding/components/onboard-complete-client'
 import { verifySession } from '@/lib/dal'
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 export const metadata: Metadata = {
@@ -23,50 +18,14 @@ export default async function OnboardCompletePage({
   const session = await verifySession()
   if (!session) redirect('/sign-in?error=session_expired')
 
-  const invites = await redeemPendingInvites()
-  if (!invites.ok) console.error('invite redemption failed:', invites.error)
-  const emailed = invites.ok ? invites.data.emailed : 0
-  const failed = invites.ok ? invites.data.failed : []
-
   const planName = params.plan?.trim()
-  const cycle = params.cycle === 'yearly' ? 'yearly' : 'monthly'
-
   if (!planName) redirect('/')
 
-  const result = await startPlanCheckout(planName, cycle)
-
-  if (result.ok && result.data.url) redirect(result.data.url)
-
-  const message = result.ok
-    ? (result.data.message ?? 'Your workspace is ready.')
-    : result.error
-
-  const sentNote =
-    emailed > 0
-      ? `Invited ${emailed} teammate${emailed === 1 ? '' : 's'}.`
-      : null
-  const failedNote =
-    failed.length > 0
-      ? `Could not invite: ${failed.join(', ')}. You can retry from Settings.`
-      : null
+  const cycle = params.cycle === 'yearly' ? 'yearly' : 'monthly'
 
   return (
     <div className="bg-background flex min-h-svh items-center justify-center px-6">
-      <div className="border-border bg-card shadow-panel w-full max-w-110 rounded-2xl border p-7 text-center">
-        <h1 className="mb-2 text-3xl leading-normal font-semibold">
-          Workspace created
-        </h1>
-        <p className="text-md text-muted-foreground mb-2">{message}</p>
-        {sentNote && <p className="text-success mb-2 text-sm">{sentNote}</p>}
-
-        {failedNote && (
-          <p className="text-destructive mb-2 text-sm">{failedNote}</p>
-        )}
-        <div className="mb-6" />
-        <FxButton asChild className="text-md h-11 w-full rounded-lg px-4">
-          <Link href="/">Go to your dashboard</Link>
-        </FxButton>
-      </div>
+      <OnboardCompleteClient planName={planName} cycle={cycle} />
     </div>
   )
 }

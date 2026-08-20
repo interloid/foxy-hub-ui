@@ -114,6 +114,12 @@ export function SetPasswordForm({ next }: { next: string }) {
               Do you want to subscribe to the chosen plan now?
             </DialogDescription>
           </DialogHeader>
+
+          <p className="text-muted-foreground mt-3 text-sm">
+            Note: Team invitations can only be sent after your subscription is
+            completed.
+          </p>
+
           <div className="mt-4 flex justify-end gap-3">
             <FxButton
               onClick={() => router.replace('/')}
@@ -121,6 +127,7 @@ export function SetPasswordForm({ next }: { next: string }) {
             >
               Skip
             </FxButton>
+
             <FxButton onClick={() => router.replace(next)}>Subscribe</FxButton>
           </div>
         </DialogContent>
