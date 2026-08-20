@@ -19,6 +19,8 @@ export {
 
 export { FxToggleGroup, FxToggleGroupItem } from '../fx-toggle-group'
 
+export { FxTooltip, FxTooltipContent, FxTooltipTrigger } from '../fx-tooltip'
+
 export { FxAlert, fxAlertVariants } from '../fx-alert'
 
 export {

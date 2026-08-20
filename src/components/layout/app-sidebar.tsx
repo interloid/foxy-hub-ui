@@ -1,6 +1,11 @@
 'use client'
 
 import {
+  FxTooltip,
+  FxTooltipContent,
+  FxTooltipTrigger,
+} from '@/components/shared/fx'
+import {
   readCollapsed,
   subscribeCollapsed,
   writeCollapsed,
@@ -116,25 +121,39 @@ export function AppSidebar({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2.5">
-        <button
-          type="button"
-          onClick={onSearch}
-          title={collapsed ? 'Search' : undefined}
-          className={cn(
-            'border-border bg-muted text-subtle-foreground hover:text-foreground focus-visible:ring-ring mb-1.5 flex h-8.25 w-full items-center gap-2 rounded-md border px-2.5 py-1.75 text-base transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
-            collapsed && 'justify-center px-0'
-          )}
-        >
-          <NAV_ICONS.search size={15} strokeWidth={1.7} />
-          {!collapsed && (
-            <>
-              <span className="flex-1 text-left">Search</span>
-              <span className="bg-accent text-2xs rounded-[4px] px-1.25 py-px font-mono">
-                ⌘K
-              </span>
-            </>
-          )}
-        </button>
+        {collapsed ? (
+          <FxTooltip>
+            <FxTooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={onSearch}
+                className={cn(
+                  'border-border bg-muted text-subtle-foreground hover:text-foreground focus-visible:ring-ring mb-1.5 flex h-8.25 w-full items-center justify-center rounded-md border px-0 py-1.75 text-base transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+                )}
+              >
+                <NAV_ICONS.search size={15} strokeWidth={1.7} />
+              </button>
+            </FxTooltipTrigger>
+
+            <FxTooltipContent side="right">Search</FxTooltipContent>
+          </FxTooltip>
+        ) : (
+          <button
+            type="button"
+            onClick={onSearch}
+            className={cn(
+              'border-border bg-muted text-subtle-foreground hover:text-foreground focus-visible:ring-ring mb-1.5 flex h-8.25 w-full items-center gap-2 rounded-md border px-2.5 py-1.75 text-base transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
+            )}
+          >
+            <NAV_ICONS.search size={15} strokeWidth={1.7} />
+
+            <span className="flex-1 text-left">Search</span>
+
+            <span className="bg-accent text-2xs rounded-[4px] px-1.25 py-px font-mono">
+              ⌘K
+            </span>
+          </button>
+        )}
 
         {sections.map((section, i) => (
           <Fragment key={section.label ?? `section-${i}`}>
@@ -148,25 +167,37 @@ export function AppSidebar({
                 )}
               </>
             )}
-            {section.items.map((item) => (
-              <NavItem
-                key={item.href}
-                density="product"
-                href={item.href}
-                active={item.href === activeHref}
-                icon={<NavIcon name={item.icon} />}
-                count={item.count}
-                collapsed={collapsed}
-                title={item.label}
-                role="link"
-                onClick={() => {
-                  if (isMobile) onClose?.()
-                }}
-                aria-current={item.href === activeHref ? 'page' : undefined}
-              >
-                {item.label}
-              </NavItem>
-            ))}
+            {section.items.map((item) => {
+              const navItem = (
+                <NavItem
+                  density="product"
+                  href={item.href}
+                  active={item.href === activeHref}
+                  icon={<NavIcon name={item.icon} />}
+                  count={item.count}
+                  collapsed={collapsed}
+                  role="link"
+                  onClick={() => {
+                    if (isMobile) onClose?.()
+                  }}
+                  aria-current={item.href === activeHref ? 'page' : undefined}
+                >
+                  {item.label}
+                </NavItem>
+              )
+
+              if (!collapsed) {
+                return <Fragment key={item.href}>{navItem}</Fragment>
+              }
+
+              return (
+                <FxTooltip key={item.href}>
+                  <FxTooltipTrigger asChild>{navItem}</FxTooltipTrigger>
+
+                  <FxTooltipContent side="right">{item.label}</FxTooltipContent>
+                </FxTooltip>
+              )
+            })}
           </Fragment>
         ))}
       </div>

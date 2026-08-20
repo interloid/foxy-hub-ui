@@ -1,3 +1,4 @@
+import type { FooterProps } from '@/components/layout/app-footer'
 import type { NavSection } from '@/components/layout/app-sidebar'
 
 export function getNavSections(org: string): NavSection[] {
@@ -38,6 +39,7 @@ export function withInvoiceCount(count: number = 0, org: string): NavSection[] {
 }
 
 export const WORKSPACE = { name: 'Foxy HUB', org: 'Interloid Studio' }
+export const APP_VERSION = '0.1.0'
 
 export const ACCOUNT = {
   name: 'Priya Nair',
@@ -46,16 +48,79 @@ export const ACCOUNT = {
   initials: 'PN',
 }
 
-export function getFooter(org: string) {
+export function getFooter(org: string): FooterProps {
   const prefix = org ? `/${org}` : ''
 
   return {
-    brand: { name: 'Foxy HUB', org: 'Interloid Studio', year: 2026 },
-    links: [
-      { label: 'Privacy', href: `${prefix}/privacy` },
-      { label: 'Terms', href: `${prefix}/terms` },
-      { label: 'Support', href: `${prefix}/support` },
+    brand: {
+      name: WORKSPACE.name,
+      org: WORKSPACE.org,
+      year: new Date().getFullYear(),
+      tagline:
+        'Projects, time and invoices in one workspace — for studios that bill by the hour.',
+    },
+    groups: [
+      {
+        title: 'Product',
+        items: [
+          { label: 'Dashboard', href: `${prefix}` },
+          { label: 'Projects', href: `${prefix}/projects` },
+          { label: 'Time', href: `${prefix}/time` },
+          { label: 'Invoices', href: `${prefix}/invoices` },
+          { label: 'Reports', href: `${prefix}/reports` },
+        ],
+      },
+      {
+        title: 'Workspace',
+        items: [
+          { label: 'Billing & plan', href: `${prefix}/billing` },
+          { label: 'Settings', href: `${prefix}/settings` },
+          { label: 'Profile', href: `${prefix}/profile` },
+          { label: 'AI updates', href: `${prefix}/ai-updates` },
+        ],
+      },
+      {
+        title: 'Resources',
+        items: [
+          { label: 'Support', href: `${prefix}/support` },
+          { label: 'Docs', href: `${prefix}/docs` },
+          { label: 'Changelog', href: `${prefix}/changelog` },
+          {
+            label: 'Status',
+            href: 'https://status.interloid.co',
+            external: true,
+          },
+        ],
+      },
+      {
+        title: 'Legal',
+        items: [
+          { label: 'Privacy', href: `${prefix}/privacy` },
+          { label: 'Terms', href: `${prefix}/terms` },
+          { label: 'Security', href: `${prefix}/security` },
+          { label: 'Cookies', href: `${prefix}/cookies` },
+        ],
+      },
     ],
-    status: { label: 'All systems operational', tone: 'success' as const },
+    social: [
+      {
+        label: 'GitHub',
+        icon: 'github',
+        href: 'https://github.com/interloid',
+      },
+      {
+        label: 'LinkedIn',
+        icon: 'linkedin',
+        href: 'https://www.linkedin.com/company/interloid',
+      },
+      { label: 'X', icon: 'x', href: 'https://x.com/interloid' },
+    ],
+    contact: { email: 'support@interloid.co' },
+    status: {
+      label: 'All systems operational',
+      tone: 'success',
+      href: `${prefix}/status`,
+    },
+    meta: { version: `v${APP_VERSION}` },
   }
 }

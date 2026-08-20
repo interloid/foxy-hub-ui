@@ -1,4 +1,5 @@
 import { TabSessionSync } from '@/components/common/tab-session-sync'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { siteConfig } from '@/config/site'
 import { ThemeProvider } from '@/context/theme-provider'
 import { themeInitScript } from '@/lib/theme'
@@ -82,9 +83,11 @@ export default function RootLayout({
 
       <body className="bg-background text-foreground antialiased">
         <ThemeProvider>
-          <TabSessionSync />
-          {children}
-          <Toaster position="bottom-right" richColors closeButton />
+          <TooltipProvider>
+            <TabSessionSync />
+            {children}
+            <Toaster position="bottom-right" richColors closeButton />
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>

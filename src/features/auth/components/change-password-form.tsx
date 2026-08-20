@@ -1,6 +1,5 @@
 'use client'
 
-import { NAV_ICONS } from '@/components/layout/nav-icons'
 import {
   FxAlert,
   FxButton,
@@ -21,7 +20,6 @@ import { CHANGE_PASSWORD } from '../data'
 import { changePasswordSchema, type ChangePasswordInput } from '../schemas'
 
 export function ChangePasswordForm() {
-  const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -33,7 +31,6 @@ export function ChangePasswordForm() {
 
   const submit = form.handleSubmit((values) => {
     setError(null)
-    setSaved(false)
     startTransition(async () => {
       const result = await changePassword(
         values.current,
@@ -48,7 +45,6 @@ export function ChangePasswordForm() {
       toast.success('Password updated successfully')
 
       form.reset({ current: '', password: '', confirm: '' })
-      setSaved(true)
     })
   })
 
@@ -105,13 +101,6 @@ export function ChangePasswordForm() {
               <FxFieldError errors={[errors[field.name]]} />
             </FxField>
           ))}
-
-          {saved && (
-            <FxAlert role="status" tone="success" className="font-medium">
-              <NAV_ICONS.check strokeWidth={2.2} />
-              {CHANGE_PASSWORD.saved}
-            </FxAlert>
-          )}
 
           <div className="mt-1 flex justify-end gap-2">
             <FxButton

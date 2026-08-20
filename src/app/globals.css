@@ -18,6 +18,14 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
 
+  /* Tooltip owns its own pair instead of borrowing shadcn's bg-foreground /
+     text-background inversion, which ignores the warm neutral ramp and reads grey.
+     Light stays inverted (dark chip on a light page); dark lifts one step above
+     --card so the chip separates from the sidebar it floats over. */
+  --color-tooltip: var(--tooltip);
+  --color-tooltip-foreground: var(--tooltip-foreground);
+  --color-tooltip-border: var(--tooltip-border);
+
   /* Brand is five tokens, not two. --primary-accent is the brand TEXT colour used on
      --primary-subtle (subtle button, links, file/duration tiles) — it is never a fill.
      The active-nav use of this colour goes through --sidebar-accent-foreground, which
@@ -217,6 +225,12 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.2 0.01 75);
 
+  /* Warm near-black, same hue family as --foreground, one step lighter so it does
+     not read as a hard black rectangle over the cream page. */
+  --tooltip: oklch(0.26 0.015 75);
+  --tooltip-foreground: oklch(0.97 0.005 85);
+  --tooltip-border: oklch(0.32 0.015 75);
+
   --primary: oklch(0.62 0.19 50);
   --primary-foreground: oklch(1 0 0);
   --primary-hover: oklch(0.57 0.19 50);
@@ -282,6 +296,12 @@
   --card-foreground: #f3f0ea;
   --popover: #1a1917;
   --popover-foreground: #f3f0ea;
+
+  /* One rung above --card (#1a1917) so the chip reads as elevated over sidebar
+     and page alike; border matches --border-strong. */
+  --tooltip: #2a2620;
+  --tooltip-foreground: #f3f0ea;
+  --tooltip-border: #39342d;
 
   --primary: #f2792f;
   --primary-foreground: #ffffff;

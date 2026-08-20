@@ -2,8 +2,8 @@
 
 import { cn } from '@/lib/utils'
 import { usePathname } from 'next/navigation'
-import { ComponentProps, ReactNode, useState } from 'react'
-import { AppFooter } from './app-footer'
+import { ReactNode, useState } from 'react'
+import { AppFooter, type FooterProps } from './app-footer'
 import { AppSidebar, type NavSection } from './app-sidebar'
 import { TopBar } from './top-bar'
 
@@ -30,7 +30,7 @@ export function AppShell({
     org?: string
   }
   breadcrumb?: ReactNode
-  footer: ComponentProps<typeof AppFooter>
+  footer: FooterProps
   notificationCount?: number
   onSearch?: () => void
   children: ReactNode
@@ -93,9 +93,9 @@ export function AppShell({
           onMenuClick={() => setMobileOpen(true)}
         />
 
-        <main className="shell:px-8 shell:pt-7 min-h-0 flex-1 overflow-y-auto px-4 pt-4.5 pb-16">
-          <div className="max-w-content mx-auto flex min-h-full w-full flex-col">
-            {children}
+        <main className="shell:px-8 shell:pt-7 min-h-0 flex-1 overflow-y-auto px-4 pt-4.5">
+          <div className="flex min-h-dvh w-full flex-col">
+            <div className="sm: min-h-100">{children}</div>{' '}
             <AppFooter {...footer} />
           </div>
         </main>
