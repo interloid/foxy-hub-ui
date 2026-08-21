@@ -14,7 +14,8 @@ import {
 } from './schemas'
 
 export type AuthResult =
-  { ok: true; redirectTo?: string } | { ok: false; error: string }
+  | { ok: true; redirectTo?: string; role?: string }
+  | { ok: false; error: string }
 
 export async function signInWithPassword(
   email: string,
@@ -128,7 +129,15 @@ export async function setPassword(
   if (error) {
     return { ok: false, error: error.message }
   }
-  return { ok: true }
+  const { data: membership, error: membershipError } = await supabase
+    .from('memberships')
+    .select('role')
+    .eq('user_id', user.id)
+    .single()
+  if (membershipError) {
+    return { ok: false, error: membershipError.message }
+  }
+  return { ok: true, role: membership.role }
 }
 
 export async function changePassword(

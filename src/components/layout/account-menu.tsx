@@ -45,7 +45,7 @@ export function AccountMenu({
         )}
       >
         <span className="bg-brand-gradient text-2xs text-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-full font-semibold">
-          {initialsOf(account.name, null)}
+          {initialsOf(account.name, account.email)}
         </span>
 
         <span className="text-foreground dash:inline hidden text-sm font-medium">
@@ -65,7 +65,7 @@ export function AccountMenu({
       >
         <DropdownMenuLabel className="border-border flex items-center gap-2.5 border-b p-3.5 font-normal">
           <span className="bg-brand-gradient text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-full text-base font-semibold">
-            {initialsOf(account.name, null)}
+            {initialsOf(account.name, account.email)}
           </span>
           <span className="flex min-w-0 flex-col">
             <span className="text-md text-foreground truncate font-semibold">

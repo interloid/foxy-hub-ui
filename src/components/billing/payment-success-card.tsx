@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { redeemPendingInvites } from '@/features/onboarding/actions'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Loader2 } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { FxButton } from '../shared/fx-button'
@@ -21,6 +21,7 @@ export function PaymentSuccessCard() {
   const isSuccess = searchParams.get('payment') === 'success'
   const [open, setOpen] = useState(true)
 
+  const [isLoading, setIsLoading] = useState(true)
   const [sentNote, setSentNote] = useState<string | null>(null)
   const [failedNote, setFailedNote] = useState<string | null>(null)
 
@@ -31,9 +32,6 @@ export function PaymentSuccessCard() {
     executedRef.current = true
 
     async function processInvites() {
-      // 1. Optimistic Feedback: Show instantaneous feedback if we expect invites
-      // (Optionally, set a default optimistic message or trigger immediately)
-
       try {
         const invites = await redeemPendingInvites()
         if (invites.ok) {
@@ -43,13 +41,15 @@ export function PaymentSuccessCard() {
           }
           if (invites.data.failed.length > 0) {
             setFailedNote(
-              `Could not invite: ${invites.data.failed.join(', ')}. You can retry from Settings.`
+              `Could not invite: ${invites.data.failed.join(', ')} because the user is already a member of another organization.`
             )
           }
         }
       } catch (err) {
         console.error('Failed to redeem invites after payment:', err)
         setFailedNote('Could not automatically send pending invitations.')
+      } finally {
+        setIsLoading(false)
       }
     }
 
@@ -85,15 +85,25 @@ export function PaymentSuccessCard() {
           </DialogDescription>
         </DialogHeader>
 
-        {/* Invitation Status Section */}
-        <div className="mt-2 text-center text-sm">
-          {sentNote && (
-            <p className="font-medium text-emerald-600 dark:text-emerald-400">
-              {sentNote}
+        <div className="mt-2 flex min-h-[24px] items-center justify-center text-center text-sm">
+          {isLoading ? (
+            <p className="text-muted-foreground flex items-center gap-2 text-xs">
+              <Loader2 className="size-3.5 animate-spin" />
+              Sending invitations...
             </p>
-          )}
-          {failedNote && (
-            <p className="text-destructive mt-1 font-medium">{failedNote}</p>
+          ) : (
+            <>
+              {sentNote && (
+                <p className="font-medium text-emerald-600 dark:text-emerald-400">
+                  {sentNote}
+                </p>
+              )}
+              {failedNote && (
+                <p className="text-destructive mt-1 font-medium">
+                  {failedNote}
+                </p>
+              )}
+            </>
           )}
         </div>
 

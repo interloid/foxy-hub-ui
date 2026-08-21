@@ -1,5 +1,11 @@
+import { PROFILE } from '@/features/profile/data'
+
 export function initialsOf(name: string | null, email: string | null): string {
-  const source = name?.trim() || email?.split('@')[0] || ''
+  const source =
+    name?.trim() && name.trim() !== PROFILE.noName
+      ? name.trim()
+      : email?.split('@')[0] || ''
+  console.log(source)
   const words = source.split(/[\s._-]+/).filter(Boolean)
   if (words.length === 0) return '?'
   const letters =

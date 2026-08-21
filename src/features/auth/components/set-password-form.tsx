@@ -41,7 +41,12 @@ export function SetPasswordForm({ next }: { next: string }) {
         setError(result.error)
         return
       }
-      setShowDialog(true)
+
+      if (result.role === 'owner') {
+        setShowDialog(true)
+      } else {
+        router.replace('/')
+      }
     })
   })
 

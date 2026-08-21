@@ -19,7 +19,9 @@ export default async function WorkspaceHomePage({
       <Suspense fallback={null}>
         <PaymentSuccessCard />
       </Suspense>
-      <TimeGreeting userName={account?.fullName ?? account?.email ?? null} />
+      <TimeGreeting
+        userName={account?.fullName ?? account?.email?.split('@')[0] ?? null}
+      />
     </>
   )
 }

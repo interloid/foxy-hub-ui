@@ -46,7 +46,7 @@ export function AppSidebar({
   sections: NavSection[]
   activeHref: string
   workspace: { name: string; org: string }
-  account: { name: string; role: string; initials: string }
+  account: { name: string; role: string; initials: string; email: string }
   onSearch?: () => void
   className?: string
   isMobile?: boolean
@@ -213,7 +213,7 @@ export function AppSidebar({
           title={collapsed ? `${account.name} · ${account.role}` : undefined}
         >
           <span className="bg-brand-gradient text-2xs text-primary-foreground flex size-7.5 shrink-0 items-center justify-center rounded-full font-semibold">
-            {initialsOf(account.name, null)}
+            {initialsOf(account.name, account.email)}
           </span>
           {!collapsed && (
             <span className="flex min-w-0 flex-col">

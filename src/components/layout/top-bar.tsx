@@ -1,4 +1,3 @@
-// TopBar.tsx
 'use client'
 
 import { ThemeToggle } from '@/components/shared/theme-toggle'

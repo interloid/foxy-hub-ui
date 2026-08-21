@@ -23,7 +23,7 @@ export function ProfileCard({ account }: { account: AccountDTO }) {
     setFullName(account.fullName)
   }
 
-  const name = fullName?.trim() || PROFILE.noName
+  const name = fullName?.trim() || account.email?.split('@')[0]
   const initials = initialsOf(fullName, account.email)
   const params = useParams()
   const org = params.org as string

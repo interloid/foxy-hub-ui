@@ -35,7 +35,8 @@ export default async function OrgLayout({
         org,
       }}
       account={{
-        name: account.fullName ?? PROFILE.noName,
+        name:
+          account.fullName ?? account.email?.split('@')[0] ?? PROFILE.noName,
         email: account.email ?? '',
         role: account.role ?? '',
         initials: account.initials,
