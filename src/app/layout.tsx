@@ -1,9 +1,12 @@
-import { ThemeProvider } from '@/components/theme-provider'
+import { TabSessionSync } from '@/components/common/tab-session-sync'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { siteConfig } from '@/config/site'
-import type { Metadata } from 'next'
+import { ThemeProvider } from '@/context/theme-provider'
+import { themeInitScript } from '@/lib/theme'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Toaster } from 'sonner'
 import './globals.css'
+import { Toaster } from '@/components/shared/toaster'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -15,6 +18,12 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
@@ -56,15 +65,29 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
-      <body className="antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster position="top-right" richColors closeButton />
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: siteConfig.name,
+              description: siteConfig.description,
+              url: siteConfig.url,
+            }),
+          }}
+        />
+      </head>
+
+      <body className="bg-background text-foreground antialiased">
+        <ThemeProvider>
+          <TooltipProvider>
+            <TabSessionSync />
+            {children}
+            <Toaster position="bottom-right" richColors closeButton />
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>
