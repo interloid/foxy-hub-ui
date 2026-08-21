@@ -85,6 +85,5 @@ values
 on conflict (name, duration_months) do update
 set price_cents = excluded.price_cents,
     features    = excluded.features,
-    is_active   = excluded.is_active;
--- price_id is deliberately NOT in the update list: re-running this must never blank a
--- Stripe id that was filled in later.
+    is_active   = excluded.is_active,
+    price_id    = excluded.price_id;

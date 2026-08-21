@@ -20,7 +20,6 @@ export default async function ChangePasswordPage({
   params: Promise<{ org: string }>
 }) {
   const { org } = await params
-  console.log(org)
 
   return (
     <div className="mx-auto w-full max-w-130">
@@ -43,7 +42,7 @@ async function AsyncChangePasswordForm({ org }: { org: string }) {
   const account = await getAccount(org)
   if (!account) redirect('/sign-in?error=session_expired')
 
-  return <ChangePasswordForm />
+  return <ChangePasswordForm org={org} />
 }
 
 export function ChangePasswordFormSkeleton() {

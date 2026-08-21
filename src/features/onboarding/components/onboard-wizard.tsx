@@ -197,6 +197,8 @@ export function OnboardWizard() {
       [emailState, slugState].some(
         (state) => state === 'taken' || state === 'checking'
       ))
+  const domain =
+    typeof window !== 'undefined' ? window.location.host : 'yourdomain.com'
 
   return (
     <div className="bg-background min-h-svh overflow-y-auto">
@@ -299,7 +301,7 @@ export function OnboardWizard() {
                           align="inline-start"
                           className="text-muted-foreground self-center border-r-0 py-0 select-none"
                         >
-                          foxy-hub-amber.vercel.app/
+                          {domain}/
                         </FxInputGroupAddon>
 
                         <FxInputGroupInput

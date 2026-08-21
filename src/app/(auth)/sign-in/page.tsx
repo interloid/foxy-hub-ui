@@ -20,9 +20,12 @@ const ERRORS: Record<string, string> = {
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>
+  searchParams: Promise<{ error?: string; error_description?: string }>
 }) {
-  const { error } = await searchParams
+  const { error, error_description } = await searchParams
+  const initialError =
+    error_description ??
+    (error ? (ERRORS[error] ?? ERRORS.invalid_link) : undefined)
   return (
     <AuthLayout
       brand={SIGN_IN.brand}
@@ -37,7 +40,7 @@ export default async function SignInPage({
         />
       }
     >
-      <SignInForm initialError={error ? ERRORS[error] : undefined} />
+      <SignInForm initialError={initialError} />
     </AuthLayout>
   )
 }

@@ -3,7 +3,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { siteConfig } from '@/config/site'
 import { createClient } from '@/lib/supabase/server'
-import { toast } from 'sonner'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -26,8 +25,10 @@ export async function GET(request: NextRequest) {
   })
 
   if (error) {
-    toast.error(error.message)
-    return NextResponse.redirect(new URL('/sign-in?error=invalid_link', site))
+    const errorUrl = new URL('/sign-in', site)
+    errorUrl.searchParams.set('error', 'invalid_link')
+    errorUrl.searchParams.set('error_description', error.message)
+    return NextResponse.redirect(errorUrl)
   }
 
   if (!data.user?.user_metadata?.password_set) {

@@ -41,7 +41,7 @@ export default async function OrgLayout({
         initials: account.initials,
         org,
       }}
-      footer={getFooter(org)}
+      footer={getFooter(org, account.orgName)}
     >
       {children}
     </AppShell>

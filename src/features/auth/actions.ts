@@ -5,7 +5,6 @@ import { siteConfig } from '@/config/site'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { toast } from 'sonner'
 import {
   changePasswordSchema,
   firstIssue,
@@ -53,7 +52,6 @@ export async function signInWithPassword(
       error: 'No workspace found for this account.',
     }
   }
-  console.log(membershipError, error)
   return { ok: true, redirectTo: `/${orgSlug}` }
 }
 
@@ -68,7 +66,7 @@ export async function sendPasswordReset(email: string): Promise<AuthResult> {
   })
 
   if (error) {
-    toast.error(`password reset failed:, ${error.message}`)
+    return { ok: false, error: error.message }
   }
   return { ok: true }
 }
@@ -131,17 +129,6 @@ export async function setPassword(
     return { ok: false, error: error.message }
   }
   return { ok: true }
-}
-
-export async function getSlug() {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('organizations')
-    .select('slug')
-    .single()
-  if (error) return { ok: false, error: error.message }
-
-  return { ok: true, slug: data.slug }
 }
 
 export async function changePassword(

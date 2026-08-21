@@ -2,12 +2,14 @@
 
 import { Toaster as UIToaster } from '@/components/ui/sonner'
 import { useTheme } from '@/context/theme-provider'
+import { ToasterProps } from 'sonner'
 
-export function Toaster() {
+export function Toaster({ ...props }: ToasterProps) {
   const { resolvedTheme } = useTheme()
 
   return (
     <UIToaster
+      {...props}
       theme={resolvedTheme}
       style={
         {

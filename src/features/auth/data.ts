@@ -37,7 +37,7 @@ export const FORGOT_PASSWORD = {
 } as const
 
 export const CHANGE_PASSWORD = {
-  back: { label: 'Back to profile', href: '/profile' },
+  back: { label: 'Back to profile', href: (org: string) => `/${org}/profile` },
   title: 'Change password',
   subtitle: 'Use at least 8 characters with a mix of letters and numbers.',
   current: 'Current password',

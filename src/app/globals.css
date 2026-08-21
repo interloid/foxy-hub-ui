@@ -363,6 +363,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-size: 14px;
   }
   html {
     @apply font-sans;

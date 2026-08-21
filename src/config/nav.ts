@@ -38,23 +38,17 @@ export function withInvoiceCount(count: number = 0, org: string): NavSection[] {
   }))
 }
 
-export const WORKSPACE = { name: 'Foxy HUB', org: 'Interloid Studio' }
+export const WORKSPACE = { name: 'Foxy HUB' }
 export const APP_VERSION = '0.1.0'
 
-export const ACCOUNT = {
-  name: 'Priya Nair',
-  email: 'siva@interloid.co',
-  role: 'Admin',
-  initials: 'PN',
-}
-
-export function getFooter(org: string): FooterProps {
+export function getFooter(org: string, orgName?: string): FooterProps {
   const prefix = org ? `/${org}` : ''
+  const displayOrgName = orgName?.trim() || org || WORKSPACE.name
 
   return {
     brand: {
       name: WORKSPACE.name,
-      org: WORKSPACE.org,
+      org: displayOrgName,
       year: new Date().getFullYear(),
       tagline:
         'Projects, time and invoices in one workspace — for studios that bill by the hour.',

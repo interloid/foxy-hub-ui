@@ -19,7 +19,11 @@ import { changePassword } from '../actions'
 import { CHANGE_PASSWORD } from '../data'
 import { changePasswordSchema, type ChangePasswordInput } from '../schemas'
 
-export function ChangePasswordForm() {
+type Org = {
+  org: string
+}
+
+export function ChangePasswordForm({ org }: Org) {
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -70,6 +74,7 @@ export function ChangePasswordForm() {
       autoComplete: 'new-password',
     },
   ] as const
+  const backNav = CHANGE_PASSWORD.back.href(org)
 
   return (
     <FxCard>
@@ -108,9 +113,7 @@ export function ChangePasswordForm() {
               asChild
               className="border-border bg-muted text-foreground hover:border-border-strong hover:bg-muted"
             >
-              <Link href={CHANGE_PASSWORD.back.href}>
-                {CHANGE_PASSWORD.cancel}
-              </Link>
+              <Link href={backNav}>{CHANGE_PASSWORD.cancel}</Link>
             </FxButton>
             <FxButton type="submit" disabled={pending}>
               {pending ? 'Saving…' : CHANGE_PASSWORD.submit}

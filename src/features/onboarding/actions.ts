@@ -5,7 +5,9 @@ import { logActivity } from '@/lib/activity'
 import { getAccount } from '@/lib/dal'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { headers } from 'next/headers'
 
+import { rateLimit } from '@/lib/rate-limit'
 import { ONBOARD_TAKEN } from './data'
 import {
   createWorkspaceSchema,
@@ -24,6 +26,7 @@ import {
 import type { ActionResult, InviteOutcome, TeamInvite } from './types'
 
 const siteUrl = () => siteConfig.url
+
 export async function checkSlugAvailable(
   slug: string
 ): Promise<ActionResult<boolean>> {
@@ -44,6 +47,21 @@ export async function checkEmailAvailable(
 ): Promise<ActionResult<boolean>> {
   const parsed = emailSchema.safeParse({ email })
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) }
+
+  const headerList = await headers()
+  const forwardedFor = headerList.get('x-forwarded-for')
+  const ip = forwardedFor
+    ? forwardedFor.split(',')[0]!.trim()
+    : (headerList.get('x-real-ip') ?? 'anonymous')
+
+  const isAllowed = await rateLimit(`check-email:${ip}`, {
+    limit: 5,
+    windowMs: 60 * 1000,
+  })
+
+  if (!isAllowed) {
+    return { ok: false, error: 'Too many requests. Please try again later.' }
+  }
 
   try {
     return { ok: true, data: !(await isEmailRegistered(parsed.data.email)) }
@@ -66,20 +84,12 @@ export async function createWorkspace(
     if (!(await isSlugAvailable(supabase, slug))) {
       return { ok: false, error: ONBOARD_TAKEN.slug }
     }
-    try {
-      if (await isEmailRegistered(email)) {
-        return { ok: false, error: ONBOARD_TAKEN.email }
-      }
-    } catch (err) {
-      console.error((err as Error).message)
-    }
 
     await startWorkspaceSignup(supabase, {
       fullName,
       email,
       agencyName,
       slug,
-
       invites: (parsed.data.invites ?? []).filter(
         (invite) => invite.email.length > 0
       ),
@@ -88,7 +98,16 @@ export async function createWorkspace(
       )}`,
     })
   } catch (err) {
-    console.error((err as Error).message)
+    const message = (err as Error).message || ''
+    console.error(message)
+
+    if (
+      message.includes('User already registered') ||
+      message.includes('already exists')
+    ) {
+      return { ok: false, error: ONBOARD_TAKEN.email }
+    }
+
     return { ok: false, error: 'Could not start signup. Try again.' }
   }
 
@@ -112,7 +131,12 @@ export async function inviteTeam(
 
   const { data: membership, error: membershipError } = await supabase
     .from('memberships')
-    .select('role')
+    .select(
+      `role,
+      organization:organizations (
+        slug
+    )`
+    )
     .eq('org_id', orgId)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -140,7 +164,6 @@ export async function inviteTeam(
     }
   }
 
-  // 3. Process invitations safely
   const data = await sendInvitations(supabase, admin, {
     orgId,
     invitedBy: user.id,
@@ -149,7 +172,7 @@ export async function inviteTeam(
   })
 
   if (data.created > 0) {
-    const account = await getAccount(orgId)
+    const account = await getAccount(membership.organization.slug)
     const actor = account?.fullName?.trim() || 'Someone'
     const who =
       data.created === 1
@@ -228,7 +251,9 @@ export async function redeemPendingInvites(): Promise<
     return { ok: false, error: 'No workspace found for this account.' }
 
   const result = await inviteTeam(orgId, pending)
-  await supabase.auth.updateUser({ data: { team_invites: null } })
+  if (result.ok) {
+    await supabase.auth.updateUser({ data: { team_invites: null } })
+  }
 
   return result
 }

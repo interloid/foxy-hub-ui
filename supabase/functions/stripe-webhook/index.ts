@@ -207,28 +207,47 @@ serve(async (req) => {
 
           const orgId = session.metadata?.orgId
           const subId = session.metadata?.subId
-          if (orgId) {
-            const sub = await supabase
-              .from('subscriptions')
-              .update({
-                stripe_customer_id: session.customer,
-                stripe_subscription_id: subscriptionId,
-                stripe_payment_intent: paymentIntentId,
-                payment_method_type: paymentMethodType,
-                payment_method_details: paymentMethodDetails,
-                org_id: orgId,
-                ...(mapSubscriptionStatus(subData.status)
-                  ? { status: mapSubscriptionStatus(subData.status) as string }
-                  : {}),
-                plan_id: plan.id,
-                current_period_end: subData.current_period_end
-                  ? new Date(subData.current_period_end * 1000).toISOString()
-                  : null,
-              })
-              .eq('id', subId)
-              .select()
-            console.log('Subscription created/updated with validated plan', sub)
+
+          // 1. Validate required metadata identifiers
+          if (!orgId || !subId) {
+            throw new Error(
+              `Missing metadata in checkout session (orgId: ${orgId}, subId: ${subId})`
+            )
           }
+
+          // 2. Perform update and check response
+          const { data: updatedSubs, error: updateError } = await supabase
+            .from('subscriptions')
+            .update({
+              stripe_customer_id: session.customer,
+              stripe_subscription_id: subscriptionId,
+              stripe_payment_intent: paymentIntentId,
+              payment_method_type: paymentMethodType,
+              payment_method_details: paymentMethodDetails,
+              org_id: orgId,
+              ...(mapSubscriptionStatus(subData.status)
+                ? { status: mapSubscriptionStatus(subData.status) as string }
+                : {}),
+              plan_id: plan.id,
+              current_period_end: subData.current_period_end
+                ? new Date(subData.current_period_end * 1000).toISOString()
+                : null,
+            })
+            .eq('id', subId)
+            .select()
+
+          // 3. Handle database errors or zero affected rows
+          if (updateError) {
+            throw new Error(
+              `Failed to update subscription ${subId}: ${updateError.message}`
+            )
+          }
+
+          if (!updatedSubs || updatedSubs.length === 0) {
+            throw new Error(`Subscription row not found for id: ${subId}`)
+          }
+
+          console.log('Subscription updated successfully:', updatedSubs[0])
         }
         break
       }

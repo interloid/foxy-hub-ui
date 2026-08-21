@@ -9,7 +9,8 @@ export default async function RootPage() {
   }
 
   const workspace = await getWorkspace()
-  const defaultOrg = workspace?.slug ?? 'default-org'
-
-  redirect(`/${defaultOrg}`)
+  if (!workspace?.slug) {
+    redirect('/onboard')
+  }
+  redirect(`/${workspace.slug}`)
 }

@@ -5,8 +5,8 @@ import { ThemeProvider } from '@/context/theme-provider'
 import { themeInitScript } from '@/lib/theme'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Toaster } from 'sonner'
 import './globals.css'
+import { Toaster } from '@/components/shared/toaster'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
