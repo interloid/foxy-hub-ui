@@ -1,4 +1,5 @@
 import { TabSessionSync } from '@/components/common/tab-session-sync'
+import { Toaster } from '@/components/shared/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { siteConfig } from '@/config/site'
 import { ThemeProvider } from '@/context/theme-provider'
@@ -6,7 +7,6 @@ import { themeInitScript } from '@/lib/theme'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
-import { Toaster } from '@/components/shared/toaster'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -21,8 +21,6 @@ const geistMono = Geist_Mono({
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 }
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),

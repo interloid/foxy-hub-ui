@@ -449,3 +449,18 @@
     transform: scaleX(1);
   }
 }
+
+@supports (-webkit-touch-callout: none) {
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='search'],
+  input[type='number'],
+  select,
+  textarea {
+    font-size: 16px !important;
+    transform: scale(0.875); /* Visually scales text down to ~14px equivalent */
+    transform-origin: left center;
+    width: 114.28%; /* Prevents horizontal truncation caused by scale */
+  }
+}
