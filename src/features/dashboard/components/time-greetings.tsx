@@ -27,9 +27,14 @@ export function TimeGreeting({ userName }: { userName: string | null }) {
   const firstName = userName?.trim().split(/\s+/)[0]
 
   return (
-    <h1 className="text-foreground text-[24px] font-medium tracking-tight">
-      {greeting}
-      {firstName ? `, ${firstName}` : ''}
-    </h1>
+    <div>
+      <h1 className="text-foreground text-[24px] font-medium tracking-tight">
+        {greeting}
+        {firstName ? `, ${firstName}` : ''}
+      </h1>
+      <p className="text-muted-foreground mt-0.5">
+        Here is what’s happening across your workspace today.
+      </p>
+    </div>
   )
 }

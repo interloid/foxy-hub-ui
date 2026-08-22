@@ -1,0 +1,355 @@
+'use client'
+
+import { FxButton } from '@/components/shared/fx-button'
+import { FxCalendar } from '@/components/shared/fx-calendar'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  FxDropdownMenuContent,
+  FxDropdownMenuItem,
+  FxPopoverContent,
+  Popover,
+  PopoverTrigger,
+} from '@/components/shared/fx-menu'
+
+import {
+  FxSheetBody,
+  FxSheetContent,
+  FxSheetDescription,
+  FxSheetFooter,
+  FxSheetHeader,
+  FxSheetTitle,
+  Sheet,
+} from '@/components/shared/fx-sheet'
+import { FxTextarea } from '@/components/shared/fx-textarea'
+import {
+  Calendar as CalendarIcon,
+  Check,
+  ChevronDown,
+  Loader2,
+} from 'lucide-react'
+import { useEffect, useState, useTransition } from 'react'
+import { toast } from 'sonner'
+import {
+  createTimeEntry,
+  getDailyCapacityAndLoggedMinutes,
+  getMilestonesForProject,
+  getProjectsForOrg,
+  type MilestoneOption,
+  type ProjectOption,
+} from '../action'
+import { DurationInput } from './duration-input'
+
+interface LogTimeSheetProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+function formatDateToYYYYMMDD(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
+  // Database Options State
+  const [projects, setProjects] = useState<ProjectOption[]>([])
+  const [milestones, setMilestones] = useState<MilestoneOption[]>([])
+
+  // Form State
+  const [selectedProject, setSelectedProject] = useState<ProjectOption | null>(
+    null
+  )
+  const [selectedMilestone, setSelectedMilestone] =
+    useState<MilestoneOption | null>(null)
+  const [duration, setDuration] = useState('')
+  const [description, setDescription] = useState('')
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+
+  // Capacity & UI State
+  const [dailyCapacityHours, setDailyCapacityHours] = useState(8)
+  const [alreadyLoggedMinutes, setAlreadyLoggedMinutes] = useState(0)
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [hasDurationError, setHasDurationError] = useState(false)
+
+  const [isPending, startTransition] = useTransition()
+
+  // Reset form when modal opens
+  const resetForm = () => {
+    setSelectedProject(null)
+    setSelectedMilestone(null)
+    setDuration('')
+    setDescription('')
+    setSelectedDate(new Date())
+    setHasDurationError(false)
+  }
+
+  // Initial Fetch for Projects and Capacity when Sheet Opens
+  useEffect(() => {
+    if (!open) return
+
+    startTransition(async () => {
+      const projList = await getProjectsForOrg()
+      setProjects(projList)
+
+      if (selectedDate) {
+        const dateStr = formatDateToYYYYMMDD(selectedDate)
+        const { dailyCapacityHours, alreadyLoggedMinutes } =
+          await getDailyCapacityAndLoggedMinutes(dateStr)
+
+        setDailyCapacityHours(dailyCapacityHours)
+        setAlreadyLoggedMinutes(alreadyLoggedMinutes)
+      }
+    })
+  }, [open, selectedDate])
+
+  const handleProjectSelect = (project: ProjectOption) => {
+    setSelectedProject(project)
+    setSelectedMilestone(null)
+
+    startTransition(async () => {
+      const msList = await getMilestonesForProject(project.id)
+      setMilestones(msList)
+    })
+  }
+
+  const handleLogTime = () => {
+    if (
+      !selectedProject ||
+      !selectedDate ||
+      !duration.trim() ||
+      !description.trim()
+    ) {
+      return
+    }
+
+    const dateStr = formatDateToYYYYMMDD(selectedDate)
+
+    startTransition(async () => {
+      const res = await createTimeEntry({
+        projectId: selectedProject.id,
+        milestoneId: selectedMilestone?.id,
+        workDate: dateStr,
+        durationStr: duration,
+        description,
+      })
+
+      if (res.success) {
+        toast.success('Time entry logged as draft!')
+        resetForm()
+        onOpenChange(false)
+      } else {
+        toast.error(res.error || 'Failed to log time entry. Please try again.')
+      }
+    })
+  }
+
+  const formattedDate = selectedDate
+    ? selectedDate.toLocaleDateString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+      })
+    : 'Select date'
+
+  const isSubmitDisabled =
+    isPending ||
+    hasDurationError ||
+    !selectedProject ||
+    !duration.trim() ||
+    !description.trim()
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <FxSheetContent>
+        {/* Header */}
+        <FxSheetHeader>
+          <FxSheetTitle>Log time</FxSheetTitle>
+          <FxSheetDescription>
+            Record hours against a project and milestone.
+          </FxSheetDescription>
+        </FxSheetHeader>
+
+        {/* Form Body */}
+        <FxSheetBody className="space-y-4">
+          {/* Project & Milestone Row */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Project Dropdown */}
+            <div className="w-full">
+              <label className="text-foreground mb-2 block text-[13px] font-medium">
+                Project <span className="text-destructive">*</span>
+              </label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="border-border bg-muted/50 text-foreground hover:bg-muted focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none focus:ring-1"
+                  >
+                    <span className="truncate">
+                      {selectedProject
+                        ? selectedProject.name
+                        : 'Select project...'}
+                    </span>
+                    <ChevronDown className="text-muted-foreground size-4 shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <FxDropdownMenuContent align="start" className="w-60">
+                  {projects.length === 0 ? (
+                    <div className="text-muted-foreground px-2 py-1.5 text-[12px]">
+                      No projects found
+                    </div>
+                  ) : (
+                    projects.map((proj) => (
+                      <FxDropdownMenuItem
+                        key={proj.id}
+                        onClick={() => handleProjectSelect(proj)}
+                        className="hover:bg-primary! focus:bg-muted text-[13px]"
+                      >
+                        {proj.name}
+                      </FxDropdownMenuItem>
+                    ))
+                  )}
+                </FxDropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Milestone Dropdown */}
+            <div className="w-full">
+              <label className="text-foreground mb-2 block text-[13px] font-medium">
+                Milestone
+              </label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild disabled={!selectedProject}>
+                  <button
+                    type="button"
+                    disabled={!selectedProject}
+                    className="border-border bg-muted/50 text-foreground hover:bg-muted focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <span className="truncate">
+                      {!selectedProject
+                        ? 'Select project first'
+                        : selectedMilestone
+                          ? selectedMilestone.title
+                          : 'Select milestone...'}
+                    </span>
+                    <ChevronDown className="text-muted-foreground size-4 shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <FxDropdownMenuContent align="start" className="w-60">
+                  {milestones.length === 0 ? (
+                    <div className="text-muted-foreground px-2 py-1.5 text-[12px]">
+                      No milestones for this project
+                    </div>
+                  ) : (
+                    milestones.map((ms) => (
+                      <FxDropdownMenuItem
+                        key={ms.id}
+                        onClick={() => setSelectedMilestone(ms)}
+                        className="hover:bg-primary! focus:bg-muted text-[13px]"
+                      >
+                        {ms.title}
+                      </FxDropdownMenuItem>
+                    ))
+                  )}
+                </FxDropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          {/* Work Date */}
+          <div className="w-full">
+            <label className="text-foreground mb-2 block text-[13px] font-medium">
+              Work date
+            </label>
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="border-border bg-muted/50 text-foreground hover:bg-muted focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none focus:ring-1"
+                >
+                  <span>{formattedDate}</span>
+                  <CalendarIcon className="text-muted-foreground size-4 shrink-0" />
+                </button>
+              </PopoverTrigger>
+              <FxPopoverContent className="w-auto p-0" align="start">
+                <FxCalendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => {
+                    setSelectedDate(date)
+                    setIsCalendarOpen(false)
+                  }}
+                  variant="compact"
+                />
+              </FxPopoverContent>
+            </Popover>
+          </div>
+
+          {/* Duration Input */}
+          <DurationInput
+            value={duration}
+            onChange={setDuration}
+            dailyCapacityHours={dailyCapacityHours}
+            alreadyLoggedMinutes={alreadyLoggedMinutes}
+            onErrorChange={setHasDurationError}
+          />
+
+          {/* Description */}
+          <div className="w-full pt-1">
+            <label className="text-foreground mb-2 block text-[13px] font-medium">
+              Description <span className="text-destructive">*</span>
+            </label>
+            <FxTextarea
+              rows={4}
+              variant="subtle"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder='What did you work on? e.g. "M2 auth: RLS policies for memberships"'
+              className="text-[13px]"
+            />
+            <p className="text-muted-foreground mt-1.5 text-[11.5px]">
+              Required — &quot;development&quot; is not a receipt. Be specific
+              so approvers and clients can read the work.
+            </p>
+          </div>
+        </FxSheetBody>
+
+        {/* Footer Actions */}
+        <FxSheetFooter>
+          <span className="text-muted-foreground text-[12px]">
+            Saved as a{' '}
+            <strong className="text-foreground font-semibold">Draft</strong> —
+            submit for approval later.
+          </span>
+
+          <div className="flex items-center gap-2">
+            <FxButton
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              disabled={isPending}
+              className="text-foreground border-border text-[12.5px]"
+            >
+              Cancel
+            </FxButton>
+            <FxButton
+              variant="default"
+              size="sm"
+              disabled={isSubmitDisabled}
+              onClick={handleLogTime}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5 text-[12.5px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Check width={14} height={14} />
+              )}
+              <span>Log time</span>
+            </FxButton>
+          </div>
+        </FxSheetFooter>
+      </FxSheetContent>
+    </Sheet>
+  )
+}

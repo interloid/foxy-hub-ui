@@ -94,8 +94,8 @@ export function AppShell({
         />
 
         <main className="shell:px-8 shell:pt-7 min-h-0 flex-1 overflow-y-auto px-4 pt-4.5">
-          <div className="flex min-h-dvh w-full flex-col">
-            <div className="min-h-100">{children}</div>
+          <div className="flex min-h-dvh w-full flex-col gap-8">
+            <div className="min-h-100 flex-1">{children}</div>
             <AppFooter {...footer} />
           </div>
         </main>

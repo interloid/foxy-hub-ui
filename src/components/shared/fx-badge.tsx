@@ -36,6 +36,11 @@ const fxBadgeVariants = cva(
   }
 )
 
+type FxBadgeProps = Omit<ComponentProps<typeof Badge>, 'variant'> &
+  VariantProps<typeof fxBadgeVariants> & {
+    dot?: boolean
+  }
+
 function FxBadge({
   className,
   variant,
@@ -45,13 +50,11 @@ function FxBadge({
   asChild = false,
   children,
   ...props
-}: ComponentProps<typeof Badge> &
-  VariantProps<typeof fxBadgeVariants> & {
-    dot?: boolean
-  }) {
+}: FxBadgeProps) {
   return (
     <Badge
       asChild={asChild}
+      variant="outline"
       data-slot="fx-badge"
       data-variant={variant ?? 'secondary'}
       className={cn(fxBadgeVariants({ variant, shape, size }), className)}
