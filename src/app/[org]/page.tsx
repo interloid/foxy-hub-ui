@@ -1,5 +1,5 @@
 import { PaymentSuccessCard } from '@/components/billing/payment-success-card'
-import { DashboardOverview } from '@/features/dashboard/components/dashboard-overview'
+import { DashboardOverview } from '@/features/dashboard/components/overview/dashboard-overview'
 import { getDashboardData } from '@/features/dashboard/data'
 import { getAccount } from '@/lib/dal'
 import { redirect } from 'next/navigation'

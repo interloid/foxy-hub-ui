@@ -1,13 +1,13 @@
 'use client'
 
-import { DashboardData } from '../types'
-import { ActiveProjects } from './active-projects'
+import { DashboardData } from '../../types'
+import { ActiveProjects } from '../widgets/active-projects'
+import { PendingApprovals } from '../widgets/pending-approvals'
+import { RecentActivity } from '../widgets/recent-activity'
+import { TeamCapacity } from '../widgets/team-capacity'
 import { DashboardHeaders } from './dashboard-headers'
-import { PendingApprovals } from './pending-approvals'
-import { RecentActivity } from './recent-activity'
 import { StatsGrid } from './stats-grid'
 import { StudioPlanCard } from './studio-plan-card'
-import { TeamCapacity } from './team-capacity'
 
 interface DashboardOverviewProps {
   data: DashboardData

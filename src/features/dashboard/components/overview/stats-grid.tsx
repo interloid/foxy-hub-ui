@@ -1,7 +1,7 @@
 import { NAV_ICONS } from '@/components/layout/nav-icons'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
 import { Folder } from 'lucide-react'
-import { DashboardStat } from '../types'
+import { DashboardStat } from '../../types'
 
 interface StatsGridProps {
   stats: DashboardStat[]

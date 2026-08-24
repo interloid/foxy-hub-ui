@@ -30,6 +30,12 @@ export async function getUserName() {
 
   return { ok: true, name }
 }
+export interface TeammateAllocationCheck {
+  userId: string
+  existingHoursPerDay: number
+  maxDailyCapacity: number
+  maxDaysPerWk: number
+}
 interface CapacityAndLoggedData {
   dailyCapacityHours: number
   alreadyLoggedMinutes: number
@@ -172,4 +178,39 @@ function parseDurationToMinutes(val: string): number | null {
   }
 
   return null
+}
+
+export async function getTeammateAllocatedHours(
+  userId: string,
+  targetDateStr?: string
+): Promise<TeammateAllocationCheck> {
+  const supabase = await createClient()
+
+  const { data: orgData } = await supabase
+    .from('organizations')
+    .select('daily_capacity_hours, days_per_week')
+    .limit(1)
+    .single()
+
+  const maxDailyCapacity = orgData?.daily_capacity_hours ?? 8
+  const maxDaysPerWk = orgData?.days_per_week ?? 5
+  const evalDate = targetDateStr || new Date().toISOString().split('T')[0]
+
+  const { data: allocations, error } = await supabase
+    .from('project_allocations')
+    .select('hours_per_day')
+    .eq('user_id', userId)
+    .lte('effective_from', evalDate)
+    .or(`effective_to.is.null,effective_to.gte.${evalDate}`)
+
+  if (error || !allocations) {
+    return { userId, existingHoursPerDay: 0, maxDailyCapacity, maxDaysPerWk }
+  }
+
+  const existingHoursPerDay = allocations.reduce(
+    (sum, item) => sum + (Number(item.hours_per_day) || 0),
+    0
+  )
+
+  return { userId, existingHoursPerDay, maxDailyCapacity, maxDaysPerWk }
 }

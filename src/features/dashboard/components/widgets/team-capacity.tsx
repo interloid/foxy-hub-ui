@@ -4,7 +4,7 @@ import { FxAvatar, FxAvatarFallback } from '@/components/shared/fx-avatar'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
 import { FxProgress } from '@/components/shared/fx-progress'
-import { CapacityRow } from '../types'
+import { CapacityRow } from '../../types'
 
 interface TeamCapacityProps {
   capacities?: CapacityRow[]

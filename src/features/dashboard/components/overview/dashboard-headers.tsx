@@ -3,7 +3,8 @@
 import { FxButton } from '@/components/shared/fx-button'
 import { Clock, Sparkles } from 'lucide-react'
 import { useState } from 'react'
-import { LogTimeSheet } from './log-time-sheet'
+import { LogTimeSheet } from '../sheets/log-time-sheet'
+import { NewProjectSheet } from '../sheets/new-project-sheet' // 1. Import sheet
 import { TimeGreeting } from './time-greetings'
 
 interface DashboardHeadersProps {
@@ -22,11 +23,18 @@ export function DashboardHeaders({
   onNewProjectClick,
 }: DashboardHeadersProps) {
   const [isLogTimeOpen, setIsLogTimeOpen] = useState(false)
+  const [isNewProjectOpen, setIsNewProjectOpen] = useState(false) // 2. Add open state
 
   const handleLogTimeClick = () => {
     setIsLogTimeOpen(true)
     onLogTimeClick?.()
   }
+
+  const handleNewProjectClick = () => {
+    setIsNewProjectOpen(true) // 3. Open sheet on button click
+    onNewProjectClick?.()
+  }
+
   return (
     <>
       <div className="flex flex-col gap-4 md:p-3 lg:flex-row lg:items-end lg:justify-between">
@@ -62,14 +70,20 @@ export function DashboardHeaders({
           {/* New Project (Primary CTA) */}
           <FxButton
             variant="default"
-            onClick={onNewProjectClick}
+            onClick={handleNewProjectClick}
             className="bg-primary text-primary-foreground hover:bg-primary/90 text-[13px] font-semibold"
           >
             <span>New project</span>
           </FxButton>
         </div>
       </div>
+      {/* Sheets */}
       <LogTimeSheet open={isLogTimeOpen} onOpenChange={setIsLogTimeOpen} />
+      <NewProjectSheet
+        open={isNewProjectOpen}
+        onOpenChange={setIsNewProjectOpen}
+      />{' '}
+      {/* 4. Render sheet */}
     </>
   )
 }

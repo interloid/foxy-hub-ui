@@ -3,7 +3,7 @@
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
 import { FxProgress } from '@/components/shared/fx-progress'
-import { StudioPlanInfo } from '../types'
+import { StudioPlanInfo } from '../../types'
 
 interface StudioPlanCardProps {
   planInfo: StudioPlanInfo

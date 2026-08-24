@@ -2,7 +2,7 @@
 
 import { FxAvatar, FxAvatarFallback } from '@/components/shared/fx-avatar'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
-import { ActivityEvent } from '../types'
+import { ActivityEvent } from '../../types'
 
 interface RecentActivityProps {
   activities?: ActivityEvent[]

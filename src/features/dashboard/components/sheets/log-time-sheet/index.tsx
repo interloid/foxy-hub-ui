@@ -23,6 +23,14 @@ import {
 } from '@/components/shared/fx-sheet'
 import { FxTextarea } from '@/components/shared/fx-textarea'
 import {
+  createTimeEntry,
+  getDailyCapacityAndLoggedMinutes,
+  getMilestonesForProject,
+  getProjectsForOrg,
+  MilestoneOption,
+  ProjectOption,
+} from '@/features/dashboard/action'
+import {
   Calendar as CalendarIcon,
   Check,
   ChevronDown,
@@ -30,14 +38,6 @@ import {
 } from 'lucide-react'
 import { useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import {
-  createTimeEntry,
-  getDailyCapacityAndLoggedMinutes,
-  getMilestonesForProject,
-  getProjectsForOrg,
-  type MilestoneOption,
-  type ProjectOption,
-} from '../action'
 import { DurationInput } from './duration-input'
 
 interface LogTimeSheetProps {
