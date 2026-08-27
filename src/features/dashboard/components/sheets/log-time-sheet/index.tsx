@@ -326,16 +326,14 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
           <div className="flex items-center gap-2">
             <FxButton
               variant="outline"
-              size="sm"
               onClick={() => onOpenChange(false)}
               disabled={isPending}
-              className="text-foreground border-border text-[12.5px]"
+              className="text-foreground bg-muted border-border text-[12.5px]"
             >
               Cancel
             </FxButton>
             <FxButton
               variant="default"
-              size="sm"
               disabled={isSubmitDisabled}
               onClick={handleLogTime}
               className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5 text-[12.5px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"

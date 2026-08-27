@@ -82,24 +82,23 @@ export function DurationInput({
       </label>
 
       {/* FxInput with Computed Time Badge */}
-      <div className="relative flex items-center">
+      <div className="flex items-center gap-2">
         <FxInput
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="1.5  ·  1h 30m  ·  90m"
-          className={`pr-24 font-mono text-[13px] ${
+          className={`font-mono text-[13px] ${
             isInvalid ? 'border-destructive focus-visible:ring-destructive' : ''
           }`}
         />
 
         {parsedMinutes !== null && (
-          <span className="text-muted-foreground pointer-events-none absolute right-3 font-mono text-[12px] font-medium">
+          <span className="text-success shrink-0 font-mono text-[12px] font-medium">
             = {formatMinutesToLabel(parsedMinutes)}
           </span>
         )}
       </div>
-
       {/* Quick Select Pills */}
       <div className="mt-2 flex items-center gap-2">
         {['30m', '1h', '2h', '4h'].map((pill) => (

@@ -4,7 +4,7 @@ import { FxButton } from '@/components/shared/fx-button'
 import { Clock, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { LogTimeSheet } from '../sheets/log-time-sheet'
-import { NewProjectSheet } from '../sheets/new-project-sheet' // 1. Import sheet
+import { NewProjectSheet } from '../sheets/new-project-sheet'
 import { TimeGreeting } from './time-greetings'
 
 interface DashboardHeadersProps {
@@ -23,7 +23,7 @@ export function DashboardHeaders({
   onNewProjectClick,
 }: DashboardHeadersProps) {
   const [isLogTimeOpen, setIsLogTimeOpen] = useState(false)
-  const [isNewProjectOpen, setIsNewProjectOpen] = useState(false) // 2. Add open state
+  const [isNewProjectOpen, setIsNewProjectOpen] = useState(false)
 
   const handleLogTimeClick = () => {
     setIsLogTimeOpen(true)
@@ -31,7 +31,7 @@ export function DashboardHeaders({
   }
 
   const handleNewProjectClick = () => {
-    setIsNewProjectOpen(true) // 3. Open sheet on button click
+    setIsNewProjectOpen(true)
     onNewProjectClick?.()
   }
 
@@ -41,49 +41,49 @@ export function DashboardHeaders({
         {/* Greeting and Subtitle */}
         <TimeGreeting userName={userName} />
 
-        {/* Action Buttons Group */}
-        <div className="grid grid-cols-[40%_25%_25%] gap-2.5 sm:flex sm:items-center sm:gap-3">
+        {/* Action Buttons Group using Grid */}
+        <div className="grid grid-cols-[40%_27%_27%] items-stretch gap-2 sm:flex sm:items-center sm:gap-3">
           {/* Draft Weekly Update */}
           <FxButton
             variant="secondary"
             onClick={onDraftUpdateClick}
-            className="text-card-foreground border-border hover:bg-card hover:text-accent-foreground gap-2 text-[13px] font-medium"
+            className="text-card-foreground border-border hover:bg-card hover:text-accent-foreground h-auto justify-center gap-1.5 px-2 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:px-3 sm:whitespace-nowrap"
           >
             <Sparkles
               className="text-primary shrink-0"
-              width={10}
-              height={10}
+              width={14}
+              height={14}
             />
-            <span>Draft weekly update</span>
+            <span className="leading-tight">Draft weekly update</span>
           </FxButton>
 
           {/* Log Time */}
           <FxButton
             variant="secondary"
             onClick={handleLogTimeClick}
-            className="text-card-foreground border-border hover:bg-card hover:text-accent-foreground gap-2 text-[13px] font-medium"
+            className="text-card-foreground border-border hover:bg-card hover:text-accent-foreground h-auto justify-center gap-1.5 px-2 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:px-3 sm:whitespace-nowrap"
           >
-            <Clock className="text-primary shrink-0" width={10} height={10} />
-            <span>Log time</span>
+            <Clock className="text-primary shrink-0" width={14} height={14} />
+            <span className="leading-tight">Log time</span>
           </FxButton>
 
           {/* New Project (Primary CTA) */}
           <FxButton
             variant="default"
             onClick={handleNewProjectClick}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 text-[13px] font-semibold"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 h-auto justify-center px-2 py-2 text-center text-[13px] font-semibold whitespace-normal sm:h-9 sm:px-3 sm:whitespace-nowrap"
           >
-            <span>New project</span>
+            <span className="leading-tight">New project</span>
           </FxButton>
         </div>
       </div>
+
       {/* Sheets */}
       <LogTimeSheet open={isLogTimeOpen} onOpenChange={setIsLogTimeOpen} />
       <NewProjectSheet
         open={isNewProjectOpen}
         onOpenChange={setIsNewProjectOpen}
-      />{' '}
-      {/* 4. Render sheet */}
+      />
     </>
   )
 }

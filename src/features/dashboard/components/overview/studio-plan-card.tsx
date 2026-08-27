@@ -49,7 +49,7 @@ export function StudioPlanCard({
           {isAdmin ? (
             <FxButton
               variant="outline"
-              size="sm"
+              size="default"
               onClick={onManageClick}
               className="text-foreground border-border hover:bg-accent/50 w-full text-[13px] font-medium"
             >
