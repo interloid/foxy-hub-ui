@@ -100,7 +100,14 @@ function ReadOnlyField({
       <FxLabel htmlFor={id} className="block leading-normal">
         {label}
       </FxLabel>
-      <FxInput id={id} inputSize="sm" readOnly value={value} />
+      <FxInput
+        id={id}
+        inputSize="sm"
+        readOnly
+        tabIndex={-1}
+        value={value}
+        className="focus:border-border text-muted-foreground pointer-events-none select-none focus:ring-0"
+      />
     </FxField>
   )
 }

@@ -33,12 +33,12 @@ export async function updateFullName(fullName: string): Promise<ProfileResult> {
     .maybeSingle()
   if (error) {
     console.error('update full name failed:', error.message)
-    return { ok: false, error: 'Could not save your name.' }
+    return { ok: false, error: 'Could not save name.' }
   }
 
   if (!data) {
     console.error('update full name affected no rows for user', session.id)
-    return { ok: false, error: 'Could not save your name.' }
+    return { ok: false, error: 'Could not save name.' }
   }
 
   revalidatePath('/', 'layout')

@@ -65,9 +65,10 @@ export function AppSidebar({
       data-slot="app-sidebar"
       data-collapsed={collapsed || undefined}
       className={cn(
-        'border-border bg-sidebar flex shrink-0 flex-col border-r',
+        'border-border bg-sidebar flex h-full max-h-screen shrink-0 flex-col border-r',
         'transition-[width] duration-200 ease-out',
         !isMobile && (collapsed ? 'w-17' : 'w-59'),
+        isMobile && 'w-full',
         className
       )}
     >
@@ -83,7 +84,7 @@ export function AppSidebar({
           onClick={isMobile ? onClose : toggle}
           aria-expanded={!collapsed}
           aria-label={workspace.name}
-          className="bg-primary text-primary-foreground shadow-card hover:bg-primary-hover focus-visible:ring-ring flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-[15px] font-bold transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="bg-primary text-primary-foreground shadow-card hover:bg-primary-hover focus-visible:ring-ring flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-[15px] font-bold uppercase transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           {workspace.name.charAt(0)}
         </button>
@@ -103,7 +104,7 @@ export function AppSidebar({
                 type="button"
                 onClick={onClose}
                 aria-label="Close menu"
-                className="border-border bg-muted text-muted-foreground hover:border-border-strong hover:text-foreground focus-visible:ring-ring flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                className="border-border bg-muted text-muted-foreground hover:border-border-strong hover:text-foreground focus-visible:ring-ring flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-xl border transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 ✕
               </button>
@@ -112,7 +113,7 @@ export function AppSidebar({
                 type="button"
                 onClick={toggle}
                 aria-label="Collapse sidebar"
-                className="border-border bg-muted text-muted-foreground hover:border-border-strong hover:text-foreground focus-visible:ring-ring flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                className="border-border bg-muted text-muted-foreground hover:border-border-strong hover:text-foreground focus-visible:ring-ring flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-xl border transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 <NAV_ICONS.collapse size={16} strokeWidth={1.8} />
               </button>
@@ -150,7 +151,7 @@ export function AppSidebar({
 
             <span className="flex-1 text-left">Search</span>
 
-            <span className="bg-accent text-2xs rounded-[4px] px-1.25 py-px font-mono">
+            <span className="bg-accent text-2xs rounded-lg px-1.25 py-px font-mono">
               ⌘K
             </span>
           </button>

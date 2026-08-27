@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { ReactNode } from 'react'
 
 export function AuthLayout({
   children,
@@ -7,10 +8,10 @@ export function AuthLayout({
   hero,
   className,
 }: {
-  children: React.ReactNode
+  children: ReactNode
   brand: { name: string; mark: string }
   tagline: string
-  hero: React.ReactNode
+  hero: ReactNode
   className?: string
 }) {
   return (

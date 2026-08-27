@@ -3,6 +3,7 @@ import { CheckIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 import type { OnboardPlan } from '../data'
+import { ComponentProps } from 'react'
 
 function OnboardPlanCard({
   plan,
@@ -11,7 +12,7 @@ function OnboardPlanCard({
   selected = false,
   className,
   ...props
-}: Omit<React.ComponentProps<'button'>, 'children'> & {
+}: Omit<ComponentProps<'button'>, 'children'> & {
   plan: OnboardPlan
   price: string
   cadence: string

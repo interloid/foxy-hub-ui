@@ -6,7 +6,9 @@ import { ThemeProvider } from '@/context/theme-provider'
 import { themeInitScript } from '@/lib/theme'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
+import { ReactNode } from 'react'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -22,6 +24,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
 }
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
@@ -52,11 +55,7 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
@@ -64,8 +63,16 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-        <script
+        <Script
+          id="theme-init"
+
+          dangerouslySetInnerHTML={{
+            __html: themeInitScript,
+          }}
+        />
+
+        <Script
+          id="theme-init-2"
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({

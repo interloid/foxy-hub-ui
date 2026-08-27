@@ -56,14 +56,22 @@ export async function signInWithPassword(
   return { ok: true, redirectTo: `/${orgSlug}` }
 }
 
-export async function sendPasswordReset(email: string): Promise<AuthResult> {
+export async function sendPasswordReset(
+  email: string,
+  forgotPassword?: boolean
+): Promise<AuthResult> {
   const parsed = resetRequestSchema.safeParse({ email })
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) }
   const { email: address } = parsed.data
 
+  const queryParams = new URLSearchParams({ reset: '1' })
+  if (forgotPassword) {
+    queryParams.set('forgot', '1')
+  }
+
   const supabase = await createClient()
   const { error } = await supabase.auth.resetPasswordForEmail(address, {
-    redirectTo: `${siteConfig.url}/auth/callback?reset=1`,
+    redirectTo: `${siteConfig.url}/auth/callback?${queryParams.toString()}`,
   })
 
   if (error) {

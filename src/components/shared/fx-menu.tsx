@@ -75,7 +75,7 @@ function FxMenuIcon({ className, ...props }: ComponentProps<'span'>) {
       data-slot="fx-menu-icon"
       aria-hidden
       className={cn(
-        'size-3.5 shrink-0 rounded-[4px] bg-current opacity-50',
+        'size-3.5 shrink-0 rounded-lg bg-current opacity-50',
         className
       )}
       {...props}
@@ -93,7 +93,7 @@ function FxPopoverContent({
       align="start"
       sideOffset={8}
       className={cn(
-        'border-border shadow-panel w-[270px] gap-3 rounded-xl border p-3.5 ring-0',
+        'border-border shadow-panel w-67.5 gap-3 rounded-xl border p-3.5 ring-0',
         className
       )}
       {...props}

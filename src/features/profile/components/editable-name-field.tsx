@@ -112,12 +112,16 @@ export function EditableNameField({
           }}
         />
 
-        <FxInputGroupAddon align="inline-end" className="gap-1 p-0 px-1.5">
+        <FxInputGroupAddon
+          align="inline-end"
+          className="gap-1 border-0 p-0 px-1.5"
+        >
           {editing ? (
             <>
               <FxButton
                 type="button"
                 className="text-success hover:text-success bg-transparent hover:bg-transparent"
+                variant={'ghost'}
                 size="icon-sm"
                 aria-label={PROFILE.edit.save}
                 disabled={pending}
@@ -140,6 +144,7 @@ export function EditableNameField({
           ) : (
             <FxButton
               type="button"
+              variant={'ghost'}
               size="icon-sm"
               aria-label={PROFILE.edit.start}
               className="text-muted-foreground hover:text-foreground bg-transparent hover:bg-transparent"

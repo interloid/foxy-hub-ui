@@ -2,6 +2,7 @@
 
 import { Toaster as UIToaster } from '@/components/ui/sonner'
 import { useTheme } from '@/context/theme-provider'
+import { CSSProperties } from 'react'
 import { ToasterProps } from 'sonner'
 
 export function Toaster({ ...props }: ToasterProps) {
@@ -17,7 +18,7 @@ export function Toaster({ ...props }: ToasterProps) {
           '--normal-text': 'var(--popover-foreground)',
           '--normal-border': 'var(--border-strong)',
           '--border-radius': 'var(--radius-xl)',
-        } as React.CSSProperties
+        } as CSSProperties
       }
       toastOptions={{
         classNames: {

@@ -4,7 +4,7 @@ export const fullNameSchema = z.object({
   fullName: z
     .string()
     .trim()
-    .min(1, 'Enter your name.')
+    .min(1, 'Enter name.')
     .max(80, 'Use 80 characters or fewer.'),
 })
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { NAV_ICONS } from '@/components/layout/nav-icons'
 import {
   FxAlert,
   FxButton,
@@ -25,6 +26,11 @@ type Org = {
 
 export function ChangePasswordForm({ org }: Org) {
   const [error, setError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState({
+    current: false,
+    password: false,
+    confirm: false,
+  })
   const [pending, startTransition] = useTransition()
 
   const form = useForm<ChangePasswordInput>({
@@ -94,15 +100,40 @@ export function ChangePasswordForm({ org }: Org) {
               <FxLabel htmlFor={field.id} className="block leading-normal">
                 {field.label}
               </FxLabel>
-              <FxInput
-                id={field.id}
-                type="password"
-                inputSize="sm"
-                autoComplete={field.autoComplete}
-                placeholder="••••••••"
-                aria-invalid={Boolean(errors[field.name]) || undefined}
-                {...form.register(field.name)}
-              />
+              <div className="relative">
+                <FxInput
+                  id={field.id}
+                  type={showPassword[field.name] ? 'text' : 'password'}
+                  inputSize="sm"
+                  autoComplete={field.autoComplete}
+                  placeholder="••••••••"
+                  aria-invalid={Boolean(errors[field.name]) || undefined}
+                  className="pr-10"
+                  {...form.register(field.name)}
+                />
+
+                <FxButton
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() =>
+                    setShowPassword((prev) => ({
+                      ...prev,
+                      [field.name]: !prev[field.name],
+                    }))
+                  }
+                  className="text-muted-foreground hover:text-foreground absolute top-1 right-1 bg-transparent hover:bg-transparent"
+                  aria-label={
+                    showPassword[field.name] ? 'Hide password' : 'Show password'
+                  }
+                >
+                  {showPassword[field.name] ? (
+                    <NAV_ICONS.eye className="text-primary size-4.25" />
+                  ) : (
+                    <NAV_ICONS.eyeOff className="text-primary size-4.25" />
+                  )}
+                </FxButton>
+              </div>
               <FxFieldError errors={[errors[field.name]]} />
             </FxField>
           ))}

@@ -49,7 +49,7 @@ export function AppFooter({
       <div className="dash:grid-cols-2 grid gap-x-8 gap-y-9 lg:grid-cols-[minmax(0,1.3fr)_repeat(4,minmax(0,1fr))]">
         <div className="dash:col-span-2 flex flex-col gap-4 lg:col-span-1">
           <div className="flex items-center gap-2.5">
-            <span className="bg-primary text-primary-foreground shadow-card flex size-8 shrink-0 items-center justify-center rounded-md text-[15px] font-bold">
+            <span className="bg-primary text-primary-foreground shadow-card flex size-8 shrink-0 items-center justify-center rounded-md text-[15px] font-bold uppercase">
               {brand.name.charAt(0)}
             </span>
             <span className="flex min-w-0 flex-col">
@@ -69,7 +69,7 @@ export function AppFooter({
           )}
 
           {contact?.email && (
-            <a
+            <Link
               href={`mailto:${contact.email}`}
               className="text-subtle-foreground hover:text-foreground inline-flex w-fit items-center gap-1.75 text-sm transition-colors duration-(--duration-fast)"
             >
@@ -79,7 +79,7 @@ export function AppFooter({
                 className="shrink-0"
               />
               {contact.label ?? contact.email}
-            </a>
+            </Link>
           )}
 
           {social && social.length > 0 && (
@@ -88,7 +88,7 @@ export function AppFooter({
                 const Mark = SOCIAL_ICONS[item.icon]
                 return (
                   <li key={item.href}>
-                    <a
+                    <Link
                       href={item.href}
                       target="_blank"
                       rel="noreferrer"
@@ -96,7 +96,7 @@ export function AppFooter({
                       className="border-border text-subtle-foreground hover:border-border-strong hover:text-foreground focus-visible:ring-ring flex size-8 items-center justify-center rounded-md border transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                     >
                       <Mark size={15} />
-                    </a>
+                    </Link>
                   </li>
                 )
               })}
@@ -144,10 +144,10 @@ function FooterLinkItem({ label, href, external }: FooterLink) {
 
   if (external) {
     return (
-      <a href={href} target="_blank" rel="noreferrer" className={className}>
+      <Link href={href} target="_blank" rel="noreferrer" className={className}>
         {label}
         <NAV_ICONS.external size={12} strokeWidth={1.8} className="shrink-0" />
-      </a>
+      </Link>
     )
   }
 

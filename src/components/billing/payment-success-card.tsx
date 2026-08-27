@@ -85,7 +85,7 @@ export function PaymentSuccessCard() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-2 flex min-h-[24px] items-center justify-center text-center text-sm">
+        <div className="mt-2 flex min-h-6 items-center justify-center text-center text-sm">
           {isLoading ? (
             <p className="text-muted-foreground flex items-center gap-2 text-xs">
               <Loader2 className="size-3.5 animate-spin" />

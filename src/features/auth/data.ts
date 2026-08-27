@@ -19,7 +19,7 @@ export const SIGN_IN = {
     { prompt: 'New agency?', label: 'Create a workspace', href: '/onboard' },
     {
       prompt: 'Forgot your password?',
-      label: 'Reset it',
+      label: 'Forgot password',
       href: '/forgot-password',
     },
   ],

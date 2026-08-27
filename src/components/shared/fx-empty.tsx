@@ -68,7 +68,7 @@ function FxEmptyDescription({
   return (
     <EmptyDescription
       data-slot="fx-empty-description"
-      className={cn('text-muted-foreground max-w-[300px] text-base', className)}
+      className={cn('text-muted-foreground max-w-75 text-base', className)}
       {...props}
     />
   )

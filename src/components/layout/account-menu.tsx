@@ -44,7 +44,7 @@ export function AccountMenu({
           className
         )}
       >
-        <span className="bg-brand-gradient text-2xs text-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-full font-semibold">
+        <span className="bg-brand-gradient text-2xs text-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-full font-semibold uppercase">
           {initialsOf(account.name, account.email)}
         </span>
 

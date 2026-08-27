@@ -11,16 +11,17 @@ import {
 } from '@/components/shared/fx/index'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
-import { Fragment, useEffect, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { Fragment, useEffect, useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { signInAsDemo, signInWithPassword } from '../actions'
 import { SIGN_IN } from '../data'
 import { signInSchema, type SignInInput } from '../schemas'
-import { useRouter } from 'next/navigation'
 
 export function SignInForm({ initialError }: { initialError?: string }) {
   const [pending, startTransition] = useTransition()
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     clearLogoutNotification()
@@ -68,7 +69,7 @@ export function SignInForm({ initialError }: { initialError?: string }) {
       </p>
 
       <form
-        className="flex max-w-100 flex-col gap-3.5"
+        className="flex w-full flex-col gap-2"
         noValidate
         onSubmit={form.handleSubmit((values) =>
           run(() => signInWithPassword(values.email, values.password))
@@ -97,13 +98,35 @@ export function SignInForm({ initialError }: { initialError?: string }) {
           <FxLabel htmlFor="password" className="block leading-normal">
             {SIGN_IN.password.label}
           </FxLabel>
-          <FxInput
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            aria-invalid={Boolean(form.formState.errors.password) || undefined}
-            {...form.register('password')}
-          />
+
+          <div className="relative">
+            <FxInput
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              aria-invalid={
+                Boolean(form.formState.errors.password) || undefined
+              }
+              className="pr-10"
+              {...form.register('password')}
+            />
+
+            <FxButton
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="text-muted-foreground hover:text-foreground absolute top-1 right-1 bg-transparent hover:bg-transparent"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? (
+                <NAV_ICONS.eye className="text-primary size-4.25" />
+              ) : (
+                <NAV_ICONS.eyeOff className="text-primary size-4.25" />
+              )}
+            </FxButton>
+          </div>
+
           <FxFieldError errors={[form.formState.errors.password]} />
         </FxField>
 

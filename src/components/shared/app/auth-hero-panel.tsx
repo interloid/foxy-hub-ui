@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import { NAV_ICONS, type NavIconName } from '@/components/layout/nav-icons'
 import { cn } from '@/lib/utils'
+import { ComponentProps } from 'react'
 
 export type AuthHeroPoint = { icon: NavIconName; label: string }
 
@@ -11,7 +12,7 @@ function AuthHeroPanel({
   points,
   className,
   ...props
-}: Omit<React.ComponentProps<'div'>, 'children'> & {
+}: Omit<ComponentProps<'div'>, 'children'> & {
   image: { src: string; width: number; height: number }
   eyebrow: string
   headline: string

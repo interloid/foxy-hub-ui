@@ -99,7 +99,7 @@ function Stepper({
                 aria-hidden
                 className={cn(
                   'mx-3 min-w-6 flex-1 transition-colors',
-                  product ? 'h-0.5 rounded-[2px]' : 'h-px',
+                  product ? 'h-0.5 rounded-xs' : 'h-px',
                   done ? 'bg-success' : 'bg-border'
                 )}
               />
