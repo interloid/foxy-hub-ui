@@ -6,9 +6,8 @@ import { ThemeProvider } from '@/context/theme-provider'
 import { themeInitScript } from '@/lib/theme'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import Script from 'next/script'
-import './globals.css'
 import { ReactNode } from 'react'
+import './globals.css'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',

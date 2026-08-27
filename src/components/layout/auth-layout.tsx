@@ -17,7 +17,7 @@ export function AuthLayout({
   return (
     <div
       data-slot="auth-layout"
-      className={cn('auth:grid-cols-2 grid min-h-svh grid-cols-1', className)}
+      className={cn('grid min-h-svh grid-cols-1 lg:grid-cols-2', className)}
     >
       <div className="auth:px-[8%] auth:py-12 mx-auto flex w-full max-w-140 flex-col justify-center px-5.5 pt-7 pb-10">
         <div
@@ -45,7 +45,7 @@ export function AuthLayout({
         {children}
       </div>
 
-      <div className="auth:flex hidden">{hero}</div>
+      <div className="hidden lg:flex">{hero}</div>
     </div>
   )
 }
