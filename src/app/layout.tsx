@@ -63,16 +63,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <head>
-        <Script
-          id="theme-init"
-
+        <script
           dangerouslySetInnerHTML={{
             __html: themeInitScript,
           }}
         />
 
-        <Script
-          id="theme-init-2"
+        <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
