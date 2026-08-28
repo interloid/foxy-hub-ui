@@ -24,12 +24,10 @@ import {
 import { FxTextarea } from '@/components/shared/fx-textarea'
 import {
   createTimeEntry,
-  getDailyCapacityAndLoggedMinutes,
-  getMilestonesForProject,
-  getProjectsForOrg,
   MilestoneOption,
   ProjectOption,
 } from '@/features/dashboard/action'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import {
   Calendar as CalendarIcon,
   Check,
@@ -56,6 +54,8 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
   // Database Options State
   const [projects, setProjects] = useState<ProjectOption[]>([])
   const [milestones, setMilestones] = useState<MilestoneOption[]>([])
+
+  const { orgSlug } = useWorkspace()
 
   // Form State
   const [selectedProject, setSelectedProject] = useState<ProjectOption | null>(
@@ -85,33 +85,56 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     setHasDurationError(false)
   }
 
-  // Initial Fetch for Projects and Capacity when Sheet Opens
+  // Load Projects once when sheet opens
   useEffect(() => {
     if (!open) return
 
-    startTransition(async () => {
-      const projList = await getProjectsForOrg()
-      setProjects(projList)
+    const controller = new AbortController()
 
-      if (selectedDate) {
-        const dateStr = formatDateToYYYYMMDD(selectedDate)
-        const { dailyCapacityHours, alreadyLoggedMinutes } =
-          await getDailyCapacityAndLoggedMinutes(dateStr)
-
-        setDailyCapacityHours(dailyCapacityHours)
-        setAlreadyLoggedMinutes(alreadyLoggedMinutes)
-      }
+    fetch('/api/dashboard/sheet-data?type=projects', {
+      signal: controller.signal,
     })
-  }, [open, selectedDate])
+      .then((res) => res.json())
+      .then((data) => setProjects(data))
+      .catch((err) => {
+        if (err.name !== 'AbortError') console.error(err)
+      })
 
+    return () => controller.abort()
+  }, [open])
+
+  // Fetch Daily Capacity when date changes (with AbortController to prevent race conditions)
+  useEffect(() => {
+    if (!open || !selectedDate) return
+
+    const controller = new AbortController()
+    const dateStr = formatDateToYYYYMMDD(selectedDate)
+
+    fetch(
+      `/api/dashboard/sheet-data?type=capacity&orgSlug=${orgSlug}&dateStr=${dateStr}`,
+      { signal: controller.signal }
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        setDailyCapacityHours(data.dailyCapacityHours ?? 8)
+        setAlreadyLoggedMinutes(data.alreadyLoggedMinutes ?? 0)
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') console.error(err)
+      })
+
+    return () => controller.abort()
+  }, [open, selectedDate, orgSlug])
+
+  // Fetch Milestones when project changes
   const handleProjectSelect = (project: ProjectOption) => {
     setSelectedProject(project)
     setSelectedMilestone(null)
 
-    startTransition(async () => {
-      const msList = await getMilestonesForProject(project.id)
-      setMilestones(msList)
-    })
+    fetch(`/api/dashboard/sheet-data?type=milestones&projectId=${project.id}`)
+      .then((res) => res.json())
+      .then((msList) => setMilestones(msList))
+      .catch(console.error)
   }
 
   const handleLogTime = () => {
@@ -128,6 +151,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
 
     startTransition(async () => {
       const res = await createTimeEntry({
+        orgSlug,
         projectId: selectedProject.id,
         milestoneId: selectedMilestone?.id,
         workDate: dateStr,

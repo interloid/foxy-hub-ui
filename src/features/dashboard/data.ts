@@ -1,5 +1,7 @@
+import { getDashboardMetrics } from '@/lib/dal'
 import { initialsOf } from '@/lib/initials'
 import { createClient } from '@/lib/supabase/server'
+import { getStartOfWeekISO } from '@/lib/week'
 import { ActivityEvent, CapacityRow, DashboardData, UserRole } from './types'
 
 export async function getDashboardData(
@@ -238,9 +240,6 @@ export async function getDashboardData(
   }
 
   // 8. Fetch Dynamic Team Capacity (Excluding client role)
-  // 8. Fetch Dynamic Team Capacity
-
-  // A. Fetch memberships (excluding clients)
   const { data: members } = await supabase
     .from('memberships')
     .select('user_id, role')
@@ -249,7 +248,6 @@ export async function getDashboardData(
 
   const memberUserIds = (members || []).map((m) => m.user_id)
 
-  // B. Fetch profiles explicitly in a separate query to guarantee full_name resolution
   const profileMap = new Map<string, string>()
 
   if (memberUserIds.length > 0) {
@@ -265,10 +263,13 @@ export async function getDashboardData(
     }
   }
 
-  // C. Fetch time entries directly for org members
+  const weekStart = getStartOfWeekISO()
+
   const { data: loggedTimes } = await supabase
     .from('time_entries')
-    .select('user_id, duration_minutes')
+    .select('user_id, duration_minutes, projects!inner(org_id)')
+    .eq('projects.org_id', orgId)
+    .gte('work_date', weekStart)
     .in('user_id', memberUserIds.length > 0 ? memberUserIds : [user.id])
 
   const dailyTarget = org?.daily_capacity_hours || 8
@@ -278,7 +279,6 @@ export async function getDashboardData(
   let overCapacityCount = 0
 
   const capacities: CapacityRow[] = (members || []).map((m) => {
-    // Lookup member name directly from our explicit profileMap
     const memberName = profileMap.get(m.user_id) || 'Team Member'
     const initials = initialsOf(memberName, null)
 
@@ -317,11 +317,13 @@ export async function getDashboardData(
     }
   })
 
-  // 9. Calculate Statistics
-  const { count: projectCount } = await supabase
-    .from('projects')
-    .select('*', { count: 'exact', head: true })
-    .eq('org_id', orgId)
+  // 9. Fetch Real Aggregated Dashboard Metrics via DAL
+  const metrics = await getDashboardMetrics(orgSlug)
+  const currency = metrics?.currency || org.currency || 'USD'
+
+  const hoursToApproveStr = metrics?.minutesToApprove
+    ? `${(metrics.minutesToApprove / 60).toFixed(1)}h`
+    : '0h'
 
   return {
     userName,
@@ -330,8 +332,8 @@ export async function getDashboardData(
     stats: [
       {
         label: 'Active Projects',
-        value: String(projectCount || 0),
-        delta: '+2 this week',
+        value: String(metrics?.openProjects ?? 0),
+        delta: `+${metrics?.projectsAddedThisMonth ?? 0} this month`,
         deltaColor: '#137333',
         deltaType: 'success',
         iconType: 'info',
@@ -348,17 +350,19 @@ export async function getDashboardData(
       },
       {
         label: 'Hours to approve',
-        value: '2.5h',
-        delta: '1 timesheet entry',
+        value: hoursToApproveStr,
+        delta: `${metrics?.timesheetsToApprove ?? 0} timesheet ${
+          metrics?.timesheetsToApprove === 1 ? 'entry' : 'entries'
+        }`,
         deltaColor: '#1a73e8',
         icon: 'status',
         deltaType: 'warning',
         iconType: 'info',
       },
       {
-        label: 'Outstanding ',
-        value: '$8,800',
-        delta: '1 overdue',
+        label: 'Outstanding',
+        value: formatCurrency(metrics?.outstandingAmount ?? 0, currency),
+        delta: `${metrics?.overdueInvoices ?? 0} overdue`,
         deltaColor: '#c5221f',
         deltaType: 'destructive',
         iconType: 'destructive',
@@ -366,8 +370,8 @@ export async function getDashboardData(
       },
       {
         label: 'Studio MRR',
-        value: '$147',
-        delta: `${planInfo.usedSeats} seats active`,
+        value: formatCurrency((metrics?.mrrCents ?? 0) / 100, currency),
+        delta: `${metrics?.activeSeats ?? planInfo.usedSeats} seats active`,
         deltaColor: '#c5221f',
         icon: 'external',
         iconType: 'success',
@@ -381,4 +385,12 @@ export async function getDashboardData(
     capacityOverCount: overCapacityCount,
     planInfo,
   }
+}
+
+function formatCurrency(amount: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount)
 }

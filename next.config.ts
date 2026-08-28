@@ -71,12 +71,12 @@ const nextConfig: NextConfig = {
 
   async headers() {
     return [
-      // 1. Your existing security headers
+      // 1. Existing security headers
       {
         source: '/(.*)',
         headers: securityHeaders,
       },
-      // 2. Local development CORS headers for subdomains (prevents "Failed to fetch RSC payload")
+      // 2. Local development CORS headers for subdomains (fixed M9 CORS wildcard + credentials violation)
       ...(isDev
         ? [
             {
@@ -84,11 +84,24 @@ const nextConfig: NextConfig = {
               headers: [
                 {
                   key: 'Access-Control-Allow-Origin',
-                  value: '*',
+                  value: 'http://foxyhub.localhost:3000',
                 },
                 {
                   key: 'Access-Control-Allow-Credentials',
                   value: 'true',
+                },
+                {
+                  key: 'Access-Control-Allow-Methods',
+                  value: 'GET, POST, PUT, DELETE, OPTIONS',
+                },
+                {
+                  key: 'Access-Control-Allow-Headers',
+                  value:
+                    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, rsc, next-router-state-tree, next-router-prefetch',
+                },
+                {
+                  key: 'Vary',
+                  value: 'Origin',
                 },
               ],
             },

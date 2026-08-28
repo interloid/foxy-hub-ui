@@ -13,6 +13,9 @@ export async function rateLimit(
   const record = tracker.get(key)
 
   if (!record || now > record.resetTime) {
+    if (tracker.size > 10_000) {
+      for (const [k, v] of tracker) if (now > v.resetTime) tracker.delete(k)
+    }
     tracker.set(key, { count: 1, resetTime: now + windowMs })
     return true
   }

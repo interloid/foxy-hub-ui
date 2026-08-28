@@ -252,3 +252,19 @@ export const getDashboardMetrics = cache(
     }
   }
 )
+
+export const getUnpaidInvoiceCount = cache(
+  async (orgSlug?: string): Promise<number> => {
+    const workspace = await getWorkspace(orgSlug)
+    if (!workspace) return 0
+
+    const supabase = await createClient()
+    const { count } = await supabase
+      .from('invoices')
+      .select('id', { count: 'exact', head: true })
+      .eq('org_id', workspace.id)
+      .in('status', ['due', 'overdue'])
+
+    return count ?? 0
+  }
+)

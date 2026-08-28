@@ -1,29 +1,9 @@
 import 'server-only'
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-
-import { adminAuthRequest } from '@/lib/supabase/admin'
-
 import type { TeamInvite } from '../types'
 
 export class WorkspaceServiceError extends Error {}
-
-export async function isEmailRegistered(email: string): Promise<boolean> {
-  const wanted = email.trim().toLowerCase()
-  if (!wanted) return false
-
-  const response = await adminAuthRequest(
-    `/admin/users?per_page=200&filter=${encodeURIComponent(wanted)}`
-  )
-  if (!response.ok) {
-    throw new WorkspaceServiceError(`email check failed: ${response.status}`)
-  }
-
-  const body = (await response.json()) as {
-    users?: { email?: string | null }[]
-  }
-  return (body.users ?? []).some((user) => user.email?.toLowerCase() === wanted)
-}
 
 export async function isSlugAvailable(
   supabase: SupabaseClient,

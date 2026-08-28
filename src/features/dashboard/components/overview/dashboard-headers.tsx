@@ -3,6 +3,7 @@
 import { FxButton } from '@/components/shared/fx-button'
 import { Clock, Sparkles } from 'lucide-react'
 import { useState } from 'react'
+import { UserRole } from '../../types'
 import { LogTimeSheet } from '../sheets/log-time-sheet'
 import { NewProjectSheet } from '../sheets/new-project-sheet'
 import { TimeGreeting } from './time-greetings'
@@ -10,6 +11,7 @@ import { TimeGreeting } from './time-greetings'
 interface DashboardHeadersProps {
   userName: string
   orgName?: string
+  role: UserRole
   onDraftUpdateClick?: () => void
   onLogTimeClick?: () => void
   onNewProjectClick?: () => void
@@ -18,6 +20,7 @@ interface DashboardHeadersProps {
 export function DashboardHeaders({
   userName,
   orgName = 'Interloid Studio',
+  role,
   onDraftUpdateClick,
   onLogTimeClick,
   onNewProjectClick,
@@ -80,10 +83,13 @@ export function DashboardHeaders({
 
       {/* Sheets */}
       <LogTimeSheet open={isLogTimeOpen} onOpenChange={setIsLogTimeOpen} />
-      <NewProjectSheet
-        open={isNewProjectOpen}
-        onOpenChange={setIsNewProjectOpen}
-      />
+      {role === 'admin' ||
+        (role === 'owner' && (
+          <NewProjectSheet
+            open={isNewProjectOpen}
+            onOpenChange={setIsNewProjectOpen}
+          />
+        ))}
     </>
   )
 }

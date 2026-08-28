@@ -25,55 +25,19 @@ export function getAvatarPalette(index: number) {
   return AVATAR_PALETTES[index % AVATAR_PALETTES.length]
 }
 
-const defaultCapacities: CapacityRow[] = [
-  {
-    id: '1',
-    name: 'Sivakumar R.',
-    initials: 'SR',
-    pctLabel: '0%',
-    barPct: '0%',
-    barColor: '#e67817',
-    pctColor: 'text-warning',
-    pctValue: 0,
-  },
-  {
-    id: '2',
-    name: 'Priya Nair',
-    initials: 'PN',
-    pctLabel: '25%',
-    barPct: '25%',
-    barColor: '#e67817',
-    pctColor: 'text-warning',
-    pctValue: 25,
-  },
-  {
-    id: '3',
-    name: 'Marcus Lee',
-    initials: 'ML',
-    pctLabel: '100%',
-    barPct: '100%',
-    barColor: '#137333',
-    pctColor: 'text-success',
-    pctValue: 100,
-  },
-  {
-    id: '4',
-    name: 'Ana Duarte',
-    initials: 'AD',
-    pctLabel: '100%',
-    barPct: '100%',
-    barColor: '#137333',
-    pctColor: 'text-success',
-    pctValue: 100,
-  },
-]
-
 export function TeamCapacity({
-  capacities = defaultCapacities,
+  capacities = [],
   onViewAllClick,
 }: TeamCapacityProps) {
   if (!capacities || capacities.length === 0) {
     return null
+  }
+  if (capacities.length === 0) {
+    return (
+      <div className="text-muted-foreground flex h-48 items-center justify-center rounded-lg border border-dashed p-4 text-sm">
+        No team capacity data available.
+      </div>
+    )
   }
 
   return (

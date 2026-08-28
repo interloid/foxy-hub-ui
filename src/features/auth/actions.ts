@@ -48,11 +48,9 @@ export async function signInWithPassword(
   )?.slug
 
   if (membershipError || !orgSlug) {
-    return {
-      ok: false,
-      error: 'No workspace found for this account.',
-    }
+    return { ok: true, redirectTo: '/onboard' }
   }
+
   return { ok: true, redirectTo: `/${orgSlug}` }
 }
 
@@ -115,29 +113,27 @@ export async function setPassword(
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) }
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user)
-    return { ok: false, error: 'Your link has expired. Request a new one.' }
 
-  const { error } = await supabase.auth.updateUser({
-    password,
-    data: { password_set: true },
-  })
+  const { data: updateData, error: updateError } =
+    await supabase.auth.updateUser({
+      password,
+      data: { password_set: true },
+    })
 
-  if (error) {
-    return { ok: false, error: error.message }
+  if (updateError) {
+    return { ok: false, error: updateError.message }
   }
+  const userId = updateData.user?.id
+
   const { data: membership, error: membershipError } = await supabase
     .from('memberships')
     .select('role')
-    .eq('user_id', user.id)
-    .single()
+    .eq('user_id', userId)
+    .maybeSingle()
   if (membershipError) {
     return { ok: false, error: membershipError.message }
   }
-  return { ok: true, role: membership.role }
+  return { ok: true, role: membership?.role ?? undefined }
 }
 
 export async function changePassword(
@@ -181,4 +177,39 @@ export async function changePassword(
     return { ok: false, error: error.message }
   }
   return { ok: true }
+}
+
+export async function getUserDailyCapacityAndLoggedMinutes(
+  userId: string,
+  orgSlug: string,
+  workDate: string
+) {
+  const supabase = await createClient()
+
+  // 1. Fetch organization daily capacity (default to 8h if missing)
+  const { data: orgData } = await supabase
+    .from('organizations')
+    .select('daily_capacity_hours, id')
+    .eq('slug', orgSlug)
+    .maybeSingle()
+
+  const dailyCapacityMinutes = (orgData?.daily_capacity_hours ?? 8) * 60
+
+  if (!orgData) {
+    return { dailyCapacityMinutes: 8 * 60, alreadyLoggedMinutes: 0 }
+  }
+
+  const { data: entries } = await supabase
+    .from('time_entries')
+    .select('duration_minutes, projects!inner(org_id)')
+    .eq('user_id', userId)
+    .eq('work_date', workDate)
+    .eq('projects.org_id', orgData?.id) // Optional if scoped by orgId or RLS
+
+  const alreadyLoggedMinutes = (entries ?? []).reduce(
+    (sum, entry) => sum + (entry.duration_minutes ?? 0),
+    0
+  )
+
+  return { dailyCapacityMinutes, alreadyLoggedMinutes }
 }

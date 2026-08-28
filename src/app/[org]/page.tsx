@@ -21,9 +21,6 @@ export default async function WorkspaceHomePage({
         <PaymentSuccessCard />
       </Suspense>
       <DashboardOverview data={dashboardData} />
-      {/* <TimeGreeting
-        userName={account?.fullName ?? account?.email?.split('@')[0] ?? null}
-      /> */}
     </>
   )
 }

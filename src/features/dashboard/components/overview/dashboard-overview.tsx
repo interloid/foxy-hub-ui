@@ -1,5 +1,3 @@
-'use client'
-
 import { DashboardData } from '../../types'
 import { ActiveProjects } from '../widgets/active-projects'
 import { PendingApprovals } from '../widgets/pending-approvals'
@@ -18,7 +16,11 @@ export function DashboardOverview({ data }: DashboardOverviewProps) {
 
   return (
     <div className="animate-fx-fade space-y-6 md:p-3 lg:p-0">
-      <DashboardHeaders userName={data.userName} orgName={data.orgName} />
+      <DashboardHeaders
+        userName={data.userName}
+        orgName={data.orgName}
+        role={data.role}
+      />
       <StatsGrid stats={data.stats} />
 
       {/* Grid ratio: 60% Left / 40% Right */}

@@ -8,24 +8,26 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 
 import { rateLimit } from '@/lib/rate-limit'
+import z from 'zod'
 import { ONBOARD_TAKEN } from './data'
 import {
   createWorkspaceSchema,
   emailSchema,
   firstIssue,
   slugSchema,
+  teamInviteSchema,
 } from './schemas'
 import { CheckoutServiceError, createCheckoutSession } from './services/billing'
 import { findOwnedOrgId, sendInvitations } from './services/invitations'
 import {
   buildSignupNext,
-  isEmailRegistered,
   isSlugAvailable,
   startWorkspaceSignup,
 } from './services/workspace'
 import type { ActionResult, InviteOutcome, TeamInvite } from './types'
 
 const siteUrl = () => siteConfig.url
+const MAX_SIGNUP_INVITES = 5
 
 export async function checkSlugAvailable(
   slug: string
@@ -64,7 +66,7 @@ export async function checkEmailAvailable(
   }
 
   try {
-    return { ok: true, data: !(await isEmailRegistered(parsed.data.email)) }
+    return { ok: true, data: true }
   } catch (err) {
     console.error((err as Error).message)
     return { ok: false, error: 'Could not check that email. Try again.' }
@@ -241,8 +243,12 @@ export async function redeemPendingInvites(): Promise<
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'Not signed in.' }
 
-  const pending = user.user_metadata?.team_invites as TeamInvite[] | undefined
-  if (!Array.isArray(pending) || pending.length === 0) {
+  const parsed = z
+    .array(teamInviteSchema)
+    .max(MAX_SIGNUP_INVITES)
+    .safeParse(user.user_metadata?.team_invites)
+
+  if (!parsed.success || parsed.data.length === 0) {
     return { ok: true, data: { created: 0, emailed: 0, failed: [] } }
   }
 
@@ -250,7 +256,7 @@ export async function redeemPendingInvites(): Promise<
   if (!orgId)
     return { ok: false, error: 'No workspace found for this account.' }
 
-  const result = await inviteTeam(orgId, pending)
+  const result = await inviteTeam(orgId, parsed.data)
   if (result.ok) {
     await supabase.auth.updateUser({ data: { team_invites: null } })
   }

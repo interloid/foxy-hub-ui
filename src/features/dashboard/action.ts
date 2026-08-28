@@ -1,6 +1,8 @@
 'use server'
+import { getWorkspace } from '@/lib/dal'
 import { createClient } from '@/lib/supabase/server'
 import { Database } from '@/types/supabase'
+import { revalidatePath } from 'next/cache'
 
 export async function getUserName() {
   const supabase = await createClient()
@@ -79,11 +81,11 @@ type AllocationInsert =
   Database['public']['Tables']['project_allocations']['Insert']
 
 export async function getDailyCapacityAndLoggedMinutes(
-  dateString: string
+  dateString: string,
+  orgSlug: string
 ): Promise<CapacityAndLoggedData> {
   const supabase = await createClient()
 
-  // 1. Get Authenticated User
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -92,16 +94,14 @@ export async function getDailyCapacityAndLoggedMinutes(
     return { dailyCapacityHours: 8, alreadyLoggedMinutes: 0 }
   }
 
-  // 2. Fetch Org Daily Capacity
   const { data: orgData } = await supabase
     .from('organizations')
     .select('daily_capacity_hours')
-    .limit(1)
-    .single()
+    .eq('slug', orgSlug)
+    .maybeSingle()
 
   const dailyCapacityHours = orgData?.daily_capacity_hours ?? 8
 
-  // 3. Fetch Sum of Logged Minutes for Selected Date
   const { data: entries } = await supabase
     .from('time_entries')
     .select('duration_minutes')
@@ -127,7 +127,6 @@ export interface MilestoneOption {
 export async function getProjectsForOrg(): Promise<ProjectOption[]> {
   const supabase = await createClient()
 
-  // Fetch projects belonging to the user's organization
   const { data, error } = await supabase
     .from('projects')
     .select('id, name')
@@ -155,6 +154,7 @@ export async function getMilestonesForProject(
 }
 
 export interface CreateTimeEntryParams {
+  orgSlug: string // Added orgSlug to verify multi-tenant isolation & capacity
   projectId: string
   milestoneId?: string | null
   workDate: string
@@ -165,6 +165,7 @@ export interface CreateTimeEntryParams {
 export async function createTimeEntry(params: CreateTimeEntryParams) {
   const supabase = await createClient()
 
+  // 1. Authenticate User
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -173,11 +174,76 @@ export async function createTimeEntry(params: CreateTimeEntryParams) {
     return { success: false, error: 'User is not authenticated.' }
   }
 
+  // 2. Validate Duration
   const durationMinutes = parseDurationToMinutes(params.durationStr)
   if (!durationMinutes || durationMinutes <= 0) {
     return { success: false, error: 'Invalid duration specified.' }
   }
 
+  // 3. Verify Project and Org Ownership
+  const { data: project } = await supabase
+    .from('projects')
+    .select('id, org_id, organizations!inner(slug)')
+    .eq('id', params.projectId)
+    .eq('organizations.slug', params.orgSlug)
+    .maybeSingle()
+
+  if (!project) {
+    return { success: false, error: 'Invalid project or organization.' }
+  }
+
+  // 4. Verify Milestone belongs to this Project (if provided)
+  if (params.milestoneId) {
+    const { data: milestone } = await supabase
+      .from('milestones')
+      .select('id')
+      .eq('id', params.milestoneId)
+      .eq('project_id', params.projectId)
+      .maybeSingle()
+
+    if (!milestone) {
+      return { success: false, error: 'Invalid milestone for this project.' }
+    }
+  }
+
+  // 5. Enforce Daily Capacity Server-Side
+  const { data: orgData } = await supabase
+    .from('organizations')
+    .select('id, daily_capacity_hours')
+    .eq('slug', params.orgSlug)
+    .maybeSingle()
+
+  if (!orgData) {
+    return { success: false, error: 'Organization not found.' }
+  }
+
+  const dailyCapacityMinutes = (orgData.daily_capacity_hours ?? 8) * 60
+
+  const { data: existingEntries } = await supabase
+    .from('time_entries')
+    .select('duration_minutes, projects!inner(org_id)')
+    .eq('user_id', user.id)
+    .eq('work_date', params.workDate)
+    .eq('projects.org_id', orgData.id)
+
+  const alreadyLoggedMinutes = (existingEntries ?? []).reduce(
+    (sum, entry) => sum + (entry.duration_minutes ?? 0),
+    0
+  )
+
+  if (alreadyLoggedMinutes + durationMinutes > dailyCapacityMinutes) {
+    const remainingMinutes = Math.max(
+      0,
+      dailyCapacityMinutes - alreadyLoggedMinutes
+    )
+    const remainingHours = (remainingMinutes / 60).toFixed(1)
+    return {
+      success: false,
+      error: `Exceeds daily capacity. You only have ${remainingHours} hours remaining for ${params.workDate}.`,
+    }
+  }
+
+  // 6. Insert Time Entry
   const { error } = await supabase.from('time_entries').insert({
     user_id: user.id,
     project_id: params.projectId,
@@ -191,6 +257,9 @@ export async function createTimeEntry(params: CreateTimeEntryParams) {
   if (error) {
     return { success: false, error: error.message }
   }
+
+  // Revalidate workspace dashboard cache so the UI updates immediately
+  revalidatePath(`/${params.orgSlug}`)
 
   return { success: true }
 }
@@ -219,6 +288,7 @@ function parseDurationToMinutes(val: string): number | null {
 
 export async function getTeammateAllocatedHours(
   userId: string,
+  orgSlug: string,
   targetDateStr?: string
 ): Promise<TeammateAllocationCheck> {
   const supabase = await createClient()
@@ -226,8 +296,8 @@ export async function getTeammateAllocatedHours(
   const { data: orgData } = await supabase
     .from('organizations')
     .select('daily_capacity_hours, days_per_week')
-    .limit(1)
-    .single()
+    .eq('slug', orgSlug)
+    .maybeSingle()
 
   const maxDailyCapacity = orgData?.daily_capacity_hours ?? 8
   const maxDaysPerWk = orgData?.days_per_week ?? 5
@@ -252,28 +322,15 @@ export async function getTeammateAllocatedHours(
   return { userId, existingHoursPerDay, maxDailyCapacity, maxDaysPerWk }
 }
 
-export async function createProject(params: CreateProjectParams) {
+export async function createProject(
+  params: CreateProjectParams,
+  orgSlug: string
+) {
+  const workspace = await getWorkspace(orgSlug)
+  if (!workspace) {
+    return { ok: false, error: 'Workspace not found or access denied.' }
+  }
   const supabase = await createClient()
-
-  // 1. Authenticate user
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { success: false, error: 'User is not authenticated.' }
-  }
-
-  // 2. Fetch user's organization ID from memberships
-  const { data: membership, error: membershipError } = await supabase
-    .from('memberships')
-    .select('org_id')
-    .eq('user_id', user.id)
-    .single()
-
-  if (membershipError || !membership?.org_id) {
-    return { success: false, error: 'Failed to retrieve user organization.' }
-  }
 
   // 3. Map engagement model string to strict database enum value
   const engagementEnumMap = {
@@ -292,9 +349,9 @@ export async function createProject(params: CreateProjectParams) {
 
   // 4. Construct project insert payload (without start_from)
   const projectPayload: ProjectInsert = {
-    org_id: membership.org_id,
+    org_id: workspace.id,
     name: params.name.trim(),
-    client_org_id: params.clientId || null,
+    // client_id: params.clientId || null,
     due_date: params.dueDate || null,
     engagement: dbEngagement,
     contract_value: params.budget ?? null,
@@ -303,7 +360,6 @@ export async function createProject(params: CreateProjectParams) {
     status: 'pending',
   }
 
-  // 5. Insert project record
   const { data: project, error: projectError } = await supabase
     .from('projects')
     .insert(projectPayload)
@@ -342,7 +398,10 @@ export async function createProject(params: CreateProjectParams) {
     }
   }
 
-  return { success: true, projectId: project.id }
+  // Revalidate workspace dashboard cache so the UI updates immediately
+  revalidatePath(`/${orgSlug}`)
+
+  return { success: true }
 }
 
 export async function getClientsForOrg(): Promise<ClientOption[]> {
@@ -376,7 +435,7 @@ export async function getClientsForOrg(): Promise<ClientOption[]> {
   return data
 }
 
-export async function getTeamMembersForOrg(): Promise<TeamMemberOption[]> {
+export async function getTeamMembersForOrg() {
   const supabase = await createClient()
 
   // 1. Authenticate user
@@ -395,34 +454,37 @@ export async function getTeamMembersForOrg(): Promise<TeamMemberOption[]> {
 
   if (!userMembership?.org_id) return []
 
-  // 3. Query memberships joined with profiles for that org
-  const { data, error } = await supabase
+  // 3. Query memberships for that org
+  const { data: memberships, error: membershipsError } = await supabase
     .from('memberships')
-    .select(
-      `
-      user_id,
-      role,
-      profiles!inner (
-        full_name
-      )
-    `
-    )
+    .select('user_id, role')
     .eq('org_id', userMembership.org_id)
+    .neq('role', 'client')
 
-  if (error || !data) return []
+  if (membershipsError || !memberships || memberships.length === 0) return []
 
-  return data.map((item) => {
-    const rawProfile = Array.isArray(item.profiles)
-      ? item.profiles[0]
-      : item.profiles
-    const name = rawProfile?.full_name || 'Unnamed Teammate'
+  // 4. Extract user IDs and fetch profiles
+  const userIds = memberships.map((m) => m.user_id)
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .in('id', userIds)
+
+  if (profilesError) console.error('Error fetching profiles:', profilesError)
+
+  // 5. Map profiles back to memberships
+  const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) || [])
+
+  return memberships.map((item) => {
+    const fullName = profileMap.get(item.user_id) || 'Unnamed Teammate'
     const role = item.role
       ? item.role.charAt(0).toUpperCase() + item.role.slice(1)
       : 'Member'
 
     return {
       id: item.user_id,
-      name: `${name} · ${role}`,
+      name: `${fullName} · ${role}`,
       role: item.role,
     }
   })
