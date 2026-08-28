@@ -19,7 +19,7 @@ export function AuthLayout({
       data-slot="auth-layout"
       className={cn('grid min-h-svh grid-cols-1 lg:grid-cols-2', className)}
     >
-      <div className="auth:px-[8%] auth:py-12 mx-auto flex w-full max-w-140 flex-col justify-center px-5.5 pt-7 pb-10">
+      <div className="auth:py-12 mx-auto flex w-full max-w-120 flex-col justify-center px-5.5 pt-7 pb-10 md:max-w-140 lg:px-[8%]">
         <div
           data-slot="auth-brand-card"
           className="bg-auth-card auth:hidden mb-7 flex flex-col gap-3.5 rounded-3xl p-5.5 text-white"
