@@ -11,6 +11,8 @@
     monospace;
   --font-heading: var(--font-sans);
 
+  --color-brand-white: var(--brand-white);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -220,6 +222,8 @@
 
   --background: oklch(0.98 0.005 85);
   --foreground: oklch(0.2 0.01 75);
+  --brand-white: oklch(1 0 0);
+
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.2 0.01 75);
   --popover: oklch(1 0 0);

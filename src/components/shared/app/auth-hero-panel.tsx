@@ -49,7 +49,7 @@ function AuthHeroPanel({
               const Icon = NAV_ICONS[point.icon]
               return (
                 <div key={point.label} className="flex items-center gap-3">
-                  <span className="flex size-8.5 shrink-0 items-center justify-center rounded-lg bg-white/18">
+                  <span className="bg-brand-white/18 flex size-8.5 shrink-0 items-center justify-center rounded-lg">
                     <Icon size={18} strokeWidth={1.8} />
                   </span>
                   <span className="text-lg">{point.label}</span>

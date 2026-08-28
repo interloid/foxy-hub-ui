@@ -25,7 +25,7 @@ export function AuthLayout({
           className="bg-auth-card auth:hidden text-card mb-7 flex flex-col gap-3.5 rounded-3xl p-5.5"
         >
           <div className="flex items-center gap-2.5">
-            <span className="flex size-7.5 shrink-0 items-center justify-center rounded-md bg-white/20 text-[15px] font-bold">
+            <span className="bg-brand-white/20 flex size-7.5 shrink-0 items-center justify-center rounded-md text-[15px] font-bold">
               {brand.mark}
             </span>
             <span className="text-[16px] font-semibold">{brand.name}</span>
