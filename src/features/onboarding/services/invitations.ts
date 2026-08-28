@@ -1,5 +1,5 @@
-import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import 'server-only'
 import type { InviteOutcome, TeamInvite } from '../types'
 
 export async function sendInvitations(
@@ -19,57 +19,73 @@ export async function sendInvitations(
     }))
     .filter((invite) => invite.email.length > 0)
 
-  let created = 0
-  let emailed = 0
-  const failed: string[] = []
+  const results = await Promise.all(
+    wanted.map(async (invite) => {
+      const rawToken = `${crypto.randomUUID()}${crypto.randomUUID()}`
 
-  for (const invite of wanted) {
-    const rawToken = `${crypto.randomUUID()}${crypto.randomUUID()}`
+      const { data: row, error: insertError } = await supabase
+        .from('invitations')
+        .insert({
+          org_id: params.orgId,
+          email: invite.email,
+          role: invite.role.toLowerCase(),
+          token_hash: await sha256Hex(rawToken),
+          invited_by: params.invitedBy,
+        })
+        .select('id')
+        .single()
 
-    const { data: row, error: insertError } = await supabase
-      .from('invitations')
-      .insert({
-        org_id: params.orgId,
-        email: invite.email,
-        role: invite.role.toLowerCase(),
-        token_hash: await sha256Hex(rawToken),
-        invited_by: params.invitedBy,
-      })
-      .select('id')
-      .single()
+      if (insertError || !row) {
+        console.error(
+          `invite row failed for ${invite.email}:`,
+          insertError?.message
+        )
 
-    if (insertError || !row) {
-      console.error(
-        `invite row failed for ${invite.email}:`,
-        insertError?.message
-      )
-      failed.push(invite.email)
-      continue
-    }
-    created++
-
-    const { error: mailError } = await admin.auth.admin.inviteUserByEmail(
-      invite.email,
-      {
-        data: { invite_token: rawToken },
-        redirectTo: `${params.siteUrl}/set-password`,
+        return {
+          email: invite.email,
+          created: false,
+          emailed: false,
+        }
       }
-    )
 
-    if (mailError) {
-      console.error(
-        `invite email failed for ${invite.email}:`,
-        mailError.message
+      const { error: mailError } = await admin.auth.admin.inviteUserByEmail(
+        invite.email,
+        {
+          data: { invite_token: rawToken },
+          redirectTo: `${params.siteUrl}/set-password`,
+        }
       )
-      await supabase.from('invitations').delete().eq('id', row.id)
-      created--
-      failed.push(invite.email)
-      continue
-    }
-    emailed++
-  }
 
-  return { created, emailed, failed }
+      if (mailError) {
+        console.error(
+          `invite email failed for ${invite.email}:`,
+          mailError.message
+        )
+
+        await supabase.from('invitations').delete().eq('id', row.id)
+
+        return {
+          email: invite.email,
+          created: false,
+          emailed: false,
+        }
+      }
+
+      return {
+        email: invite.email,
+        created: true,
+        emailed: true,
+      }
+    })
+  )
+
+  return {
+    created: results.filter((result) => result.created).length,
+    emailed: results.filter((result) => result.emailed).length,
+    failed: results
+      .filter((result) => !result.created || !result.emailed)
+      .map((result) => result.email),
+  }
 }
 
 export async function findOwnedOrgId(

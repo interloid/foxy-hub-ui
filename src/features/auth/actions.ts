@@ -43,9 +43,7 @@ export async function signInWithPassword(
     .limit(1)
     .maybeSingle()
 
-  const orgSlug = (
-    membership?.organizations as unknown as { slug: string } | null
-  )?.slug
+  const orgSlug = membership?.organizations?.slug
 
   if (membershipError || !orgSlug) {
     return { ok: true, redirectTo: '/onboard' }
@@ -141,15 +139,28 @@ export async function changePassword(
   password: string,
   confirm: string
 ): Promise<AuthResult> {
-  const parsed = changePasswordSchema.safeParse({ current, password, confirm })
-  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) }
+  const parsed = changePasswordSchema.safeParse({
+    current,
+    password,
+    confirm,
+  })
+
+  if (!parsed.success) {
+    return { ok: false, error: firstIssue(parsed.error) }
+  }
 
   const supabase = await createClient()
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user?.email)
-    return { ok: false, error: 'Your session expired. Sign in again.' }
+
+  if (!user?.email) {
+    return {
+      ok: false,
+      error: 'Your session expired. Sign in again.',
+    }
+  }
 
   if (!user.user_metadata?.password_set) {
     return {
@@ -159,23 +170,25 @@ export async function changePassword(
     }
   }
 
-  const { error: reauth } = await supabase.auth.signInWithPassword({
-    email: user.email,
-    password: parsed.data.current,
-  })
-  if (reauth) {
-    console.error('re-auth before password change failed:', reauth.message)
-    return { ok: false, error: 'That current password is not correct.' }
-  }
-
   const { error } = await supabase.auth.updateUser({
     password: parsed.data.password,
+    current_password: parsed.data.current,
   })
 
   if (error) {
     console.error('change password failed:', error.message)
-    return { ok: false, error: error.message }
+
+    return {
+      ok: false,
+      error:
+        error.code === 'same_password'
+          ? 'Your new password must be different from your current password.'
+          : error.code === 'invalid_credentials'
+            ? 'That current password is not correct.'
+            : error.message,
+    }
   }
+
   return { ok: true }
 }
 

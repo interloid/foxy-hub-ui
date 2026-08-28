@@ -23,6 +23,7 @@ import {
   useWatch,
 } from 'react-hook-form'
 import { AllocationFormValues, NewProjectFormValues } from './types'
+import { toISODate } from '@/lib/date'
 
 interface TeamAllocationRowProps {
   index: number
@@ -267,7 +268,7 @@ export function TeamAllocationRow({
                     }
                     onSelect={(date) => {
                       if (!date) return
-                      const isoDate = date.toISOString().split('T')[0]
+                      const isoDate = toISODate(date)
                       dateField.onChange(isoDate)
                       checkCapacityForUser(currentAllocation?.userId, isoDate)
                     }}

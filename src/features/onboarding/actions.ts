@@ -257,8 +257,19 @@ export async function redeemPendingInvites(): Promise<
     return { ok: false, error: 'No workspace found for this account.' }
 
   const result = await inviteTeam(orgId, parsed.data)
+
   if (result.ok) {
-    await supabase.auth.updateUser({ data: { team_invites: null } })
+    const failedEmails = new Set(result.data.failed)
+
+    const remaining = parsed.data.filter((invite) =>
+      failedEmails.has(invite.email.trim().toLowerCase())
+    )
+
+    await supabase.auth.updateUser({
+      data: {
+        team_invites: remaining.length > 0 ? remaining : null,
+      },
+    })
   }
 
   return result

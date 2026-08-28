@@ -1,3 +1,4 @@
+import { toISODate } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -63,8 +64,7 @@ export async function GET(req: NextRequest) {
   // 3. Check Teammate Allocation Capacity
   if (type === 'teammate-capacity') {
     const userId = searchParams.get('userId')
-    const dateStr =
-      searchParams.get('dateStr') || new Date().toISOString().split('T')[0]
+    const dateStr = searchParams.get('dateStr') || toISODate(new Date())
 
     if (!userId || !orgSlug) {
       return NextResponse.json({

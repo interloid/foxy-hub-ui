@@ -1,4 +1,5 @@
 import { cache } from 'react'
+import { addDaysISO, startOfMonthISO, todayISO } from './date'
 import { initialsOf } from './initials'
 import { createClient } from './supabase/server'
 
@@ -53,23 +54,6 @@ const OPEN_PROJECT_STATUSES = [
   'pending-approval',
 ] as const
 
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function addDaysISO(days: number): string {
-  const d = new Date()
-  d.setUTCDate(d.getUTCDate() + days)
-  return d.toISOString().slice(0, 10)
-}
-
-function startOfMonthISO(): string {
-  const d = new Date()
-  return new Date(
-    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)
-  ).toISOString()
-}
-
 export const verifySession = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createClient()
   const {
@@ -100,11 +84,7 @@ export const getWorkspace = cache(
     const { data, error } = await query.limit(1).maybeSingle()
     if (error || !data?.organizations) return null
 
-    const org = data.organizations as unknown as {
-      id: string
-      name: string
-      slug: string
-    }
+    const org = data.organizations
     return {
       id: org.id,
       name: org.name,
@@ -230,8 +210,7 @@ export const getDashboardMetrics = cache(
       (unpaidInvoices.data ?? []) as { amount: number | string }[]
     ).reduce((total, row) => total + (Number(row.amount) || 0), 0)
 
-    const plan = subscription.data?.plans as unknown as
-      { price_cents: number; duration_months: number } | null | undefined
+    const plan = subscription.data?.plans
     const mrrCents = plan?.duration_months
       ? Math.round(plan.price_cents / plan.duration_months)
       : 0

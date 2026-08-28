@@ -2,7 +2,7 @@
 
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCalendar } from '@/components/shared/fx-calendar'
-import { FxInput } from '@/components/shared/fx-field'
+import { FxInput, FxLabel } from '@/components/shared/fx-field'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -33,6 +33,7 @@ import { useFieldArray, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { toISODate } from '@/lib/date'
 import { EngagementModelSelector } from './engagement-model-selector'
 import { StartFromSelector } from './start-from-selector'
 import { TeamAllocationSection } from './team-allocation-section'
@@ -44,7 +45,7 @@ interface NewProjectSheetProps {
 }
 
 export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = toISODate(new Date())
   const { orgSlug } = useWorkspace()
   const { control, register, watch, setValue } = useForm<NewProjectFormValues>({
     defaultValues: {
@@ -146,7 +147,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
           name: projectName,
           startFrom: selectedStartFrom,
           clientId: selectedClient || null,
-          dueDate: targetDate ? targetDate.toISOString() : null,
+          dueDate: targetDate ? toISODate(targetDate) : null,
           engagement: mappedEngagement,
           budget: budget ? parseFloat(budget) : null,
           brief: brief,
@@ -156,14 +157,13 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
             hoursPerDay: Number(row.hoursPerDay),
             daysPerWk: Number(row.daysPerWk),
             rate: row.rate ? Number(row.rate) : undefined,
-            effectiveFrom:
-              row.effectiveFrom || new Date().toISOString().split('T')[0],
+            effectiveFrom: row.effectiveFrom || toISODate(new Date()),
           })),
         },
         orgSlug
       )
 
-      if (!res.success) {
+      if (!res.ok) {
         setSubmitError(res.error || 'Failed to create project.')
         toast.error(res.error ?? 'Failed to create project.')
         return
@@ -303,11 +303,15 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
         <FxSheetBody className="space-y-5">
           {/* Project Name */}
           <div className="w-full">
-            <label className="text-foreground mb-1.5 block text-[13px] font-medium">
+            <FxLabel
+              htmlFor="project"
+              className="text-foreground mb-1.5 block text-[13px] font-medium"
+            >
               Project name
-            </label>
+            </FxLabel>
             <FxInput
               type="text"
+              id="project"
               placeholder="e.g. Nordwave Packaging Refresh"
               className="text-[13px]"
               {...register('projectName')}
@@ -323,12 +327,16 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
           {/* Client & Target End Date */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="w-full">
-              <label className="text-foreground mb-1.5 block text-[13px] font-medium">
+              <FxLabel
+                htmlFor="client"
+                className="text-foreground mb-1.5 block text-[13px] font-medium"
+              >
                 Client
-              </label>
+              </FxLabel>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button
+                  <FxButton
+                    id="client"
                     type="button"
                     className="border-border bg-muted/50 text-foreground hover:bg-muted flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none"
                   >
@@ -340,7 +348,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                           : 'Select client'}
                     </span>
                     <ChevronDown className="text-muted-foreground size-4 shrink-0" />
-                  </button>
+                  </FxButton>
                 </DropdownMenuTrigger>
                 <FxDropdownMenuContent align="start" className="w-56">
                   <FxDropdownMenuItem
@@ -362,18 +370,22 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
               </DropdownMenu>
             </div>
             <div className="w-full">
-              <label className="text-foreground mb-1.5 block text-[13px] font-medium">
+              <FxLabel
+                htmlFor="targerdate"
+                className="text-foreground mb-1.5 block text-[13px] font-medium"
+              >
                 Target end date
-              </label>
+              </FxLabel>
               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                 <PopoverTrigger asChild>
-                  <button
+                  <FxButton
+                    id="targetdate"
                     type="button"
                     className="border-border bg-muted/50 text-foreground hover:bg-muted flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none"
                   >
                     <span>{formattedTargetDate}</span>
                     <CalendarIcon className="text-muted-foreground size-4 shrink-0" />
-                  </button>
+                  </FxButton>
                 </PopoverTrigger>
                 <FxPopoverContent className="w-auto p-0" align="start">
                   <FxCalendar
@@ -399,11 +411,15 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
 
           {/* Budget */}
           <div className="w-full">
-            <label className="text-foreground mb-1.5 block text-[13px] font-medium">
+            <FxLabel
+              htmlFor="contractvalue"
+              className="text-foreground mb-1.5 block text-[13px] font-medium"
+            >
               Contract value / budget ($)
-            </label>
+            </FxLabel>
             <FxInput
               type="number"
+              id="contractvalue"
               min={1}
               placeholder="24000"
               className="font-mono text-[13px]"
@@ -431,11 +447,15 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
 
           {/* Brief Input */}
           <div className="w-full">
-            <label className="text-foreground mb-1.5 block text-[13px] font-medium">
+            <FxLabel
+              htmlFor="brief"
+              className="text-foreground mb-1.5 block text-[13px] font-medium"
+            >
               Brief (optional)
-            </label>
+            </FxLabel>
             <FxTextarea
               rows={3}
+              id="brief"
               variant="subtle"
               placeholder="Scope, goals, key deliverables..."
               className="text-[13px]"

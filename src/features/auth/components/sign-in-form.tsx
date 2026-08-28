@@ -11,13 +11,13 @@ import {
 } from '@/components/shared/fx/index'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Fragment, useEffect, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { signInAsDemo, signInWithPassword } from '../actions'
 import { SIGN_IN } from '../data'
 import { signInSchema, type SignInInput } from '../schemas'
-import { useRouter } from 'next/navigation'
 
 export function SignInForm({ initialError }: { initialError?: string }) {
   const [pending, startTransition] = useTransition()
@@ -53,7 +53,9 @@ export function SignInForm({ initialError }: { initialError?: string }) {
           router.push(result.redirectTo)
         }
       } catch (err) {
-        toast.error(err as string)
+        toast.error(
+          err instanceof Error ? err.message : 'Something went wrong.'
+        )
       }
     })
   }

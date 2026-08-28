@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: '14.15'
+    PostgrestVersion: '14.17'
   }
   graphql_public: {
     Tables: {
@@ -569,6 +569,7 @@ export type Database = {
           retainer_overage: number | null
           retainer_period: Database['public']['Enums']['retainer_period'] | null
           start_date: string | null
+          start_from: string | null
           status: Database['public']['Enums']['project_status']
           updated_at: string | null
         }
@@ -590,6 +591,7 @@ export type Database = {
           retainer_period?:
             Database['public']['Enums']['retainer_period'] | null
           start_date?: string | null
+          start_from?: string | null
           status?: Database['public']['Enums']['project_status']
           updated_at?: string | null
         }
@@ -611,6 +613,7 @@ export type Database = {
           retainer_period?:
             Database['public']['Enums']['retainer_period'] | null
           start_date?: string | null
+          start_from?: string | null
           status?: Database['public']['Enums']['project_status']
           updated_at?: string | null
         }

@@ -12,6 +12,7 @@ import {
   PopoverTrigger,
 } from '@/components/shared/fx-menu'
 
+import { FxLabel } from '@/components/shared/fx-field'
 import {
   FxSheetBody,
   FxSheetContent,
@@ -28,6 +29,7 @@ import {
   ProjectOption,
 } from '@/features/dashboard/action'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { toISODate } from '@/lib/date'
 import {
   Calendar as CalendarIcon,
   Check,
@@ -41,13 +43,6 @@ import { DurationInput } from './duration-input'
 interface LogTimeSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-}
-
-function formatDateToYYYYMMDD(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
 }
 
 export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
@@ -108,7 +103,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     if (!open || !selectedDate) return
 
     const controller = new AbortController()
-    const dateStr = formatDateToYYYYMMDD(selectedDate)
+    const dateStr = toISODate(selectedDate)
 
     fetch(
       `/api/dashboard/sheet-data?type=capacity&orgSlug=${orgSlug}&dateStr=${dateStr}`,
@@ -147,7 +142,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
       return
     }
 
-    const dateStr = formatDateToYYYYMMDD(selectedDate)
+    const dateStr = toISODate(selectedDate)
 
     startTransition(async () => {
       const res = await createTimeEntry({
@@ -201,12 +196,17 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {/* Project Dropdown */}
             <div className="w-full">
-              <label className="text-foreground mb-2 block text-[13px] font-medium">
+              <FxLabel
+                htmlFor="project"
+                className="text-foreground mb-2 block text-[13px] font-medium"
+              >
                 Project <span className="text-destructive">*</span>
-              </label>
+              </FxLabel>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button
+                  <FxButton
+                    id="project"
                     type="button"
                     className="border-border bg-muted/50 text-foreground hover:bg-muted focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none focus:ring-1"
                   >
@@ -215,9 +215,11 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
                         ? selectedProject.name
                         : 'Select project...'}
                     </span>
+
                     <ChevronDown className="text-muted-foreground size-4 shrink-0" />
-                  </button>
+                  </FxButton>
                 </DropdownMenuTrigger>
+
                 <FxDropdownMenuContent align="start" className="w-60">
                   {projects.length === 0 ? (
                     <div className="text-muted-foreground px-2 py-1.5 text-[12px]">
@@ -240,13 +242,17 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
 
             {/* Milestone Dropdown */}
             <div className="w-full">
-              <label className="text-foreground mb-2 block text-[13px] font-medium">
+              <FxLabel
+                htmlFor="milestone"
+                className="text-foreground mb-2 block text-[13px] font-medium"
+              >
                 Milestone
-              </label>
+              </FxLabel>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild disabled={!selectedProject}>
-                  <button
+                  <FxButton
                     type="button"
+                    id="milestone"
                     disabled={!selectedProject}
                     className="border-border bg-muted/50 text-foreground hover:bg-muted focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -258,7 +264,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
                           : 'Select milestone...'}
                     </span>
                     <ChevronDown className="text-muted-foreground size-4 shrink-0" />
-                  </button>
+                  </FxButton>
                 </DropdownMenuTrigger>
                 <FxDropdownMenuContent align="start" className="w-60">
                   {milestones.length === 0 ? (
@@ -283,18 +289,22 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
 
           {/* Work Date */}
           <div className="w-full">
-            <label className="text-foreground mb-2 block text-[13px] font-medium">
+            <FxLabel
+              htmlFor="workdate"
+              className="text-foreground mb-2 block text-[13px] font-medium"
+            >
               Work date
-            </label>
+            </FxLabel>
             <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
               <PopoverTrigger asChild>
-                <button
+                <FxButton
                   type="button"
+                  id="workdate"
                   className="border-border bg-muted/50 text-foreground hover:bg-muted focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none focus:ring-1"
                 >
                   <span>{formattedDate}</span>
                   <CalendarIcon className="text-muted-foreground size-4 shrink-0" />
-                </button>
+                </FxButton>
               </PopoverTrigger>
               <FxPopoverContent className="w-auto p-0" align="start">
                 <FxCalendar
@@ -321,10 +331,14 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
 
           {/* Description */}
           <div className="w-full pt-1">
-            <label className="text-foreground mb-2 block text-[13px] font-medium">
+            <FxLabel
+              htmlFor="description"
+              className="text-foreground mb-2 block text-[13px] font-medium"
+            >
               Description <span className="text-destructive">*</span>
-            </label>
+            </FxLabel>
             <FxTextarea
+              id="description"
               rows={4}
               variant="subtle"
               value={description}

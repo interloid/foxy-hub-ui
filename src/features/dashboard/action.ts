@@ -1,5 +1,6 @@
 'use server'
 import { getWorkspace } from '@/lib/dal'
+import { toISODate } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
@@ -301,7 +302,7 @@ export async function getTeammateAllocatedHours(
 
   const maxDailyCapacity = orgData?.daily_capacity_hours ?? 8
   const maxDaysPerWk = orgData?.days_per_week ?? 5
-  const evalDate = targetDateStr || new Date().toISOString().split('T')[0]
+  const evalDate = targetDateStr || toISODate(new Date())
 
   const { data: allocations, error } = await supabase
     .from('project_allocations')
@@ -347,7 +348,7 @@ export async function createProject(
     engagementEnumMap[params.engagement as keyof typeof engagementEnumMap] ??
     'full_time'
 
-  // 4. Construct project insert payload (without start_from)
+  // 4. Construct project insert payload including start_from (M20 fixed)
   const projectPayload: ProjectInsert = {
     org_id: workspace.id,
     name: params.name.trim(),
@@ -357,6 +358,7 @@ export async function createProject(
     contract_value: params.budget ?? null,
     description: params.brief?.trim() || null,
     override_reason: params.overrideReason?.trim() || null,
+    start_from: params.startFrom || 'blank',
     status: 'pending',
   }
 
@@ -367,9 +369,10 @@ export async function createProject(
     .single()
 
   if (projectError || !project) {
+    console.error('createProject failed:', projectError?.message)
     return {
-      success: false,
-      error: projectError?.message || 'Failed to create project.',
+      ok: false,
+      error: 'Failed to create project.',
     }
   }
 
@@ -391,9 +394,10 @@ export async function createProject(
       .insert(allocationRows)
 
     if (allocError) {
+      console.error('project allocations insertion failed:', allocError.message)
       return {
-        success: false,
-        error: `Project created, but allocations failed: ${allocError.message}`,
+        ok: false,
+        error: 'Project created, but allocations failed.',
       }
     }
   }
@@ -401,7 +405,7 @@ export async function createProject(
   // Revalidate workspace dashboard cache so the UI updates immediately
   revalidatePath(`/${orgSlug}`)
 
-  return { success: true }
+  return { ok: true }
 }
 
 export async function getClientsForOrg(): Promise<ClientOption[]> {

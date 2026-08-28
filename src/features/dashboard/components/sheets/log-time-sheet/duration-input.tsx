@@ -1,7 +1,7 @@
 'use client'
 
 import { FxButton } from '@/components/shared/fx-button'
-import { FxInput } from '@/components/shared/fx-field'
+import { FxInput, FxLabel } from '@/components/shared/fx-field'
 import * as React from 'react'
 
 interface DurationInputProps {
@@ -77,14 +77,18 @@ export function DurationInput({
 
   return (
     <div className={className || 'w-full'}>
-      <label className="text-foreground mb-2 block text-[13px] font-medium">
+      <FxLabel
+        htmlFor="duration"
+        className="text-foreground mb-2 block text-[13px] font-medium"
+      >
         Duration <span className="text-destructive">*</span>
-      </label>
+      </FxLabel>
 
       {/* FxInput with Computed Time Badge */}
       <div className="flex items-center gap-2">
         <FxInput
           type="text"
+          id="duration"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="1.5  ·  1h 30m  ·  90m"
