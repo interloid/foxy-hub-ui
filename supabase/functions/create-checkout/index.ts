@@ -135,7 +135,7 @@ serve(async (req) => {
       mode: 'payment',
       customer_email: user.email,
       success_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=success`,
-      cancel_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=canceled`,
+      cancel_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=cancelled`,
       metadata: { invoice_id: invoice.id },
     })
 
