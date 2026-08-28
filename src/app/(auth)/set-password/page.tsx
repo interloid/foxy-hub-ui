@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 
-import { AuthLayout } from '@/components/layout/auth-layout'
+import { AuthLayout } from '@/components/layout/auth'
 import { AuthHeroPanel } from '@/components/shared/app/auth-hero-panel'
 import { SetPasswordForm } from '@/features/auth/components/set-password-form'
 import { AUTH_CARD_TAGLINE, AUTH_HERO, SIGN_IN } from '@/features/auth/data'

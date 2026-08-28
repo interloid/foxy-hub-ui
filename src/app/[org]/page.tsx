@@ -1,6 +1,7 @@
 import { PaymentSuccessCard } from '@/components/billing/payment-success-card'
 import { TimeGreeting } from '@/features/dashboard/components/time-greetings'
 import { getAccount } from '@/lib/dal'
+import { PaymentSuccessLoader } from '@/skeleton/payment-success-card'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
@@ -16,7 +17,7 @@ export default async function WorkspaceHomePage({
 
   return (
     <>
-      <Suspense fallback={null}>
+      <Suspense fallback={<PaymentSuccessLoader />}>
         <PaymentSuccessCard />
       </Suspense>
       <TimeGreeting

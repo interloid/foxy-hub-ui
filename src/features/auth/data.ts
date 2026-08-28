@@ -54,7 +54,12 @@ export const AUTH_CARD_TAGLINE =
 export type AuthHeroPoint = { icon: NavIconName; label: string }
 
 export const AUTH_HERO = {
-  image: { src: '/auth-hero.webp', width: 687, height: 1024 },
+  image: {
+    src: '/auth-hero.webp',
+    width: 687,
+    height: 1024,
+    alt: 'Image not found',
+  },
   eyebrow: 'The agency client portal',
   headline:
     'One polished place for projects, approvals, and invoices — so clients see exactly where things stand.',

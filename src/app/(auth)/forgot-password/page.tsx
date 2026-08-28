@@ -1,4 +1,4 @@
-import { AuthLayout } from '@/components/layout/auth-layout'
+import { AuthLayout } from '@/components/layout/auth'
 import { AuthHeroPanel } from '@/components/shared/app/auth-hero-panel'
 import { ForgotPasswordForm } from '@/features/auth/components/forgot-password-form'
 import {

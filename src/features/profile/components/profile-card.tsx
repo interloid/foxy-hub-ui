@@ -6,7 +6,6 @@ import { FxCard } from '@/components/shared/fx-card'
 import { FxField, FxInput, FxLabel } from '@/components/shared/fx-field'
 import { signOut } from '@/features/auth/actions'
 import type { AccountDTO } from '@/lib/dal'
-import { initialsOf } from '@/lib/initials'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useState, useTransition } from 'react'
@@ -24,7 +23,7 @@ export function ProfileCard({ account }: { account: AccountDTO }) {
   }
 
   const name = fullName?.trim() || account.email?.split('@')[0]
-  const initials = initialsOf(fullName, account.email)
+  const initials = account.initials
   const params = useParams()
   const org = params.org as string
 

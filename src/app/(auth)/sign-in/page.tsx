@@ -1,4 +1,4 @@
-import { AuthLayout } from '@/components/layout/auth-layout'
+import { AuthLayout } from '@/components/layout/auth'
 import { AuthHeroPanel } from '@/components/shared/app/auth-hero-panel'
 import { SignInForm } from '@/features/auth/components/sign-in-form'
 import { AUTH_CARD_TAGLINE, AUTH_HERO, SIGN_IN } from '@/features/auth/data'

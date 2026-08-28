@@ -73,8 +73,8 @@ function Stepper({
                 className={cn(
                   'flex size-6.5 shrink-0 items-center justify-center rounded-full font-semibold transition-colors',
                   product ? 'text-sm' : 'font-mono text-xs',
-                  done && 'bg-success text-white',
-                  active && 'bg-primary text-white',
+                  done && 'bg-success text-card',
+                  active && 'bg-primary text-card',
                   !done && !active && 'bg-accent text-subtle-foreground'
                 )}
               >

@@ -5,7 +5,6 @@ import {
   FxTooltipContent,
   FxTooltipTrigger,
 } from '@/components/shared/fx'
-import { initialsOf } from '@/lib/initials'
 import {
   readCollapsed,
   subscribeCollapsed,
@@ -214,7 +213,7 @@ export function AppSidebar({
           title={collapsed ? `${account.name} · ${account.role}` : undefined}
         >
           <span className="bg-brand-gradient text-2xs text-primary-foreground flex size-7.5 shrink-0 items-center justify-center rounded-full font-semibold">
-            {initialsOf(account.name, account.email)}
+            {account.initials}
           </span>
           {!collapsed && (
             <span className="flex min-w-0 flex-col">
