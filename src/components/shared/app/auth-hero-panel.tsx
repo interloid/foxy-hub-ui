@@ -36,7 +36,7 @@ function AuthHeroPanel({
         className="absolute inset-0 size-full object-cover object-bottom"
       />
       <div className="bg-auth-wash pointer-events-none absolute inset-0" />
-      <div className="text-card pointer-events-none absolute inset-0 flex flex-col justify-center px-[7%] py-12">
+      <div className="absolute inset-0 flex flex-col justify-center px-[7%] py-12">
         <div className="max-w-110">
           <div className="mb-4 text-base font-semibold tracking-[.03em] uppercase opacity-85">
             {eyebrow}

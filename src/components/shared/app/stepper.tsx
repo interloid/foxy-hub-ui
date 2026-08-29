@@ -74,7 +74,7 @@ function Stepper({
                   'flex size-6.5 shrink-0 items-center justify-center rounded-full font-semibold transition-colors',
                   product ? 'text-sm' : 'font-mono text-xs',
                   done && 'bg-success text-card',
-                  active && 'bg-primary text-card',
+                  active && 'bg-primary',
                   !done && !active && 'bg-accent text-subtle-foreground'
                 )}
               >
