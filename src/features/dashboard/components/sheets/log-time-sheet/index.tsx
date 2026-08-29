@@ -27,7 +27,7 @@ import {
   createTimeEntry,
   MilestoneOption,
   ProjectOption,
-} from '@/features/dashboard/action'
+} from '@/features/dashboard/actions'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { toISODate } from '@/lib/date'
 import {
@@ -154,7 +154,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
         description,
       })
 
-      if (res.success) {
+      if (res.ok) {
         toast.success('Time entry logged as draft!')
         resetForm()
         onOpenChange(false)

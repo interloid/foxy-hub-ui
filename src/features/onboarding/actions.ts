@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 
 import { rateLimit } from '@/lib/rate-limit'
+import { SupabaseClient } from '@supabase/supabase-js'
 import z from 'zod'
 import { ONBOARD_TAKEN } from './data'
 import {
@@ -128,8 +129,10 @@ export async function inviteTeam(
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user)
+
+  if (!user) {
     return { ok: false, error: 'You need to be signed in to invite people.' }
+  }
 
   const { data: membership, error: membershipError } = await supabase
     .from('memberships')
@@ -137,7 +140,7 @@ export async function inviteTeam(
       `role,
       organization:organizations (
         slug
-    )`
+      )`
     )
     .eq('org_id', orgId)
     .eq('user_id', user.id)
@@ -155,7 +158,7 @@ export async function inviteTeam(
     }
   }
 
-  let admin
+  let admin: SupabaseClient
   try {
     admin = createAdminClient()
   } catch (err) {

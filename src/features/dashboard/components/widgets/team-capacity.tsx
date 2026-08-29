@@ -13,15 +13,15 @@ interface TeamCapacityProps {
 }
 
 const AVATAR_PALETTES = [
-  { bg: 'rgba(26, 115, 232, 1)', color: '#66a5ff' }, // Blue
-  { bg: 'rgba(161, 66, 244, 1)', color: '#c084fc' }, // Purple
-  { bg: 'rgba(230, 120, 23, 1)', color: '#fbbf24' }, // Amber
-  { bg: 'rgba(19, 115, 51, 1)', color: '#4ade80' }, // Green
-  { bg: 'rgba(217, 48, 37, 1)', color: '#f87171' }, // Red
-  { bg: 'rgba(18, 166, 186, 1)', color: '#22d3ee' }, // Cyan
+  'bg-chart-1 text-white',
+  'bg-chart-2 text-white',
+  'bg-chart-3 text-white',
+  'bg-chart-4 text-white',
+  'bg-chart-5 text-white',
+  'bg-accent text-accent-foreground',
 ]
 
-export function getAvatarPalette(index: number) {
+export function getAvatarPaletteClass(index: number): string {
   return AVATAR_PALETTES[index % AVATAR_PALETTES.length]
 }
 
@@ -30,9 +30,6 @@ export function TeamCapacity({
   onViewAllClick,
 }: TeamCapacityProps) {
   if (!capacities || capacities.length === 0) {
-    return null
-  }
-  if (capacities.length === 0) {
     return (
       <div className="text-muted-foreground flex h-48 items-center justify-center rounded-lg border border-dashed p-4 text-sm">
         No team capacity data available.
@@ -65,10 +62,8 @@ export function TeamCapacity({
               (item.pctValue ?? parseInt(item.pctLabel.replace('%', ''), 10)) ||
               0
             const isFull = rawPct >= 100
-            const pctColorClass = isFull ? 'text-success' : 'text-primary'
-
-            // Get unique theme-friendly color palette for this avatar
-            const palette = getAvatarPalette(index)
+            const pctColorClass = isFull ? 'text-destructive' : 'text-primary'
+            const avatarClass = getAvatarPaletteClass(index)
 
             return (
               <div key={item.id} className="space-y-2">
@@ -77,10 +72,7 @@ export function TeamCapacity({
                   <div className="flex min-w-0 items-center gap-2.5">
                     <FxAvatar className="size-6.5 shrink-0">
                       <FxAvatarFallback
-                        style={{
-                          backgroundColor: palette.bg,
-                        }}
-                        className="text-[9px] font-semibold text-white"
+                        className={`text-[9px] font-semibold ${avatarClass}`}
                       >
                         {item.initials}
                       </FxAvatarFallback>
@@ -102,7 +94,7 @@ export function TeamCapacity({
                   <FxProgress
                     value={rawPct}
                     size="default"
-                    variant={isFull ? 'success' : 'default'}
+                    variant={isFull ? 'destructive' : 'default'}
                     className="h-1.5 w-full"
                   />
                 </div>

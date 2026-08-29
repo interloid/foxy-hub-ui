@@ -11,12 +11,17 @@ export interface AllocationFormValues {
 export interface NewProjectFormValues {
   projectName: string
   selectedStartFrom: string
-  selectedClient: string
-  targetDate: Date | undefined
+  selectedClient?: string
+  targetDate?: Date
   selectedEngagement: string
-  budget: string
-  brief: string
-  overrideReason: string
+  budget?: string
+  fixedPrice?: string
+  retainerBucketHours?: string
+  retainerBillingPeriod?: string
+  retainerAmount?: string
+  retainerOverageRate?: string
+  brief?: string
+  overrideReason?: string
   allocations: AllocationFormValues[]
 }
 

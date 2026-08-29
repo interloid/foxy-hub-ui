@@ -1,5 +1,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import {
+  createClient,
+  SupabaseClient,
+} from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'npm:stripe@14'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
@@ -34,12 +37,98 @@ function mapSubscriptionStatus(
   return mapped
 }
 
+/**
+ * Server-side helper to record pending invitations into `invitations`, send emails, and clear user metadata
+ */
+async function redeemPendingInvites(
+  supabaseClient: SupabaseClient,
+  orgId: string,
+  userId: string,
+  invites: Array<{ email: string; role?: string }>
+) {
+  const siteUrl = Deno.env.get('SITE_URL') || ''
+
+  for (const invite of invites) {
+    if (!invite.email) continue
+
+    const email = invite.email.trim().toLowerCase()
+    const role = (invite.role || 'member').toLowerCase()
+
+    const rawToken = `${crypto.randomUUID()}${crypto.randomUUID()}`
+
+    // Hash token using Web Crypto API
+    const encoder = new TextEncoder()
+    const data = encoder.encode(rawToken)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const tokenHash = hashArray
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+
+    // 1. Insert/Upsert invitation record into `invitations` table
+    const { data: row, error: inviteError } = await supabaseClient
+      .from('invitations')
+      .upsert(
+        {
+          org_id: orgId,
+          email: email,
+          role: role,
+          token_hash: tokenHash,
+          invited_by: userId || null,
+        },
+        { onConflict: 'org_id,email' }
+      )
+      .select('id')
+      .single()
+
+    if (inviteError || !row) {
+      console.error(
+        `Failed to create invitation for ${email}:`,
+        inviteError?.message
+      )
+      throw new Error(`Invitation insertion failed: ${inviteError?.message}`)
+    }
+
+    // 2. Dispatch invitation email via Supabase Auth Admin API
+    const { error: mailError } =
+      await supabaseClient.auth.admin.inviteUserByEmail(email, {
+        data: { invite_token: rawToken, org_id: orgId },
+        redirectTo: `${siteUrl}/set-password`,
+      })
+
+    if (mailError) {
+      console.error(
+        `Failed to dispatch invite email to ${email}:`,
+        mailError.message
+      )
+      // Roll back invitation row if mail dispatch fails
+      await supabaseClient.from('invitations').delete().eq('id', row.id)
+      throw new Error(`Invitation email dispatch failed: ${mailError.message}`)
+    }
+  }
+
+  // 3. Clear pending_invitations from user_metadata
+  if (userId) {
+    const { error: userUpdateError } =
+      await supabaseClient.auth.admin.updateUserById(userId, {
+        user_metadata: { pending_invitations: [] },
+      })
+
+    if (userUpdateError) {
+      console.warn(
+        `Failed to clear pending_invitations for user ${userId}:`,
+        userUpdateError.message
+      )
+    }
+  }
+}
+
 serve(async (req) => {
   const signature = req.headers.get('stripe-signature')
   if (!signature) return new Response('Missing signature', { status: 400 })
 
   const body = await req.text()
-  let event
+  let event: Stripe.Event
   try {
     event = await stripe.webhooks.constructEventAsync(
       body,
@@ -47,7 +136,7 @@ serve(async (req) => {
       Deno.env.get('STRIPE_WEBHOOK_SECRET')!,
       stripe.webhooks.subtleCrypto
     )
-  } catch (err) {
+  } catch (err: any) {
     return new Response(`Webhook Error: ${err.message}`, { status: 400 })
   }
 
@@ -68,13 +157,42 @@ serve(async (req) => {
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object
+        const session = event.data.object as Stripe.Checkout.Session
         console.log(
           `checkout.session.completed ${session.id} mode=${session.mode}`
         )
 
+        // Process pending invitations from checkout metadata if present
+        const orgIdFromMeta =
+          session.metadata?.org_id || session.metadata?.orgId
+        const userIdFromMeta =
+          session.metadata?.user_id || session.metadata?.userId
+        const rawPendingInvites = session.metadata?.pending_invitations
+
+        if (orgIdFromMeta && rawPendingInvites) {
+          try {
+            const parsedInvites = JSON.parse(rawPendingInvites)
+            if (Array.isArray(parsedInvites) && parsedInvites.length > 0) {
+              await redeemPendingInvites(
+                supabase,
+                orgIdFromMeta,
+                userIdFromMeta || '',
+                parsedInvites
+              )
+              console.log(
+                `Successfully processed ${parsedInvites.length} pending invitations for org ${orgIdFromMeta}`
+              )
+            }
+          } catch (invErr: any) {
+            console.error(
+              'Error processing pending_invitations:',
+              invErr.message
+            )
+            throw invErr // Re-throw so handler catch block triggers Stripe retry logic
+          }
+        }
+
         if (session.mode === 'payment') {
-          // Check for invoice before calling retrieve
           let hostedInvoiceUrl: string | null = null
           if (session.invoice) {
             const invoice = await stripe.invoices.retrieve(
@@ -83,14 +201,14 @@ serve(async (req) => {
             hostedInvoiceUrl = invoice.hosted_invoice_url ?? null
           }
 
-          const invoiceId = session.metadata?.invoice_id // The ID we set in create-invoice
+          const invoiceId = session.metadata?.invoice_id
 
           if (invoiceId) {
             const { data: paidInvoice } = await supabase
               .from('invoices')
               .update({
                 status: 'paid',
-                payment_intent: session.payment_intent,
+                payment_intent: session.payment_intent as string,
                 paid_at: new Date().toISOString(),
                 invoice_url: hostedInvoiceUrl,
               })
@@ -205,22 +323,20 @@ serve(async (req) => {
             }
           }
 
-          const orgId = session.metadata?.orgId
-          const subId = session.metadata?.subId
+          const orgId = session.metadata?.orgId || session.metadata?.org_id
+          const subId = session.metadata?.subId || session.metadata?.sub_id
 
-          // 1. Validate required metadata identifiers
           if (!orgId || !subId) {
             throw new Error(
               `Missing metadata in checkout session (orgId: ${orgId}, subId: ${subId})`
             )
           }
 
-          // 2. Perform update and check response
           const { data: updatedSubs, error: updateError } = await supabase
             .from('subscriptions')
             .update({
-              stripe_customer_id: session.customer,
-              stripe_subscription_id: subscriptionId,
+              stripe_customer_id: session.customer as string,
+              stripe_subscription_id: subscriptionId as string,
               stripe_payment_intent: paymentIntentId,
               payment_method_type: paymentMethodType,
               payment_method_details: paymentMethodDetails,
@@ -236,7 +352,6 @@ serve(async (req) => {
             .eq('id', subId)
             .select()
 
-          // 3. Handle database errors or zero affected rows
           if (updateError) {
             throw new Error(
               `Failed to update subscription ${subId}: ${updateError.message}`
@@ -254,7 +369,7 @@ serve(async (req) => {
 
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
-        let sub = event.data.object
+        let sub = event.data.object as Stripe.Subscription
 
         if (!sub.current_period_end || !sub.items) {
           sub = await stripe.subscriptions.retrieve(sub.id)
@@ -284,7 +399,7 @@ serve(async (req) => {
               ? new Date(sub.current_period_end * 1000).toISOString()
               : null,
           })
-          .eq('stripe_customer_id', sub.customer)
+          .eq('stripe_customer_id', sub.customer as string)
           .select()
 
         if (subUpdateError) {
@@ -299,7 +414,7 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ received: true }), { status: 200 })
-  } catch (err) {
+  } catch (err: any) {
     console.error('HANDLER ERROR:', err)
 
     const { error: releaseError } = await supabase

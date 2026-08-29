@@ -1,31 +1,33 @@
+'use client'
+
 import { NAV_ICONS } from '@/components/layout/nav-icons'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
 import { Folder } from 'lucide-react'
-import { DashboardStat } from '../../types'
+import { DashboardStat, DeltaType } from '../../types'
 
-interface StatsGridProps {
-  stats: DashboardStat[]
-}
-
-type DeltaType = 'success' | 'warning' | 'info' | 'destructive'
-
-// CSS variable mappings derived from globals.css
-const iconBadgeClasses: Record<DeltaType, { bg: string; text: string }> = {
+const iconBadgeClasses: Record<
+  DeltaType,
+  { bg: string; text: string; border: string }
+> = {
   success: {
     bg: 'bg-success/10',
     text: 'text-success',
+    border: 'border-success/20',
   },
   warning: {
     bg: 'bg-warning/10',
     text: 'text-warning',
+    border: 'border-warning/20',
   },
   info: {
     bg: 'bg-primary/10',
     text: 'text-primary',
+    border: 'border-primary/20',
   },
   destructive: {
     bg: 'bg-destructive/10',
     text: 'text-destructive',
+    border: 'border-destructive/20',
   },
 }
 
@@ -36,10 +38,15 @@ const deltaTextClasses: Record<DeltaType, string> = {
   destructive: 'text-destructive',
 }
 
+interface StatsGridProps {
+  stats: DashboardStat[]
+}
+
 export function StatsGrid({ stats }: StatsGridProps) {
-  if (!stats || !Array.isArray(stats)) {
+  if (!stats || !Array.isArray(stats) || stats.length === 0) {
     return null
   }
+
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat, i) => {
@@ -47,8 +54,8 @@ export function StatsGrid({ stats }: StatsGridProps) {
         const IconComponent =
           (iconKey && NAV_ICONS[iconKey]) || NAV_ICONS.projects || Folder
 
-        const deltaType = (stat.deltaType as DeltaType) || 'info'
-        const iconType = (stat.iconType as DeltaType) || 'info'
+        const deltaType = stat.deltaType || 'info'
+        const iconType = stat.iconType || 'info'
 
         const badgeStyle = iconBadgeClasses[iconType] || iconBadgeClasses.info
         const textColor = deltaTextClasses[deltaType] || deltaTextClasses.info
@@ -56,7 +63,7 @@ export function StatsGrid({ stats }: StatsGridProps) {
         return (
           <FxCard
             key={stat.label || i}
-            className="flex flex-col justify-between transition-transform duration-200 ease-out hover:-translate-y-1"
+            className="flex flex-col justify-between transition-transform duration-200 ease-out hover:-translate-y-0.5"
           >
             <FxCardContent className="flex flex-col justify-between gap-4 p-4">
               {/* Header: Title and Icon Badge */}
@@ -65,13 +72,9 @@ export function StatsGrid({ stats }: StatsGridProps) {
                   {stat.label}
                 </span>
                 <div
-                  className={`flex h-6.5 w-6.5 items-center justify-center rounded-lg border ${badgeStyle.bg}`}
+                  className={`flex size-6.5 items-center justify-center rounded-lg border ${badgeStyle.bg} ${badgeStyle.border}`}
                 >
-                  <IconComponent
-                    className={`${badgeStyle.text}`}
-                    width={15}
-                    height={15}
-                  />
+                  <IconComponent className={`size-3.75 ${badgeStyle.text}`} />
                 </div>
               </div>
 

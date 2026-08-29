@@ -26,7 +26,7 @@ import {
   ClientOption,
   createProject,
   TeamMemberOption,
-} from '@/features/dashboard/action'
+} from '@/features/dashboard/actions'
 import { Calendar as CalendarIcon, ChevronDown } from 'lucide-react'
 import { useCallback, useEffect, useState, useTransition } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
@@ -54,6 +54,11 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
       targetDate: new Date(2026, 8, 30),
       selectedEngagement: 'full-time',
       budget: '24000',
+      fixedPrice: '9600',
+      retainerBucketHours: '80',
+      retainerBillingPeriod: 'Monthly',
+      retainerAmount: '6000',
+      retainerOverageRate: '1.25',
       brief: '',
       overrideReason: '',
       allocations: [],
@@ -75,6 +80,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
   const targetDate = watch('targetDate')
   const selectedEngagement = watch('selectedEngagement')
   const budget = watch('budget')
+  const fixedPrice = watch('fixedPrice')
   const brief = watch('brief')
   const overrideReason = watch('overrideReason')
   const allocations = watch('allocations')
@@ -141,6 +147,12 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
 
     const mappedEngagement = engagementMap[selectedEngagement] || 'full_time'
 
+    // Select relevant numeric budget based on model
+    const calculatedBudget =
+      selectedEngagement === 'fixed-price' || selectedEngagement === 'fixed'
+        ? fixedPrice
+        : budget
+
     startTransition(async () => {
       const res = await createProject(
         {
@@ -149,7 +161,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
           clientId: selectedClient || null,
           dueDate: targetDate ? toISODate(targetDate) : null,
           engagement: mappedEngagement,
-          budget: budget ? parseFloat(budget) : null,
+          budget: calculatedBudget ? parseFloat(calculatedBudget) : null,
           brief: brief,
           overrideReason: overrideReason,
           allocations: allocations.map((row) => ({
@@ -261,7 +273,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
 
   const isOverCommitted = Boolean(overCommittedDetails)
   const isSubmitDisabled =
-    !projectName.trim() || (isOverCommitted && !overrideReason.trim())
+    !projectName.trim() || (isOverCommitted && !overrideReason?.trim())
 
   const formattedTargetDate = targetDate
     ? targetDate.toLocaleDateString('en-US', {
@@ -351,27 +363,30 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                   </FxButton>
                 </DropdownMenuTrigger>
                 <FxDropdownMenuContent align="start" className="w-56">
-                  <FxDropdownMenuItem
-                    onClick={() => setValue('selectedClient', '')}
-                    className="text-muted-foreground text-[13px]"
-                  >
-                    No client (Internal)
-                  </FxDropdownMenuItem>
-                  {clientOptions.map((client) => (
+                  {clientOptions.length === 0 ? (
                     <FxDropdownMenuItem
-                      key={client.id}
-                      onClick={() => setValue('selectedClient', client.id)}
-                      className="text-[13px]"
+                      onClick={() => setValue('selectedClient', '')}
+                      className="text-muted-foreground text-[13px]"
                     >
-                      {client.name}
+                      No client (Internal)
                     </FxDropdownMenuItem>
-                  ))}
+                  ) : (
+                    clientOptions.map((client) => (
+                      <FxDropdownMenuItem
+                        key={client.id}
+                        onClick={() => setValue('selectedClient', client.id)}
+                        className="hover:bg-primary! focus:bg-muted text-[13px]"
+                      >
+                        {client.name}
+                      </FxDropdownMenuItem>
+                    ))
+                  )}
                 </FxDropdownMenuContent>
               </DropdownMenu>
             </div>
             <div className="w-full">
               <FxLabel
-                htmlFor="targerdate"
+                htmlFor="targetdate"
                 className="text-foreground mb-1.5 block text-[13px] font-medium"
               >
                 Target end date
@@ -409,23 +424,144 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
             onChange={(val) => setValue('selectedEngagement', val)}
           />
 
-          {/* Budget */}
-          <div className="w-full">
-            <FxLabel
-              htmlFor="contractvalue"
-              className="text-foreground mb-1.5 block text-[13px] font-medium"
-            >
-              Contract value / budget ($)
-            </FxLabel>
-            <FxInput
-              type="number"
-              id="contractvalue"
-              min={1}
-              placeholder="24000"
-              className="font-mono text-[13px]"
-              {...register('budget')}
-            />
-          </div>
+          {/* Conditional Inputs Based on Engagement Model */}
+          {(selectedEngagement === 'full-time' ||
+            selectedEngagement === 'part-time') && (
+            <div className="w-full">
+              <FxLabel
+                htmlFor="contractvalue"
+                className="text-foreground mb-1.5 block text-[13px] font-medium"
+              >
+                Contract value / budget ($)
+              </FxLabel>
+              <FxInput
+                type="number"
+                id="contractvalue"
+                min={1}
+                placeholder="24000"
+                className="font-mono text-[13px]"
+                {...register('budget')}
+              />
+            </div>
+          )}
+
+          {(selectedEngagement === 'fixed-price' ||
+            selectedEngagement === 'fixed') && (
+            <div className="w-full space-y-1.5">
+              <FxLabel
+                htmlFor="fixedprice"
+                className="text-foreground block text-[13px] font-medium"
+              >
+                Fixed price ($)
+              </FxLabel>
+              <FxInput
+                type="number"
+                id="fixedprice"
+                min={1}
+                placeholder="9600"
+                className="font-mono text-[13px]"
+                {...register('fixedPrice')}
+              />
+              <p className="text-muted-foreground text-[12px]">
+                Hours are tracked for capacity but billed at zero — the fee is
+                fixed.
+              </p>
+            </div>
+          )}
+
+          {selectedEngagement === 'retainer' && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="w-full">
+                  <FxLabel
+                    htmlFor="bucket"
+                    className="text-foreground mb-1.5 block text-[13px] font-medium"
+                  >
+                    Bucket (hours)
+                  </FxLabel>
+                  <FxInput
+                    type="number"
+                    id="bucket"
+                    min={1}
+                    placeholder="80"
+                    className="font-mono text-[13px]"
+                    {...register('retainerBucketHours')}
+                  />
+                </div>
+                <div className="w-full">
+                  <FxLabel
+                    htmlFor="billingperiod"
+                    className="text-foreground mb-1.5 block text-[13px] font-medium"
+                  >
+                    Billing period
+                  </FxLabel>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <FxButton
+                        id="billingperiod"
+                        type="button"
+                        className="border-border bg-muted/50 text-foreground hover:bg-muted flex h-9 w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none"
+                      >
+                        <span className="truncate">
+                          {watch('retainerBillingPeriod') || 'Monthly'}
+                        </span>
+                        <ChevronDown className="text-muted-foreground size-4 shrink-0" />
+                      </FxButton>
+                    </DropdownMenuTrigger>
+                    <FxDropdownMenuContent align="start" className="w-48">
+                      {['Monthly', 'Weekly', 'Quarterly'].map((period) => (
+                        <FxDropdownMenuItem
+                          key={period}
+                          onClick={() =>
+                            setValue('retainerBillingPeriod', period)
+                          }
+                          className="hover:bg-primary! focus:bg-muted text-[13px]"
+                        >
+                          {period}
+                        </FxDropdownMenuItem>
+                      ))}
+                    </FxDropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="w-full">
+                  <FxLabel
+                    htmlFor="retaineramount"
+                    className="text-foreground mb-1.5 block text-[13px] font-medium"
+                  >
+                    Retainer amount ($)
+                  </FxLabel>
+                  <FxInput
+                    type="number"
+                    id="retaineramount"
+                    min={1}
+                    placeholder="6000"
+                    className="font-mono text-[13px]"
+                    {...register('retainerAmount')}
+                  />
+                </div>
+                <div className="w-full">
+                  <FxLabel
+                    htmlFor="overagerate"
+                    className="text-foreground mb-1.5 block text-[13px] font-medium"
+                  >
+                    Overage rate (×)
+                  </FxLabel>
+                  <FxInput
+                    type="number"
+                    step="0.01"
+                    id="overagerate"
+                    min={0}
+                    placeholder="1.25"
+                    className="font-mono text-[13px]"
+                    {...register('retainerOverageRate')}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Team Allocation Section */}
           <TeamAllocationSection

@@ -309,7 +309,7 @@ $$;
 -- ---------------------------------------------------------------------
 insert into public.clients (id, org_id, name, contact_name, contact_email, created_at)
 values
-  ('30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001',
+  ('10000000-0000-4000-8000-000000000004', '20000000-0000-4000-8000-000000000001',
    'Nordwave Coffee',  'Erik Lund',     'erik.lund@nordwave.example.com', now() - interval '110 days'),
   ('30000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001',
    'Orbit Foods',      'Dana Whitfield', 'dana@orbitfoods.example.com',   now() - interval '80 days'),

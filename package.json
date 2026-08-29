@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "eslint .",
     "prepare": "husky",
-    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,md}\""
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,md}\"",
+    "typegen": "supabase gen types typescript --linked > src/types/supabase.ts"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx,js,jsx}": [

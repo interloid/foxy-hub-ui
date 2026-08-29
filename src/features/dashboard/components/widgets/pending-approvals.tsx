@@ -3,17 +3,10 @@
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
-
-export interface ApprovalItem {
-  id: string
-  name: string
-  ext: string // e.g. 'FIG', 'PDF'
-  project: string
-  client: string
-}
+import { PendingApproval } from '@/features/dashboard/types'
 
 interface PendingApprovalsProps {
-  approvals: ApprovalItem[]
+  approvals: PendingApproval[]
   onViewAllClick?: () => void
   onApproveClick?: (id: string) => void
 }

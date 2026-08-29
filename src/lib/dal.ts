@@ -1,5 +1,4 @@
 import { cache } from 'react'
-import { addDaysISO, startOfMonthISO, todayISO } from './date'
 import { initialsOf } from './initials'
 import { createClient } from './supabase/server'
 
@@ -132,8 +131,17 @@ export const getDashboardMetrics = cache(
     if (!workspace) return null
 
     const supabase = await createClient()
-    const org = workspace.id
-    const today = todayISO()
+    const orgId = workspace.id
+
+    const today = new Date().toISOString().split('T')[0]
+    const startOfMonth = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1
+    ).toISOString()
+    const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0]
 
     const [
       openProjects,
@@ -150,69 +158,81 @@ export const getDashboardMetrics = cache(
       supabase
         .from('projects')
         .select('id', { count: 'exact', head: true })
-        .eq('org_id', org)
+        .eq('org_id', orgId)
         .in('status', OPEN_PROJECT_STATUSES),
+
       supabase
         .from('projects')
         .select('id', { count: 'exact', head: true })
-        .eq('org_id', org)
-        .gte('created_at', startOfMonthISO()),
+        .eq('org_id', orgId)
+        .gte('created_at', startOfMonth),
+
       supabase
         .from('deliveries')
         .select('id', { count: 'exact', head: true })
-        .eq('org_id', org)
+        .eq('org_id', orgId)
         .eq('status', 'submitted'),
+
       supabase
         .from('deliveries')
         .select('id', { count: 'exact', head: true })
-        .eq('org_id', org)
+        .eq('org_id', orgId)
         .eq('status', 'submitted')
         .gte('due_date', today)
-        .lte('due_date', addDaysISO(7)),
+        .lte('due_date', nextWeek),
+
       supabase
         .from('time_entries')
         .select('duration_minutes, projects!inner(org_id)')
         .eq('status', 'submitted')
-        .eq('projects.org_id', org),
+        .eq('projects.org_id', orgId),
+
       supabase
         .from('invoices')
         .select('amount')
-        .eq('org_id', org)
+        .eq('org_id', orgId)
         .in('status', ['due', 'overdue']),
+
       supabase
         .from('invoices')
         .select('id', { count: 'exact', head: true })
-        .eq('org_id', org)
+        .eq('org_id', orgId)
         .eq('status', 'overdue'),
+
       supabase
         .from('subscriptions')
         .select('plans(price_cents, duration_months)')
-        .eq('org_id', org)
+        .eq('org_id', orgId)
         .eq('status', 'active')
         .maybeSingle(),
+
       supabase
         .from('memberships')
         .select('id', { count: 'exact', head: true })
-        .eq('org_id', org)
+        .eq('org_id', orgId)
         .in('role', ['owner', 'admin', 'member']),
+
       supabase
         .from('organizations')
         .select('currency')
-        .eq('id', org)
+        .eq('id', orgId)
         .maybeSingle(),
     ])
 
-    const minutes = (
-      (submittedEntries.data ?? []) as { duration_minutes: number }[]
-    ).reduce((total, row) => total + (row.duration_minutes ?? 0), 0)
+    const minutes = (submittedEntries.data || []).reduce(
+      (acc, r) => acc + (r.duration_minutes || 0),
+      0
+    )
 
-    const outstanding = (
-      (unpaidInvoices.data ?? []) as { amount: number | string }[]
-    ).reduce((total, row) => total + (Number(row.amount) || 0), 0)
+    const outstanding = (unpaidInvoices.data || []).reduce(
+      (acc, r) => acc + (Number(r.amount) || 0),
+      0
+    )
 
-    const plan = subscription.data?.plans
+    const rawPlan = subscription.data?.plans
+    const plan = Array.isArray(rawPlan) ? rawPlan[0] : rawPlan
     const mrrCents = plan?.duration_months
-      ? Math.round(plan.price_cents / plan.duration_months)
+      ? Math.round((plan.price_cents || 0) / plan.duration_months)
       : 0
 
     return {
@@ -221,13 +241,13 @@ export const getDashboardMetrics = cache(
       pendingApprovals: pendingApprovals.count ?? 0,
       approvalsDueThisWeek: dueThisWeek.count ?? 0,
       minutesToApprove: minutes,
-      timesheetsToApprove: (submittedEntries.data ?? []).length,
+      timesheetsToApprove: (submittedEntries.data || []).length,
       outstandingAmount: outstanding,
       overdueInvoices: overdueInvoices.count ?? 0,
-      unpaidInvoices: (unpaidInvoices.data ?? []).length,
+      unpaidInvoices: (unpaidInvoices.data || []).length,
       mrrCents,
       activeSeats: seats.count ?? 0,
-      currency: (orgRow.data?.currency as string | undefined) ?? 'USD',
+      currency: orgRow.data?.currency || 'USD',
     }
   }
 )

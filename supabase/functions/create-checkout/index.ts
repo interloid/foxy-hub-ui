@@ -105,7 +105,7 @@ serve(async (req) => {
   // Load invoice and include organization slug for routing
   const { data: invoice, error: invoiceError } = await supabase
     .from('invoices')
-    .select('*, organizations(slug)')
+    .select('*, organizations(slug, id)')
     .eq('id', invoiceId)
     .maybeSingle()
 
@@ -113,9 +113,19 @@ serve(async (req) => {
     return json({ success: false, error: 'Invoice not found' }, 404)
   }
 
-  const orgSlug = (invoice.organizations as unknown as { slug: string } | null)
-    ?.slug
+  const org = invoice.organizations as unknown as {
+    slug: string
+    id: string
+  } | null
+  const orgSlug = org?.slug
   const orgPrefix = orgSlug ? `/${orgSlug}` : ''
+
+  // Safely extract pending invitations from user_metadata
+  const pendingInvitations = Array.isArray(
+    user.user_metadata?.pending_invitations
+  )
+    ? user.user_metadata.pending_invitations
+    : []
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -136,7 +146,13 @@ serve(async (req) => {
       customer_email: user.email,
       success_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=success`,
       cancel_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=canceled`,
-      metadata: { invoice_id: invoice.id },
+      metadata: {
+        invoice_id: invoice.id,
+        org_id: org?.id || '',
+        user_id: user.id,
+        // Carry pending invitations into session metadata so the Webhook Edge Function handles them durably
+        pending_invitations: JSON.stringify(pendingInvitations),
+      },
     })
 
     return json({ url: session.url }, 200)

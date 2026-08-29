@@ -1,39 +1,36 @@
 'use server'
+
 import { getWorkspace } from '@/lib/dal'
 import { toISODate } from '@/lib/date'
+import { parseDurationToMinutes } from '@/lib/duration'
 import { createClient } from '@/lib/supabase/server'
 import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
+import { ActionResult } from '../onboarding/types'
+import { createProjectSchema } from './schema'
 
-export async function getUserName() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { ok: false, error: 'Invalid token.' }
-  }
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('full_name')
-    .eq('id', user.id)
-    .single()
-
-  if (error) {
-    return { ok: false, error: error.message }
-  }
-
-  const name = data.full_name
-    ? data.full_name
-    : user.email
-      ? user.email.split('@')[0]
-      : undefined
-
-  return { ok: true, name }
+// Helper for formatting Zod validation errors
+function firstIssue(error: z.ZodError): string {
+  return error.issues[0]?.message ?? 'Invalid input parameters'
 }
+
+// ==========================================
+// ZOD SCHEMAS
+// ==========================================
+
+const createTimeEntrySchema = z.object({
+  orgSlug: z.string().min(1, 'Organization slug is required'),
+  projectId: z.uuid('Invalid project ID'),
+  milestoneId: z.uuid('Invalid milestone ID').optional().nullable(),
+  workDate: z.string().min(1, 'Work date is required'),
+  durationStr: z.string().min(1, 'Duration string is required'),
+  description: z.string().max(500, 'Description too long'),
+})
+
+// ==========================================
+// EXPORTED TYPES
+// ==========================================
 
 export interface ClientOption {
   id: string
@@ -52,34 +49,59 @@ export interface TeammateAllocationCheck {
   maxDailyCapacity: number
   maxDaysPerWk: number
 }
-interface CapacityAndLoggedData {
+
+export interface CapacityAndLoggedData {
   dailyCapacityHours: number
   alreadyLoggedMinutes: number
 }
 
-export interface ProjectAllocationInput {
-  userId: string
-  hoursPerDay: number
-  daysPerWk: number
-  rate?: number
-  effectiveFrom: string
+export interface ProjectOption {
+  id: string
+  name: string
 }
 
-export interface CreateProjectParams {
-  name: string
-  startFrom?: string
-  clientId?: string | null
-  dueDate?: string | null
-  engagement: 'full_time' | 'part_time' | 'retainer' | 'fixed'
-  budget?: number | null
-  brief?: string
-  overrideReason?: string
-  allocations: ProjectAllocationInput[]
+export interface MilestoneOption {
+  id: string
+  title: string
 }
 
 type ProjectInsert = Database['public']['Tables']['projects']['Insert']
 type AllocationInsert =
   Database['public']['Tables']['project_allocations']['Insert']
+
+// ==========================================
+// SERVER ACTIONS
+// ==========================================
+
+export async function getUserName(): Promise<ActionResult<{ name: string }>> {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { ok: false, error: 'Invalid token or not signed in.' }
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', user.id)
+    .single()
+
+  if (error) {
+    return { ok: false, error: error.message }
+  }
+
+  const name = data?.full_name
+    ? data.full_name
+    : user.email
+      ? user.email.split('@')[0]!
+      : 'User'
+
+  return { ok: true, data: { name } }
+}
 
 export async function getDailyCapacityAndLoggedMinutes(
   dateString: string,
@@ -115,55 +137,97 @@ export async function getDailyCapacityAndLoggedMinutes(
   return { dailyCapacityHours, alreadyLoggedMinutes }
 }
 
-export interface ProjectOption {
-  id: string
-  name: string
-}
+export async function getProjectsForOrg(
+  orgSlug: string
+): Promise<ProjectOption[]> {
+  if (!orgSlug) return []
 
-export interface MilestoneOption {
-  id: string
-  title: string
-}
-
-export async function getProjectsForOrg(): Promise<ProjectOption[]> {
   const supabase = await createClient()
 
+  // 1. Authenticate user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return []
+
+  // 2. Query projects strictly filtered by org_slug AND active user membership
   const { data, error } = await supabase
     .from('projects')
-    .select('id, name')
+    .select(
+      `
+      id,
+      name,
+      organization:organizations!inner (
+        slug,
+        memberships!inner (
+          user_id
+        )
+      )
+    `
+    )
+    .eq('organization.slug', orgSlug)
+    .eq('organization.memberships.user_id', user.id)
     .order('name', { ascending: true })
 
   if (error || !data) return []
-  return data
+
+  return data.map((p) => ({ id: p.id, name: p.name }))
 }
 
 export async function getMilestonesForProject(
-  projectId: string
+  projectId: string,
+  orgSlug: string
 ): Promise<MilestoneOption[]> {
-  if (!projectId) return []
+  if (!projectId || !orgSlug) return []
 
   const supabase = await createClient()
 
+  // 1. Authenticate user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return []
+
+  // 2. Query milestones ensuring project belongs to org AND user is a member
   const { data, error } = await supabase
     .from('milestones')
-    .select('id, title')
+    .select(
+      `
+      id,
+      title,
+      project:projects!inner (
+        org_id,
+        organization:organizations!inner (
+          slug,
+          memberships!inner (
+            user_id
+          )
+        )
+      )
+    `
+    )
     .eq('project_id', projectId)
+    .eq('project.organization.slug', orgSlug)
+    .eq('project.organization.memberships.user_id', user.id)
     .order('title', { ascending: true })
 
   if (error || !data) return []
-  return data
+
+  return data.map((m) => ({ id: m.id, title: m.title }))
 }
 
-export interface CreateTimeEntryParams {
-  orgSlug: string // Added orgSlug to verify multi-tenant isolation & capacity
-  projectId: string
-  milestoneId?: string | null
-  workDate: string
-  durationStr: string
-  description: string
-}
+export async function createTimeEntry(
+  rawInput: unknown
+): Promise<ActionResult> {
+  console.log(rawInput)
+  const parsed = createTimeEntrySchema.safeParse(rawInput)
+  if (!parsed.success) {
+    return { ok: false, error: firstIssue(parsed.error) }
+  }
 
-export async function createTimeEntry(params: CreateTimeEntryParams) {
+  const params = parsed.data
   const supabase = await createClient()
 
   // 1. Authenticate User
@@ -172,13 +236,13 @@ export async function createTimeEntry(params: CreateTimeEntryParams) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { success: false, error: 'User is not authenticated.' }
+    return { ok: false, error: 'User is not authenticated.' }
   }
 
   // 2. Validate Duration
   const durationMinutes = parseDurationToMinutes(params.durationStr)
   if (!durationMinutes || durationMinutes <= 0) {
-    return { success: false, error: 'Invalid duration specified.' }
+    return { ok: false, error: 'Invalid duration specified.' }
   }
 
   // 3. Verify Project and Org Ownership
@@ -190,7 +254,7 @@ export async function createTimeEntry(params: CreateTimeEntryParams) {
     .maybeSingle()
 
   if (!project) {
-    return { success: false, error: 'Invalid project or organization.' }
+    return { ok: false, error: 'Invalid project or organization.' }
   }
 
   // 4. Verify Milestone belongs to this Project (if provided)
@@ -203,7 +267,7 @@ export async function createTimeEntry(params: CreateTimeEntryParams) {
       .maybeSingle()
 
     if (!milestone) {
-      return { success: false, error: 'Invalid milestone for this project.' }
+      return { ok: false, error: 'Invalid milestone for this project.' }
     }
   }
 
@@ -215,7 +279,7 @@ export async function createTimeEntry(params: CreateTimeEntryParams) {
     .maybeSingle()
 
   if (!orgData) {
-    return { success: false, error: 'Organization not found.' }
+    return { ok: false, error: 'Organization not found.' }
   }
 
   const dailyCapacityMinutes = (orgData.daily_capacity_hours ?? 8) * 60
@@ -239,7 +303,7 @@ export async function createTimeEntry(params: CreateTimeEntryParams) {
     )
     const remainingHours = (remainingMinutes / 60).toFixed(1)
     return {
-      success: false,
+      ok: false,
       error: `Exceeds daily capacity. You only have ${remainingHours} hours remaining for ${params.workDate}.`,
     }
   }
@@ -256,35 +320,11 @@ export async function createTimeEntry(params: CreateTimeEntryParams) {
   })
 
   if (error) {
-    return { success: false, error: error.message }
+    return { ok: false, error: error.message }
   }
 
-  // Revalidate workspace dashboard cache so the UI updates immediately
   revalidatePath(`/${params.orgSlug}`)
-
-  return { success: true }
-}
-
-function parseDurationToMinutes(val: string): number | null {
-  const trimmed = val.trim().toLowerCase()
-  if (!trimmed || trimmed.includes('-')) return null
-
-  const timeRegex = /^(?:(\d+(?:\.\d+)?)h)?\s*(?:(\d+)m)?$/
-  const timeMatch = trimmed.match(timeRegex)
-
-  if (timeMatch && (timeMatch[1] !== undefined || timeMatch[2] !== undefined)) {
-    const hours = timeMatch[1] ? parseFloat(timeMatch[1]) : 0
-    const mins = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0
-    const total = Math.round(hours * 60 + mins)
-    return isNaN(total) || total <= 0 ? null : total
-  }
-
-  const num = parseFloat(trimmed)
-  if (!isNaN(num) && num > 0) {
-    return Math.round(num * 60)
-  }
-
-  return null
+  return { ok: true }
 }
 
 export async function getTeammateAllocatedHours(
@@ -324,16 +364,22 @@ export async function getTeammateAllocatedHours(
 }
 
 export async function createProject(
-  params: CreateProjectParams,
+  rawParams: unknown,
   orgSlug: string
-) {
+): Promise<ActionResult> {
+  const parsed = createProjectSchema.safeParse(rawParams)
+  if (!parsed.success) {
+    return { ok: false, error: firstIssue(parsed.error) }
+  }
+
+  const params = parsed.data
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) {
     return { ok: false, error: 'Workspace not found or access denied.' }
   }
+
   const supabase = await createClient()
 
-  // 3. Map engagement model string to strict database enum value
   const engagementEnumMap = {
     'full-time': 'full_time',
     'part-time': 'part_time',
@@ -347,15 +393,26 @@ export async function createProject(
   const dbEngagement =
     engagementEnumMap[params.engagement as keyof typeof engagementEnumMap] ??
     'full_time'
+  const periodMap: Record<string, 'monthly' | 'weekly'> = {
+    Monthly: 'monthly',
+    Weekly: 'weekly',
+    // Quarterly: 'quarterly',
+  }
 
-  // 4. Construct project insert payload including start_from (M20 fixed)
+  const dbRetainerPeriod = params.retainerBillingPeriod
+    ? periodMap[params.retainerBillingPeriod]
+    : null
   const projectPayload: ProjectInsert = {
     org_id: workspace.id,
     name: params.name.trim(),
-    // client_id: params.clientId || null,
     due_date: params.dueDate || null,
     engagement: dbEngagement,
+    client_id: params.clientId,
     contract_value: params.budget ?? null,
+    retainer_hours: params.retainerBucketHours ?? null,
+    retainer_period: dbRetainerPeriod,
+    retainer_amount: params.retainerAmount ?? null,
+    retainer_overage: params.retainerOverageRate ?? null,
     description: params.brief?.trim() || null,
     override_reason: params.overrideReason?.trim() || null,
     start_from: params.startFrom || 'blank',
@@ -370,13 +427,9 @@ export async function createProject(
 
   if (projectError || !project) {
     console.error('createProject failed:', projectError?.message)
-    return {
-      ok: false,
-      error: 'Failed to create project.',
-    }
+    return { ok: false, error: 'Failed to create project.' }
   }
 
-  // 6. Insert team allocations
   if (params.allocations && params.allocations.length > 0) {
     const allocationRows: AllocationInsert[] = params.allocations.map(
       (alloc) => ({
@@ -395,30 +448,23 @@ export async function createProject(
 
     if (allocError) {
       console.error('project allocations insertion failed:', allocError.message)
-      return {
-        ok: false,
-        error: 'Project created, but allocations failed.',
-      }
+      return { ok: false, error: 'Project created, but allocations failed.' }
     }
   }
 
-  // Revalidate workspace dashboard cache so the UI updates immediately
   revalidatePath(`/${orgSlug}`)
-
   return { ok: true }
 }
 
 export async function getClientsForOrg(): Promise<ClientOption[]> {
   const supabase = await createClient()
 
-  // 1. Authenticate user
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) return []
 
-  // 2. Fetch user's org_id
   const { data: membership } = await supabase
     .from('memberships')
     .select('org_id')
@@ -427,7 +473,6 @@ export async function getClientsForOrg(): Promise<ClientOption[]> {
 
   if (!membership?.org_id) return []
 
-  // 3. Fetch clients sorted by name
   const { data, error } = await supabase
     .from('clients')
     .select('id, name')
@@ -435,21 +480,18 @@ export async function getClientsForOrg(): Promise<ClientOption[]> {
     .order('name', { ascending: true })
 
   if (error || !data) return []
-
   return data
 }
 
-export async function getTeamMembersForOrg() {
+export async function getTeamMembersForOrg(): Promise<TeamMemberOption[]> {
   const supabase = await createClient()
 
-  // 1. Authenticate user
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) return []
 
-  // 2. Fetch authenticated user's organization ID
   const { data: userMembership } = await supabase
     .from('memberships')
     .select('org_id')
@@ -458,7 +500,6 @@ export async function getTeamMembersForOrg() {
 
   if (!userMembership?.org_id) return []
 
-  // 3. Query memberships for that org
   const { data: memberships, error: membershipsError } = await supabase
     .from('memberships')
     .select('user_id, role')
@@ -467,7 +508,6 @@ export async function getTeamMembersForOrg() {
 
   if (membershipsError || !memberships || memberships.length === 0) return []
 
-  // 4. Extract user IDs and fetch profiles
   const userIds = memberships.map((m) => m.user_id)
 
   const { data: profiles, error: profilesError } = await supabase
@@ -477,7 +517,6 @@ export async function getTeamMembersForOrg() {
 
   if (profilesError) console.error('Error fetching profiles:', profilesError)
 
-  // 5. Map profiles back to memberships
   const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) || [])
 
   return memberships.map((item) => {

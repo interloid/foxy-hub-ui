@@ -4,22 +4,7 @@ import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
 import { FxProgress } from '@/components/shared/fx-progress'
-
-export interface ActiveProject {
-  id: string
-  name: string
-  client: string
-  status:
-    | 'completed'
-    | 'on-hold'
-    | 'pending'
-    | 'draft'
-    | 'cancelled'
-    | 'in-progress'
-    | 'pending-approval'
-  progress: string // e.g. "62"
-  value: string // e.g. "$24,000"
-}
+import { ActiveProject } from '@/features/dashboard/types'
 
 interface ActiveProjectsProps {
   projects: ActiveProject[]

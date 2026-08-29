@@ -15,29 +15,34 @@ export async function sendInvitations(
   const wanted = params.invites
     .map((invite) => ({
       email: invite.email.trim().toLowerCase(),
-      role: invite.role,
+      role: invite.role.toLowerCase(),
     }))
     .filter((invite) => invite.email.length > 0)
 
   const results = await Promise.all(
     wanted.map(async (invite) => {
       const rawToken = `${crypto.randomUUID()}${crypto.randomUUID()}`
+      const tokenHash = await sha256Hex(rawToken)
 
-      const { data: row, error: insertError } = await supabase
+      // Use admin client to insert into `invitations` table
+      const { data: row, error: insertError } = await admin
         .from('invitations')
-        .insert({
-          org_id: params.orgId,
-          email: invite.email,
-          role: invite.role.toLowerCase(),
-          token_hash: await sha256Hex(rawToken),
-          invited_by: params.invitedBy,
-        })
+        .upsert(
+          {
+            org_id: params.orgId,
+            email: invite.email,
+            role: invite.role,
+            token_hash: tokenHash,
+            invited_by: params.invitedBy,
+          },
+          { onConflict: 'org_id,email' }
+        )
         .select('id')
         .single()
 
       if (insertError || !row) {
         console.error(
-          `invite row failed for ${invite.email}:`,
+          `Invitation row insert failed for ${invite.email}:`,
           insertError?.message
         )
 
@@ -48,21 +53,23 @@ export async function sendInvitations(
         }
       }
 
+      // Dispatch invite email via Supabase Auth Admin API
       const { error: mailError } = await admin.auth.admin.inviteUserByEmail(
         invite.email,
         {
-          data: { invite_token: rawToken },
+          data: { invite_token: rawToken, org_id: params.orgId },
           redirectTo: `${params.siteUrl}/set-password`,
         }
       )
 
       if (mailError) {
         console.error(
-          `invite email failed for ${invite.email}:`,
+          `Invite email failed for ${invite.email}:`,
           mailError.message
         )
 
-        await supabase.from('invitations').delete().eq('id', row.id)
+        // Delete using admin client to guarantee cleanup regardless of RLS policies
+        await admin.from('invitations').delete().eq('id', row.id)
 
         return {
           email: invite.email,

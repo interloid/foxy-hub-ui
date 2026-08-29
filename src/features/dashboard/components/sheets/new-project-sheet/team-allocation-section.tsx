@@ -2,7 +2,7 @@
 
 import { FxButton } from '@/components/shared/fx-button'
 import { FxInput } from '@/components/shared/fx-field'
-import { TeamMemberOption } from '@/features/dashboard/action'
+import { TeamMemberOption } from '@/features/dashboard/actions'
 import { AlertTriangle, Plus } from 'lucide-react'
 import {
   Control,
@@ -11,8 +11,8 @@ import {
   UseFormSetValue,
 } from 'react-hook-form'
 
-import { AllocationFormValues, NewProjectFormValues } from './types'
 import { TeamAllocationRow } from './team-allocation-row'
+import { AllocationFormValues, NewProjectFormValues } from './types'
 
 interface OverCommittedDetails {
   memberName: string
