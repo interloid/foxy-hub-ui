@@ -12,6 +12,7 @@ import {
   setPasswordSchema,
   signInSchema,
 } from './schemas'
+import { decodePassword } from '@/lib/password-encoding'
 
 export type AuthResult =
   | { ok: true; redirectTo?: string; role?: string }
@@ -19,8 +20,9 @@ export type AuthResult =
 
 export async function signInWithPassword(
   email: string,
-  password: string
+  encodePassword: string
 ): Promise<AuthResult> {
+  const password = decodePassword(encodePassword)
   const parsed = signInSchema.safeParse({ email, password })
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) }
   const { email: address, password: secret } = parsed.data
@@ -104,17 +106,23 @@ export async function signOut() {
 }
 
 export async function setPassword(
-  password: string,
-  confirm: string
+  encodePassword: string,
+  encodeConfirm: string
 ): Promise<AuthResult> {
-  const parsed = setPasswordSchema.safeParse({ password, confirm })
+  const decodedPassword = decodePassword(encodePassword)
+  const decodedConfirm = decodePassword(encodeConfirm)
+
+  const parsed = setPasswordSchema.safeParse({
+    password: decodedPassword,
+    confirm: decodedConfirm,
+  })
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) }
 
   const supabase = await createClient()
 
   const { data: updateData, error: updateError } =
     await supabase.auth.updateUser({
-      password,
+      password: decodedPassword,
       data: { password_set: true },
     })
 
@@ -135,14 +143,14 @@ export async function setPassword(
 }
 
 export async function changePassword(
-  current: string,
-  password: string,
-  confirm: string
+  encodeCurrent: string,
+  encodePassword: string,
+  encodeConfirm: string
 ): Promise<AuthResult> {
   const parsed = changePasswordSchema.safeParse({
-    current,
-    password,
-    confirm,
+    current: decodePassword(encodeCurrent),
+    password: decodePassword(encodePassword),
+    confirm: decodePassword(encodeConfirm),
   })
 
   if (!parsed.success) {

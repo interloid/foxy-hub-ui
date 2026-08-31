@@ -51,7 +51,7 @@ export const ONBOARD_PLANS: readonly OnboardPlan[] = [
     blurb: 'For solo freelancers getting started',
     priceMonthly: 19,
     priceYearly: 190,
-    seats: '2 seats',
+    seats: '5 seats',
     features: [
       'Up to 5 active projects',
       'Client portal & approvals',
@@ -64,7 +64,7 @@ export const ONBOARD_PLANS: readonly OnboardPlan[] = [
     blurb: 'For growing studios',
     priceMonthly: 49,
     priceYearly: 490,
-    seats: '5 seats',
+    seats: '10 seats',
     features: [
       'Unlimited projects & clients',
       'AI weekly updates',

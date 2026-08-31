@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { encodePassword } from '@/lib/password-encoding'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
@@ -36,7 +37,11 @@ export function SetPasswordForm({ next }: { next: string }) {
   const submit = form.handleSubmit((values) => {
     setError(null)
     startTransition(async () => {
-      const result = await setPassword(values.password, values.confirm)
+      console.log(values)
+      const result = await setPassword(
+        encodePassword(values.password),
+        encodePassword(values.confirm)
+      )
       if (!result.ok) {
         setError(result.error)
         return

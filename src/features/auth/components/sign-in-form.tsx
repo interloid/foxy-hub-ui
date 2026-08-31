@@ -18,6 +18,7 @@ import { toast } from 'sonner'
 import { signInAsDemo, signInWithPassword } from '../actions'
 import { SIGN_IN } from '../data'
 import { signInSchema, type SignInInput } from '../schemas'
+import { encodePassword } from '@/lib/password-encoding'
 
 export function SignInForm({ initialError }: { initialError?: string }) {
   const [pending, startTransition] = useTransition()
@@ -73,7 +74,9 @@ export function SignInForm({ initialError }: { initialError?: string }) {
         className="flex max-w-100 flex-col gap-3.5"
         noValidate
         onSubmit={form.handleSubmit((values) =>
-          run(() => signInWithPassword(values.email, values.password))
+          run(() =>
+            signInWithPassword(values.email, encodePassword(values.password))
+          )
         )}
       >
         <FxField

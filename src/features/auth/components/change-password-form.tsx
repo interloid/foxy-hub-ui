@@ -18,6 +18,7 @@ import { toast } from 'sonner'
 import { changePassword } from '../actions'
 import { CHANGE_PASSWORD } from '../data'
 import { changePasswordSchema, type ChangePasswordInput } from '../schemas'
+import { encodePassword } from '@/lib/password-encoding'
 
 type Org = {
   org: string
@@ -37,9 +38,9 @@ export function ChangePasswordForm({ org }: Org) {
     setError(null)
     startTransition(async () => {
       const result = await changePassword(
-        values.current,
-        values.password,
-        values.confirm
+        encodePassword(values.current),
+        encodePassword(values.password),
+        encodePassword(values.confirm)
       )
       if (!result.ok) {
         setError(result.error)

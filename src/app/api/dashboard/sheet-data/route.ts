@@ -36,12 +36,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Guard: orgSlug is required for all query types
+    // Return safe fallbacks if orgSlug is missing for data requests
     if (!orgSlug) {
-      return NextResponse.json(
-        { error: 'Missing required orgSlug query parameter' },
-        { status: 400 }
-      )
+      if (type === 'capacity' || type === 'teammate-capacity') {
+        return NextResponse.json({
+          dailyCapacityHours: 8,
+          alreadyLoggedMinutes: 0,
+          existingHoursPerDay: 0,
+          maxDailyCapacity: 8,
+          maxDaysPerWk: 5,
+        })
+      }
+      return NextResponse.json([])
     }
 
     // 1. Fetch Milestones for a Project
@@ -53,7 +59,7 @@ export async function GET(req: NextRequest) {
       }
 
       const milestones = await getMilestones(projectId, orgSlug)
-      return NextResponse.json(milestones ?? [])
+      return NextResponse.json(Array.isArray(milestones) ? milestones : [])
     }
 
     // 2. Fetch Capacity and Logged Minutes for a User on a specific date
@@ -68,7 +74,9 @@ export async function GET(req: NextRequest) {
       }
 
       const capacityData = await getOrganizationCapacity(orgSlug, dateStr)
-      return NextResponse.json(capacityData)
+      return NextResponse.json(
+        capacityData ?? { dailyCapacityHours: 8, alreadyLoggedMinutes: 0 }
+      )
     }
 
     // 3. Check Teammate Allocation Capacity
@@ -86,28 +94,35 @@ export async function GET(req: NextRequest) {
       }
 
       const capacityData = await getTeammateCapacity(userId, orgSlug, dateStr)
-      return NextResponse.json(capacityData)
+      return NextResponse.json(
+        capacityData ?? {
+          userId,
+          existingHoursPerDay: 0,
+          maxDailyCapacity: 8,
+          maxDaysPerWk: 5,
+        }
+      )
     }
 
     // 4. Fetch Client Options
     if (type === 'clients') {
       const clients = await getClients(orgSlug)
-      return NextResponse.json(clients ?? [])
+      return NextResponse.json(Array.isArray(clients) ? clients : [])
     }
 
     // 5. Fetch Team Member Options
     if (type === 'team-members') {
       const teamMembers = await getTeamMembers(orgSlug)
-      return NextResponse.json(teamMembers ?? [])
+      return NextResponse.json(Array.isArray(teamMembers) ? teamMembers : [])
     }
 
     // 6. Fetch Projects for Org
     if (type === 'projects') {
       const projects = await getProjects(orgSlug)
-      return NextResponse.json(projects ?? [])
+      return NextResponse.json(Array.isArray(projects) ? projects : [])
     }
 
-    return NextResponse.json({ error: 'Invalid query type' }, { status: 400 })
+    return NextResponse.json([])
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
     console.error('GET /api/dashboard/sheet-data failed:', message)
