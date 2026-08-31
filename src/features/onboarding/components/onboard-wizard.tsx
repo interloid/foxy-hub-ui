@@ -378,6 +378,7 @@ export function OnboardWizard() {
                         key={plan.id}
                         plan={plan}
                         price={priceOf(plan)}
+                        className="cursor-pointer"
                         cadence={cadence}
                         selected={plan.id === planId}
                         onClick={() =>
@@ -468,7 +469,7 @@ export function OnboardWizard() {
                             variant="destructive"
                             size="xs"
                             disabled={invites.fields.length <= 1}
-                            className="text-destructive hover:bg-destructive/10 size-3 shrink-0 bg-transparent p-0 sm:size-9"
+                            className="text-destructive size-3 shrink-0 bg-transparent p-0 hover:bg-transparent sm:size-9"
                             onClick={() => invites.remove(index)}
                             aria-label={`Remove teammate ${index + 1}`}
                           >
@@ -564,7 +565,7 @@ export function OnboardWizard() {
               ) : (
                 <FxButton
                   type="button"
-                  className="h-9.5 gap-1.75 rounded-lg px-5 text-[13.5px]"
+                  className="h-9.5 rounded-lg px-3 text-[13.5px] sm:px-5"
                   disabled={blocked}
                   onClick={launch}
                 >

@@ -71,7 +71,7 @@ function Stepper({
             >
               <span
                 className={cn(
-                  'flex size-6.5 shrink-0 items-center justify-center rounded-full font-semibold transition-colors',
+                  'text-brand-white flex size-6.5 shrink-0 items-center justify-center rounded-full font-semibold transition-colors',
                   product ? 'text-sm' : 'font-mono text-xs',
                   done && 'bg-success text-brand-white',
                   active && 'bg-primary',

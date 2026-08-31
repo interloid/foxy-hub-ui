@@ -59,19 +59,30 @@ serve(async (req) => {
     return json({ success: false, message: 'Invalid token' }, 401)
   }
 
-  let invoiceId: unknown
-  let returnUrl: unknown
+  let invoiceId: string | undefined
+  let planId: string | undefined
+  let orgId: string | undefined
+  let returnUrl: string | undefined
+
   try {
-    ;({ invoiceId, returnUrl } = await req.json())
+    const body = await req.json()
+    invoiceId = body.invoiceId
+    planId = body.planId
+    orgId = body.orgId
+    returnUrl = body.returnUrl
   } catch {
     return json({ success: false, error: 'Malformed JSON body' }, 400)
   }
 
-  if (typeof invoiceId !== 'string' || !invoiceId) {
-    return json({ success: false, error: 'invoiceId is required' }, 400)
+  // Neither invoiceId nor planId were provided
+  if (!invoiceId && !planId) {
+    return json(
+      { success: false, error: 'Either invoiceId or planId is required' },
+      400
+    )
   }
 
-  // Determine base URL safely using ALLOWED_ORIGINS or caller-supplied returnUrl
+  // Determine base return URL
   const originHeader = req.headers.get('origin') ?? ''
   const requested =
     typeof returnUrl === 'string' && returnUrl ? returnUrl : originHeader
@@ -96,31 +107,9 @@ serve(async (req) => {
     return json({ success: false, error: 'Invalid return URL' }, 400)
   }
   if (parsedBase.protocol !== 'http:' && parsedBase.protocol !== 'https:') {
-    console.error(
-      `Rejected return URL "${base}" — scheme "${parsedBase.protocol}" is not http(s)`
-    )
     return json({ success: false, error: 'Invalid return URL' }, 400)
   }
 
-  // Load invoice and include organization slug for routing
-  const { data: invoice, error: invoiceError } = await supabase
-    .from('invoices')
-    .select('*, organizations(slug, id)')
-    .eq('id', invoiceId)
-    .maybeSingle()
-
-  if (invoiceError || !invoice) {
-    return json({ success: false, error: 'Invoice not found' }, 404)
-  }
-
-  const org = invoice.organizations as unknown as {
-    slug: string
-    id: string
-  } | null
-  const orgSlug = org?.slug
-  const orgPrefix = orgSlug ? `/${orgSlug}` : ''
-
-  // Safely extract pending invitations from user_metadata
   const pendingInvitations = Array.isArray(
     user.user_metadata?.pending_invitations
   )
@@ -128,41 +117,89 @@ serve(async (req) => {
     : []
 
   try {
+    // Branch 1: If invoiceId is provided, handle as One-time Invoice Payment
+    if (invoiceId) {
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .select('*, organizations(slug, id)')
+        .eq('id', invoiceId)
+        .maybeSingle()
+
+      if (invoiceError || !invoice) {
+        return json({ success: false, error: 'Invoice not found' }, 404)
+      }
+
+      const org = invoice.organizations as unknown as {
+        slug: string
+        id: string
+      } | null
+      const orgPrefix = org?.slug ? `/${org.slug}` : ''
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: (invoice.currency as string) || 'usd',
+              product_data: {
+                name: `Invoice ${invoice.invoice_number}`,
+              },
+              unit_amount: Math.round(Number(invoice.amount) * 100),
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        customer_email: user.email,
+        success_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=success`,
+        cancel_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=canceled`,
+        metadata: {
+          invoice_id: invoice.id,
+          org_id: org?.id || '',
+          user_id: user.id,
+          pending_invitations: JSON.stringify(pendingInvitations),
+        },
+      })
+
+      return json({ url: session.url }, 200)
+    }
+
+    // Branch 2: Handle as Subscription Plan Checkout (planId)
+    const { data: plan, error: planError } = await supabase
+      .from('plans')
+      .select('*')
+      .eq('id', planId)
+      .maybeSingle()
+
+    if (planError || !plan || !plan.price_id) {
+      return json({ success: false, error: 'Invalid or free plan' }, 400)
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
-          price_data: {
-            currency: (invoice.currency as string) || 'usd',
-            product_data: {
-              name: `Invoice ${invoice.invoice_number}`,
-            },
-            unit_amount: Math.round(Number(invoice.amount) * 100),
-          },
+          price: plan.price_id,
           quantity: 1,
         },
       ],
-      mode: 'payment',
+      mode: 'subscription',
       customer_email: user.email,
-      success_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=success`,
-      cancel_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=canceled`,
+      success_url: `${base}?checkout=success`,
+      cancel_url: `${base}?checkout=canceled`,
       metadata: {
-        invoice_id: invoice.id,
-        org_id: org?.id || '',
+        plan_id: plan.id,
+        org_id: orgId || '',
         user_id: user.id,
-        // Carry pending invitations into session metadata so the Webhook Edge Function handles them durably
         pending_invitations: JSON.stringify(pendingInvitations),
       },
     })
 
     return json({ url: session.url }, 200)
   } catch (err) {
-    console.error(
-      'Stripe create-invoice session failed:',
-      (err as Error).message
-    )
+    console.error('Stripe checkout creation failed:', (err as Error).message)
     return json(
-      { success: false, error: 'Could not create invoice checkout session' },
+      { success: false, error: 'Could not create checkout session' },
       502
     )
   }

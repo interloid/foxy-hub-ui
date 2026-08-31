@@ -39,6 +39,7 @@ function BillingCycleToggle({
           key={cycle.value}
           value={cycle.value}
           density={density}
+          className="cursor-pointer"
         >
           {product ? cycle.label : cycle.value}
           {product

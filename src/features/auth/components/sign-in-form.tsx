@@ -9,6 +9,7 @@ import {
   FxInput,
   FxLabel,
 } from '@/components/shared/fx/index'
+import { encodePassword } from '@/lib/password-encoding'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -18,7 +19,6 @@ import { toast } from 'sonner'
 import { signInAsDemo, signInWithPassword } from '../actions'
 import { SIGN_IN } from '../data'
 import { signInSchema, type SignInInput } from '../schemas'
-import { encodePassword } from '@/lib/password-encoding'
 
 export function SignInForm({ initialError }: { initialError?: string }) {
   const [pending, startTransition] = useTransition()
@@ -33,12 +33,15 @@ export function SignInForm({ initialError }: { initialError?: string }) {
       toast.error(initialError)
     }
   }, [initialError])
+
   const form = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
     mode: 'onTouched',
     defaultValues: { email: '', password: '' },
   })
   const router = useRouter()
+
+  const hasErrors = Object.keys(form.formState.errors).length > 0
 
   const run = (
     fn: () => Promise<{ ok: boolean; error?: string; redirectTo?: string }>
@@ -121,7 +124,7 @@ export function SignInForm({ initialError }: { initialError?: string }) {
               variant="ghost"
               size="icon-sm"
               onClick={() => setShowPassword((prev) => !prev)}
-              className="text-muted-foreground hover:text-foreground absolute top-0.5 right-1 bg-transparent hover:bg-transparent"
+              className="text-muted-foreground hover:text-foreground absolute top-1.5 right-1 bg-transparent hover:bg-transparent"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? (
@@ -138,7 +141,7 @@ export function SignInForm({ initialError }: { initialError?: string }) {
         <FxButton
           type="submit"
           className="text-md mt-1.5 h-11 w-full rounded-lg px-4"
-          disabled={pending}
+          disabled={pending || hasErrors}
         >
           {pending ? 'Signing in…' : SIGN_IN.submit}
         </FxButton>

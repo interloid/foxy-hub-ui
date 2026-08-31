@@ -33,15 +33,26 @@ export async function createCheckoutSession(
     return { url: null, message: 'Your workspace is ready on the free plan.' }
   }
 
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
   const { data, error } = await supabase.functions.invoke('create-checkout', {
-    body: { planId: plan.id, orgId: params.orgId, returnUrl: params.returnUrl },
+    headers: session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {},
+    body: {
+      planId: plan.id,
+      orgId: params.orgId,
+      returnUrl: params.returnUrl,
+    },
   })
 
   if (error) {
     throw new CheckoutServiceError(await describeFunctionError(error))
   }
   if (data?.success === false)
-    return { url: null, message: data.message as string }
+    return { url: null, message: (data.error ?? data.message) as string }
   if (!data?.url)
     throw new CheckoutServiceError('Checkout did not return a URL.')
 
