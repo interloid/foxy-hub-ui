@@ -51,14 +51,14 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     defaultValues: {
       projectName: '',
       selectedStartFrom: 'Blank project',
-      targetDate: new Date(2026, 8, 30),
+      targetDate: undefined,
       selectedEngagement: 'full-time',
-      budget: '24000',
-      fixedPrice: '9600',
-      retainerBucketHours: '80',
+      budget: '',
+      fixedPrice: '',
+      retainerBucketHours: '',
       retainerBillingPeriod: 'Monthly',
-      retainerAmount: '6000',
-      retainerOverageRate: '1.25',
+      retainerAmount: '',
+      retainerOverageRate: '',
       brief: '',
       overrideReason: '',
       allocations: [],
@@ -509,7 +509,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                       </FxButton>
                     </DropdownMenuTrigger>
                     <FxDropdownMenuContent align="start" className="w-48">
-                      {['Monthly', 'Weekly', 'Quarterly'].map((period) => (
+                      {['Monthly', 'Weekly'].map((period) => (
                         <FxDropdownMenuItem
                           key={period}
                           onClick={() =>

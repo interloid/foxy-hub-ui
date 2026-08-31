@@ -26,10 +26,7 @@ export const createProjectSchema = z.object({
 
   // Retainer fields
   retainerBucketHours: z.number().optional().nullable(),
-  retainerBillingPeriod: z
-    .enum(['Monthly', 'Weekly', 'Quarterly'])
-    .optional()
-    .nullable(),
+  retainerBillingPeriod: z.enum(['Monthly', 'Weekly']).optional().nullable(),
   retainerAmount: z.number().optional().nullable(),
   retainerOverageRate: z.number().optional().nullable(),
 

@@ -1,5 +1,3 @@
-'use client'
-
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
@@ -77,7 +75,7 @@ export function PendingApprovals({
               {/* Action Button */}
               <FxButton
                 size="default"
-                onClick={() => onApproveClick?.(item.id)}
+                // onClick={() => onApproveClick(item.id)}
                 className="border-border bg-muted text-foreground hover:border-border-strong hover:bg-muted shrink-0 rounded-lg px-4 text-[12.5px]"
               >
                 Approve

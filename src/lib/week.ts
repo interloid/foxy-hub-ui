@@ -1,11 +1,14 @@
-import { toISODate } from './date'
-
-export function getStartOfWeekISO(): string {
-  const now = new Date()
-  const day = now.getUTCDay()
-  const diff = now.getUTCDate() - day + (day === 0 ? -6 : 1)
+export function getStartOfWeekISO(date: Date = new Date()): string {
+  const day = date.getUTCDay()
+  // Adjust to Monday: Monday = 1 ... Sunday = 7
+  const diff = date.getUTCDate() - (day === 0 ? 6 : day - 1)
   const monday = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), diff)
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), diff)
   )
-  return toISODate(monday)
+
+  const year = monday.getUTCFullYear()
+  const month = String(monday.getUTCMonth() + 1).padStart(2, '0')
+  const dayOfMonth = String(monday.getUTCDate()).padStart(2, '0')
+
+  return `${year}-${month}-${dayOfMonth}`
 }

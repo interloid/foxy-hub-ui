@@ -136,8 +136,9 @@ serve(async (req) => {
       Deno.env.get('STRIPE_WEBHOOK_SECRET')!,
       stripe.webhooks.subtleCrypto
     )
-  } catch (err: any) {
-    return new Response(`Webhook Error: ${err.message}`, { status: 400 })
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    return new Response(`Webhook Error: ${errorMessage}`, { status: 400 })
   }
 
   const { error: claimError } = await supabase.from('stripe_events').insert({
@@ -183,10 +184,12 @@ serve(async (req) => {
                 `Successfully processed ${parsedInvites.length} pending invitations for org ${orgIdFromMeta}`
               )
             }
-          } catch (invErr: any) {
+          } catch (invErr) {
+            const invErrMessage =
+              invErr instanceof Error ? invErr.message : String(invErr)
             console.error(
               'Error processing pending_invitations:',
-              invErr.message
+              invErrMessage
             )
             throw invErr // Re-throw so handler catch block triggers Stripe retry logic
           }
@@ -414,7 +417,8 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ received: true }), { status: 200 })
-  } catch (err: any) {
+  } catch (err) {
+    const errMessage = err instanceof Error ? err.message : String(err)
     console.error('HANDLER ERROR:', err)
 
     const { error: releaseError } = await supabase
@@ -429,6 +433,6 @@ serve(async (req) => {
       )
     }
 
-    return new Response(`Handler Error: ${err.message}`, { status: 500 })
+    return new Response(`Handler Error: ${errMessage}`, { status: 500 })
   }
 })

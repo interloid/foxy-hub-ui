@@ -1,5 +1,3 @@
-'use client'
-
 import { NAV_ICONS } from '@/components/layout/nav-icons'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
 import { Folder } from 'lucide-react'
@@ -31,13 +29,6 @@ const iconBadgeClasses: Record<
   },
 }
 
-const deltaTextClasses: Record<DeltaType, string> = {
-  success: 'text-success',
-  warning: 'text-warning',
-  info: 'text-muted-foreground',
-  destructive: 'text-destructive',
-}
-
 interface StatsGridProps {
   stats: DashboardStat[]
 }
@@ -54,11 +45,8 @@ export function StatsGrid({ stats }: StatsGridProps) {
         const IconComponent =
           (iconKey && NAV_ICONS[iconKey]) || NAV_ICONS.projects || Folder
 
-        const deltaType = stat.deltaType || 'info'
         const iconType = stat.iconType || 'info'
-
         const badgeStyle = iconBadgeClasses[iconType] || iconBadgeClasses.info
-        const textColor = deltaTextClasses[deltaType] || deltaTextClasses.info
 
         return (
           <FxCard
@@ -84,7 +72,7 @@ export function StatsGrid({ stats }: StatsGridProps) {
                   {stat.value}
                 </div>
                 {stat.delta && (
-                  <p className={`text-[12px] font-medium ${textColor}`}>
+                  <p className="text-muted-foreground text-[12px] font-medium">
                     {stat.delta}
                   </p>
                 )}

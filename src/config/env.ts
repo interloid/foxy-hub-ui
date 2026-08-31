@@ -14,7 +14,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
 
-  NODE_ENV: z.enum(['development', 'production', 'test']),
+  NEXT_PUBLIC_SENTRY_DSN: z.string().optional().or(z.literal('')),
 })
 
 export const env = envSchema.parse({
@@ -25,5 +25,5 @@ export const env = envSchema.parse({
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
 
-  NODE_ENV: process.env.NODE_ENV,
+  NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
 })

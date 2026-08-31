@@ -346,8 +346,8 @@ values
   -- `getActiveProjects`). 40h/month at $9,000, overage billed at 1.25x.
   ('40000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001',
    'Nordwave Rebrand & Site',
+    null,
    '10000000-0000-4000-8000-000000000004',
-   '30000000-0000-4000-8000-000000000001',
    'Identity refresh, packaging system and a new marketing site.',
    'in-progress',
    now() - interval '38 days', now() + interval '24 days',
@@ -401,8 +401,8 @@ values
   -- Closed work. Present so the filters have something to exclude.
   ('40000000-0000-4000-8000-000000000005', '20000000-0000-4000-8000-000000000001',
    'Nordwave Cafe Signage',
+   null,
    '10000000-0000-4000-8000-000000000004',
-   '30000000-0000-4000-8000-000000000001',
    'Wayfinding and storefront signage. Shipped.',
    'completed',
    now() - interval '150 days', now() - interval '60 days',

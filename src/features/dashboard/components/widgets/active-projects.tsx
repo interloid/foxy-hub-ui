@@ -1,5 +1,3 @@
-'use client'
-
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'

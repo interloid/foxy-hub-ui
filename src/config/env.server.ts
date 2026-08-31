@@ -11,12 +11,31 @@ const serverEnvSchema = z.object({
     .optional()
     .or(z.literal('')),
   DEMO_ACCOUNT_PASSWORD: z.string().optional().or(z.literal('')),
+  SENTRY_DSN: z.url().optional().or(z.literal('')),
+  SENTRY_ORG: z.string().optional().or(z.literal('')),
+  SENTRY_PROJECT: z.string().optional().or(z.literal('')),
+  SENTRY_AUTH_TOKEN: z.string().optional().or(z.literal('')),
+
+  // Environment Indicators
+  VERCEL_ENV: z
+    .enum(['development', 'preview', 'production'])
+    .optional()
+    .or(z.literal('')),
+  NODE_ENV: z
+    .enum(['development', 'production', 'test'])
+    .default('development'),
 })
 
 export const serverEnv = serverEnvSchema.parse({
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   DEMO_ACCOUNT_EMAIL: process.env.DEMO_ACCOUNT_EMAIL,
   DEMO_ACCOUNT_PASSWORD: process.env.DEMO_ACCOUNT_PASSWORD,
+  SENTRY_DSN: process.env.SENTRY_DSN,
+  SENTRY_ORG: process.env.SENTRY_ORG,
+  SENTRY_PROJECT: process.env.SENTRY_PROJECT,
+  SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
+  VERCEL_ENV: process.env.VERCEL_ENV,
+  NODE_ENV: process.env.NODE_ENV,
 })
 
 export const isDemoModeEnabled = (): boolean => {

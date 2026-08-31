@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: '14.17'
+    PostgrestVersion: '14.5'
   }
   graphql_public: {
     Tables: {
@@ -801,6 +801,10 @@ export type Database = {
     }
     Functions: {
       approve_time_entry: { Args: { entry_id: string }; Returns: undefined }
+      create_project_with_allocations: {
+        Args: { allocations_data?: Json; project_data: Json }
+        Returns: string
+      }
       current_user_orgs: { Args: never; Returns: string[] }
       has_org_role: {
         Args: {

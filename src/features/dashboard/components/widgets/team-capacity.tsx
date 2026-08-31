@@ -1,5 +1,3 @@
-'use client'
-
 import { FxAvatar, FxAvatarFallback } from '@/components/shared/fx-avatar'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
