@@ -122,7 +122,7 @@ export function ChangePasswordForm({ org }: Org) {
                       [field.name]: !prev[field.name],
                     }))
                   }
-                  className="text-muted-foreground hover:text-foreground absolute top-1 right-1 bg-transparent hover:bg-transparent"
+                  className="text-muted-foreground hover:text-foreground absolute top-0.5 right-1 bg-transparent hover:bg-transparent"
                   aria-label={
                     showPassword[field.name] ? 'Hide password' : 'Show password'
                   }

@@ -37,7 +37,7 @@ export function AccountMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          'border-border bg-muted text-muted-foreground hover:text-foreground focus-visible:ring-ring flex h-9.5 shrink-0 items-center gap-2 rounded-full border py-1 pr-2 pl-1 transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
+          'md:border-border bg-muted text-muted-foreground hover:text-foreground focus-visible:ring-ring flex h-9.5 shrink-0 items-center gap-2 rounded-full border py-1 pr-2 pl-1 transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
 
           'max-dash:pr-1',
           className

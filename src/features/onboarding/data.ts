@@ -24,7 +24,7 @@ export const ONBOARD_ACCOUNT = {
 
 /** Said by both the live field check and the server that re-checks on Launch. */
 export const ONBOARD_TAKEN = {
-  email: 'An account already exists for that email. Sign in instead.',
+  email: 'An account already exists for that email.',
   slug: 'That workspace URL is already taken.',
 } as const
 

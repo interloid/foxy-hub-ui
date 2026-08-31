@@ -14,16 +14,30 @@ export type FooterGroup = {
 }
 
 export type FooterProps = {
-  brand: { name: string; org: string; year: number; tagline?: string }
+  brand: {
+    name: string
+    org: string
+    year: number
+    tagline?: string
+  }
   groups: FooterGroup[]
-  social?: { label: string; href: string; icon: SocialIconName }[]
-  contact?: { email?: string; label?: string }
+  social?: {
+    label: string
+    href: string
+    icon: SocialIconName
+  }[]
+  contact?: {
+    email?: string
+    label?: string
+  }
   status: {
     label: string
     tone?: 'success' | 'warning' | 'destructive'
     href?: string
   }
-  meta?: { version?: string }
+  meta?: {
+    version?: string
+  }
   className?: string
 }
 
@@ -46,16 +60,20 @@ export function AppFooter({
         className
       )}
     >
-      <div className="dash:grid-cols-2 grid gap-x-8 gap-y-9 lg:grid-cols-[minmax(0,1.3fr)_repeat(4,minmax(0,1fr))]">
-        <div className="dash:col-span-2 flex flex-col gap-4 lg:col-span-1">
+      {/* Main footer */}
+      <div className="grid gap-y-9 lg:grid-cols-[minmax(0,1.3fr)_repeat(4,minmax(0,1fr))] lg:gap-x-8">
+        {/* Brand */}
+        <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2.5">
             <span className="bg-primary text-primary-foreground shadow-card flex size-8 shrink-0 items-center justify-center rounded-md text-[15px] font-bold uppercase">
               {brand.name.charAt(0)}
             </span>
+
             <span className="flex min-w-0 flex-col">
               <span className="text-md leading-tight font-semibold">
                 {brand.name}
               </span>
+
               <span className="text-2xs text-subtle-foreground truncate">
                 {brand.org}
               </span>
@@ -68,58 +86,67 @@ export function AppFooter({
             </p>
           )}
 
-          {contact?.email && (
-            <Link
-              href={`mailto:${contact.email}`}
-              className="text-subtle-foreground hover:text-foreground inline-flex w-fit items-center gap-1.75 text-sm transition-colors duration-(--duration-fast)"
-            >
-              <NAV_ICONS.mail
-                size={14}
-                strokeWidth={1.7}
-                className="shrink-0"
-              />
-              {contact.label ?? contact.email}
-            </Link>
-          )}
+          <div className="flex items-center justify-between gap-4 lg:flex-col lg:items-start">
+            {contact?.email && (
+              <Link
+                href={`mailto:${contact.email}`}
+                className="text-subtle-foreground hover:text-foreground inline-flex w-fit items-center gap-1.75 text-sm transition-colors duration-(--duration-fast)"
+              >
+                <NAV_ICONS.mail
+                  size={14}
+                  strokeWidth={1.7}
+                  className="shrink-0"
+                />
 
-          {social && social.length > 0 && (
-            <ul className="flex items-center gap-2">
-              {social.map((item) => {
-                const Mark = SOCIAL_ICONS[item.icon]
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={item.label}
-                      className="border-border text-subtle-foreground hover:border-border-strong hover:text-foreground focus-visible:ring-ring flex size-8 items-center justify-center rounded-md border transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                    >
-                      <Mark size={15} />
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
+                {contact.label ?? contact.email}
+              </Link>
+            )}
+
+            {social && social.length > 0 && (
+              <ul className="flex items-center gap-2">
+                {social.map((item) => {
+                  const Mark = SOCIAL_ICONS[item.icon]
+
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={item.label}
+                        className="border-border text-subtle-foreground hover:border-border-strong hover:text-foreground focus-visible:ring-ring flex size-8 items-center justify-center rounded-md border transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                      >
+                        <Mark size={15} />
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
         </div>
 
-        {groups.map((group) => (
-          <nav key={group.title} className="flex flex-col gap-3">
-            <h3 className="text-2xs font-semibold tracking-wide uppercase">
-              {group.title}
-            </h3>
-            <ul className="flex flex-col gap-2.25">
-              {group.items.map((link) => (
-                <li key={link.href}>
-                  <FooterLinkItem {...link} />
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ))}
+        {/* Groups */}
+        <div className="grid grid-cols-[auto_auto] justify-between gap-y-6 px-3 md:grid-cols-[auto_auto_auto_auto] md:justify-between lg:col-span-4 lg:grid-cols-4 lg:justify-between lg:gap-x-8">
+          {groups.map((group) => (
+            <nav key={group.title} className="flex flex-col gap-3">
+              <h3 className="text-2xs font-semibold tracking-wide uppercase">
+                {group.title}
+              </h3>
+
+              <ul className="flex flex-col gap-2.25">
+                {group.items.map((link) => (
+                  <li key={link.href}>
+                    <FooterLinkItem {...link} />
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
+        </div>
       </div>
 
+      {/* Footer bottom */}
       <div className="border-border mt-9 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t pt-5">
         <span className="text-subtle-foreground text-sm">
           © {brand.year} {brand.org} · All rights reserved
@@ -131,6 +158,7 @@ export function AppFooter({
               {meta.version}
             </span>
           )}
+
           <StatusPill label={status.label} tone={tone} href={status.href} />
         </div>
       </div>
@@ -190,7 +218,9 @@ function StatusPill({
     </>
   )
 
-  if (!href) return <span className={className}>{body}</span>
+  if (!href) {
+    return <span className={className}>{body}</span>
+  }
 
   return (
     <Link href={href} className={className}>

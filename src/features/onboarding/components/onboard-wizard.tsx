@@ -488,7 +488,10 @@ export function OnboardWizard() {
                     <FxButton
                       type="button"
                       size="sm"
-                      disabled={hasEmptyInvite}
+                      disabled={
+                        hasEmptyInvite ||
+                        Object.keys(form.formState.errors).length > 0
+                      }
                       className="border-border-strong mt-0.5 h-10 self-start rounded-md text-sm"
                       onClick={() =>
                         invites.append({ email: '', role: 'Member' })

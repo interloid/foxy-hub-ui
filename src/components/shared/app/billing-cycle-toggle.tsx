@@ -43,7 +43,7 @@ function BillingCycleToggle({
           {product ? cycle.label : cycle.value}
           {product
             ? cycle.value === 'yearly' && (
-                <span className="text-success ml-1">−17%</span>
+                <span className="text-success ml-1">~17%</span>
               )
             : cycle.hint && (
                 <span className="text-2xs font-medium opacity-80">

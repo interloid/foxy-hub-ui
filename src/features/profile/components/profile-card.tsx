@@ -4,17 +4,14 @@ import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard } from '@/components/shared/fx-card'
 import { FxField, FxInput, FxLabel } from '@/components/shared/fx-field'
-import { signOut } from '@/features/auth/actions'
 import type { AccountDTO } from '@/lib/dal'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { PROFILE } from '../data'
 import { EditableNameField } from './editable-name-field'
 
 export function ProfileCard({ account }: { account: AccountDTO }) {
-  const [signingOut, startSignOut] = useTransition()
-
   const [fullName, setFullName] = useState<string | null>(account.fullName)
   const [serverName, setServerName] = useState<string | null>(account.fullName)
   if (account.fullName !== serverName) {
@@ -61,20 +58,7 @@ export function ProfileCard({ account }: { account: AccountDTO }) {
         />
       </div>
 
-      <div className="border-border flex items-center justify-between gap-2 border-t px-5 py-3.5">
-        <FxButton
-          type="button"
-          variant="outline"
-          className="text-destructive hover:bg-destructive-subtle hover:text-destructive"
-          disabled={signingOut}
-          onClick={() =>
-            startSignOut(async () => {
-              await signOut()
-            })
-          }
-        >
-          {signingOut ? 'Signing out…' : PROFILE.signOut}
-        </FxButton>
+      <div className="border-border flex items-center justify-center gap-2 border-t px-5 py-3.5">
         <FxButton asChild>
           <Link href={`/${org}/${PROFILE.passwordHref}`}>
             {PROFILE.changePassword}

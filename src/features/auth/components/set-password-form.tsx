@@ -97,7 +97,7 @@ export function SetPasswordForm({
                   password: !prev.password,
                 }))
               }
-              className="text-muted-foreground hover:text-foreground absolute top-1 right-1 bg-transparent hover:bg-transparent"
+              className="text-muted-foreground hover:text-foreground absolute top-0.5 right-1 bg-transparent hover:bg-transparent"
               aria-label={
                 showPassword.password ? 'Hide password' : 'Show password'
               }
@@ -140,7 +140,7 @@ export function SetPasswordForm({
                   confirm: !prev.confirm,
                 }))
               }
-              className="text-muted-foreground hover:text-foreground absolute top-1 right-1 bg-transparent hover:bg-transparent"
+              className="text-muted-foreground hover:text-foreground absolute top-0.5 right-1 bg-transparent hover:bg-transparent"
               aria-label={
                 showPassword.confirm
                   ? 'Hide confirm password'
