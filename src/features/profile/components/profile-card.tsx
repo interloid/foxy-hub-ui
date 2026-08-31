@@ -1,0 +1,96 @@
+'use client'
+
+import { FxBadge } from '@/components/shared/fx-badge'
+import { FxButton } from '@/components/shared/fx-button'
+import { FxCard } from '@/components/shared/fx-card'
+import { FxField, FxInput, FxLabel } from '@/components/shared/fx-field'
+import type { AccountDTO } from '@/lib/dal'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
+import { useState } from 'react'
+import { PROFILE } from '../data'
+import { EditableNameField } from './editable-name-field'
+
+export function ProfileCard({ account }: { account: AccountDTO }) {
+  const [fullName, setFullName] = useState<string | null>(account.fullName)
+  const [serverName, setServerName] = useState<string | null>(account.fullName)
+  if (account.fullName !== serverName) {
+    setServerName(account.fullName)
+    setFullName(account.fullName)
+  }
+
+  const name = fullName?.trim() || account.email?.split('@')[0]
+  const initials = account.initials
+  const params = useParams()
+  const org = params.org as string
+
+  return (
+    <FxCard>
+      <div className="border-border flex items-center gap-4 border-b px-5 py-5.5">
+        <span className="bg-brand-gradient text-primary-foreground flex size-16 shrink-0 items-center justify-center rounded-full text-3xl font-semibold">
+          {initials}
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-xl font-semibold">{name}</div>
+          <div className="text-subtle-foreground mb-2 truncate text-base">
+            {account.email}
+          </div>
+          {account.role && (
+            <FxBadge variant="default" dot>
+              {account.role}
+            </FxBadge>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3.5 p-5">
+        <EditableNameField fullName={fullName} onSaved={setFullName} />
+
+        <ReadOnlyField
+          id="email"
+          label={PROFILE.fields.email}
+          value={account.email ?? ''}
+        />
+        <ReadOnlyField
+          id="role"
+          label={PROFILE.fields.role}
+          value={account.role ?? ''}
+        />
+      </div>
+
+      <div className="border-border flex items-center justify-center gap-2 border-t px-5 py-3.5">
+        <FxButton asChild>
+          <Link href={`/${org}/${PROFILE.passwordHref}`}>
+            {PROFILE.changePassword}
+          </Link>
+        </FxButton>
+      </div>
+    </FxCard>
+  )
+}
+
+function ReadOnlyField({
+  id,
+  label,
+  value,
+}: {
+  id: string
+  label: string
+  value: string
+}) {
+  return (
+    <FxField>
+      <FxLabel htmlFor={id} className="block leading-normal">
+        {label}
+      </FxLabel>
+      <FxInput
+        id={id}
+        inputSize="sm"
+        readOnly
+        tabIndex={-1}
+        value={value}
+        className="focus:border-border text-muted-foreground pointer-events-none select-none focus:ring-0"
+      />
+    </FxField>
+  )
+}

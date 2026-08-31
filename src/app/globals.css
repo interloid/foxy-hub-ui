@@ -5,116 +5,360 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, 'Cascadia Mono', 'Segoe UI Mono',
+    monospace;
+  --font-heading: var(--font-sans);
+
+  --color-brand-white: var(--brand-white);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  /* Tooltip owns its own pair instead of borrowing shadcn's bg-foreground /
+     text-background inversion, which ignores the warm neutral ramp and reads grey.
+     Light stays inverted (dark chip on a light page); dark lifts one step above
+     --card so the chip separates from the sidebar it floats over. */
+  --color-tooltip: var(--tooltip);
+  --color-tooltip-foreground: var(--tooltip-foreground);
+  --color-tooltip-border: var(--tooltip-border);
+
+  /* Brand is five tokens, not two. --primary-accent is the brand TEXT colour used on
+     --primary-subtle (subtle button, links, file/duration tiles) — it is never a fill.
+     The active-nav use of this colour goes through --sidebar-accent-foreground, which
+     holds the same value in its correct slot (D015). */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-primary-accent: var(--primary-accent);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  /* Third text level — captions, meta, counts. No equivalent in stock shadcn. */
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  /* Status: every colour ships an explicit -subtle partner. House rule 02 forbids opacity
+     modifiers (bg-success/12) because hex tokens cannot be channel-split — the modifier
+     would render a different colour. Always use the -subtle token. */
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-subtle: var(--destructive-subtle);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-subtle: var(--info-subtle);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Sidebar. `--sidebar`, NOT `--sidebar-background`: the design's v3 export uses the older
+     name, but current shadcn — and the frozen `ui/sidebar.tsx`, which writes `bg-sidebar` —
+     use `--sidebar`. Naming is architecture, which the starter owns (AGENTS.md).
+     `-accent-foreground` and `-ring` are consumed by `ui/sidebar.tsx` in 20+ places; without
+     them those utilities are never generated and the classes are silently inert. */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Radius — ADDITIVE off a 9px base, not multiplicative. Six rungs; there is no 4xl.
+     sm chips · md buttons/nav · lg inputs · xl cards · 2xl panels · 3xl modals */
+  --radius-sm: calc(var(--radius) - 3px);
+  --radius-md: calc(var(--radius) - 1px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: calc(var(--radius) + 3px);
+  --radius-2xl: calc(var(--radius) + 5px);
+  --radius-3xl: calc(var(--radius) + 7px);
+
+  /* Elevation — named by PURPOSE, not size. shadow-card on cards and stat tiles;
+     shadow-panel on overlays only (modals, toasts, auth).
+     The var() self-reference is intentional and verified: `@theme inline` emits the call
+     into the utility rather than resolving it here, so these read :root / .dark and follow
+     the theme. Do NOT convert to a plain `@theme` block — that literalises the light value
+     and silently breaks dark mode. */
+  --shadow-card: var(--shadow-card);
+  --shadow-panel: var(--shadow-panel);
+
+  /* Type — TEN rungs. Two traps: text-base is 13px (not 16), and text-md (14px) exists,
+     which stock Tailwind has no rung for. text-sm at 12.5px is a LABEL size, not body.
+     Size + line-height + tracking ONLY — no font-weight and no colour. v2 renders most
+     interactive text at 600 and text-sm/2xs in muted/subtle, but those are per-role
+     treatments; baking them in would restyle every default string. See treatments.md § 10.
+     px values converted to rem at the untouched 16px root — exact, and still honours a
+     user's font-size preference. */
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-2xs--line-height: 1.4;
+  --text-xs: 0.71875rem; /* 11.5px */
+  --text-xs--line-height: 1.45;
+  --text-sm: 0.78125rem; /* 12.5px */
+  --text-sm--line-height: 1.45;
+  --text-base: 0.8125rem; /* 13px */
+  --text-base--line-height: 1.45;
+  --text-md: 0.875rem; /* 14px */
+  --text-md--line-height: 1.45;
+  --text-lg: 0.90625rem; /* 14.5px */
+  --text-lg--line-height: 1.5;
+  --text-xl: 1.0625rem; /* 17px */
+  --text-xl--line-height: 1.4;
+  --text-xl--letter-spacing: -0.02em;
+  --text-2xl: 1.1875rem; /* 19px */
+  --text-2xl--line-height: 1.35;
+  --text-2xl--letter-spacing: -0.01em;
+  --text-3xl: 1.375rem; /* 22px */
+  --text-3xl--line-height: 1.3;
+  --text-3xl--letter-spacing: -0.02em;
+  --text-4xl: 1.625rem; /* 26px */
+  --text-4xl--line-height: 1.35;
+  --text-4xl--letter-spacing: -0.01em;
+  --text-5xl: 1.75rem; /* 28px */
+  --text-5xl--line-height: 1.2;
+  --text-5xl--letter-spacing: -0.02em;
+
+  /* Motion — v2 § 03. Prefixed `fx-` so they do not collide with Tailwind's built-in
+     animate-spin (1s) / animate-pulse (2s), which have different durations.
+     House rule 06: sheen for route loads, pulse for streaming text — never mix. */
+  --animate-fx-sheen: fx-sheen 1.15s linear infinite;
+  --animate-fx-pulse: fx-pulse 1.2s ease infinite;
+  --animate-fx-spin: fx-spin 0.7s linear infinite;
+  --animate-fx-fade: fx-fade 0.18s ease;
+  --animate-fx-rise: fx-rise 0.25s ease;
+  --animate-fx-slide: fx-slide 0.22s ease;
+  --animate-fx-bar: fx-bar 0.5s ease;
+
+  /* Motion durations — the design's `transitionDuration` scale. v2 animates every hover,
+     tab and field border at `.12s`, its sidebar at `.22s`, and sets a 180ms default.
+     `--default-transition-duration` is Tailwind v4's own hook, so a bare `transition-colors`
+     picks up the design's 180ms instead of Tailwind's stock 150ms. */
+  --default-transition-duration: 180ms;
+  --duration-fast: 120ms;
+  --duration-slow: 220ms;
+
+  --leading-tight: 1.3;
+  --leading-snug: 1.35;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.5;
+  --leading-loose: 1.55;
+
+  /* Content widths. `page` is v2's own frame (treatments.md § 1:
+     `max-width:1080px; padding:44px 40px 80px`) — every section column sits inside it.
+     `shell` is the design's widest SPECIFIED width (DESIGN_SUMMARY: "widest width any
+     screen specifies: 1440"); full-bleed chrome such as the sticky header is free to
+     span the viewport up to it and is capped beyond, which is what stops a top bar
+     from flying 3800px apart on a 32-inch display. See decisions.md D013. */
+  --container-page: 1080px;
+  --container-shell: 1440px;
+
+  /* The PRODUCT shell's content column. The prototype's rule is
+     `cMax: eff >= 1900 ? '86vw' : '1680px'` — a fixed 1680 below 1900, then fluid.
+     We keep the 1680 and drop the 86vw branch: fluid expansion past the cap needs
+     explicit approval (AGENTS.md § Responsive range), and 86vw reaches 3302px at
+     3840, which is unreadable as a text measure. 1680 is the design's own number,
+     not an invention, and the build is identical to the prototype at every width
+     the design actually specifies (≤1440) plus 1920. See decisions.md D017. */
+  --container-content: 1680px;
+
+  /* v2's single breakpoint. Its script computes `narrow = w < 900` and that one value
+     drives every layout switch on the page: `gTwo` (1fr ⇄ 1fr 1fr), `gPairs`
+     (2-up ⇄ 4-up), `gPlans`, `spanTwo` and the stepper's label visibility. Tailwind's
+     default scale has no 900px rung, and the design specifies no other width — so this
+     is a design VALUE, not starter infrastructure. */
+  --breakpoint-ds: 900px;
+
+  /* The product shell's sidebar ⇄ bottom-nav swap. 820px is the design's own switch and
+     is deliberately NOT 768 (`use-mobile.ts`): the shell owns this breakpoint and unmounts
+     the sidebar rather than hiding it, which is the whole point of decisions.md D001. */
+  --breakpoint-shell: 820px;
+
+  /* The auth screen's split ⇄ stacked swap. The prototype's own rule is `eff <= 760`
+     (`Foxy Hub Update.dc.html` line 2320), so the split starts at 761 — a FOURTH width,
+     matching neither 900, 820, nor `use-mobile`'s 768. Each of these is a design value the
+     prototype states outright, and collapsing them onto one shared rung would move a
+     layout the design pinned. See decisions.md D018.
+
+     ALSO the product shell's content padding (`app-shell.tsx`), which is the same `eff <= 760`
+     rule in the prototype (`cPad`) and not the sidebar's 820. The name says "auth" for the
+     screen it was introduced for; the VALUE is the design's one 760 rung, and two tokens
+     holding one number would be the drift this comment exists to prevent. */
+  --breakpoint-auth: 761px;
+
+  /* The dashboard's stat row (`gStats`, 1-up ⇄ 2-up) and design grid (`gDesign`). The
+     prototype's rule is `eff <= 560`, so two columns start at 561 — a FIFTH width. Tailwind's
+     `sm` is 640, which is close enough to be tempting and 80px wrong; the design states 560
+     outright. Its 1024 rung (`gDash`, `gProj`, the 2-up ⇄ 4-up stat flip) IS Tailwind's `lg`
+     and reuses it rather than declaring a sixth. See decisions.md D038. */
+  --breakpoint-dash: 561px;
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --radius: 9px;
+
+  --background: oklch(0.98 0.005 85);
+  --foreground: oklch(0.2 0.01 75);
+  --brand-white: oklch(1 0 0);
+
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.2 0.01 75);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --popover-foreground: oklch(0.2 0.01 75);
+
+  /* Warm near-black, same hue family as --foreground, one step lighter so it does
+     not read as a hard black rectangle over the cream page. */
+  --tooltip: oklch(0.26 0.015 75);
+  --tooltip-foreground: oklch(0.97 0.005 85);
+  --tooltip-border: oklch(0.32 0.015 75);
+
+  --primary: oklch(0.62 0.19 50);
+  --primary-foreground: oklch(1 0 0);
+  --primary-hover: oklch(0.57 0.19 50);
+  --primary-subtle: oklch(0.95 0.04 60);
+  --primary-accent: oklch(0.52 0.18 45);
+
+  --secondary: oklch(0.97 0.005 80);
+  --secondary-foreground: oklch(0.2 0.01 75);
+  --muted: oklch(0.97 0.005 80);
+  --muted-foreground: oklch(0.48 0.01 75);
+  --subtle-foreground: oklch(0.63 0.01 75);
+  --accent: oklch(0.93 0.008 75);
+  --accent-foreground: oklch(0.2 0.01 75);
+
+  --destructive: oklch(0.56 0.2 35);
+  --destructive-foreground: oklch(1 0 0);
+  --destructive-subtle: oklch(0.95 0.03 35);
+  --success: oklch(0.6 0.15 155);
+  --success-foreground: oklch(1 0 0);
+  --success-subtle: oklch(0.95 0.03 155);
+  --warning: oklch(0.6 0.12 85);
+  --warning-foreground: oklch(1 0 0);
+  --warning-subtle: oklch(0.96 0.03 85);
+  --info: oklch(0.55 0.15 250);
+  --info-foreground: oklch(1 0 0);
+  --info-subtle: oklch(0.95 0.03 250);
+
+  --border: oklch(0.92 0.01 75);
+  --border-strong: oklch(0.87 0.01 75);
+  --input: oklch(0.87 0.01 75);
+  --ring: oklch(0.62 0.19 50);
+
+  --chart-1: oklch(0.62 0.19 50);
+  --chart-2: oklch(0.55 0.15 250);
+  --chart-3: oklch(0.6 0.15 155);
+  --chart-4: oklch(0.6 0.12 85);
+  --chart-5: oklch(0.56 0.2 35);
+
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.2 0.01 75);
+  --sidebar-muted: oklch(0.48 0.01 75);
+  --sidebar-primary: oklch(0.62 0.19 50);
+  /* Text on the --sidebar-primary FILL — shadcn's own meaning, restored 2026-08-06.
+     It used to hold the brand accent (#b64f14) because there was nowhere else to put it;
+     that role now lives in --sidebar-accent-foreground, which correctly pairs with the
+     --sidebar-accent tint. See decisions.md D015. */
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.95 0.04 60);
+  /* Brand text on the active-nav tint (= --primary-accent). */
+  --sidebar-accent-foreground: oklch(0.52 0.18 45);
+  --sidebar-border: oklch(0.92 0.01 75);
+  --sidebar-ring: var(--ring);
+
+  --shadow-card: 0 1px 2px rgba(30, 25, 20, 0.06);
+  --shadow-panel:
+    0 1px 2px rgba(30, 25, 20, 0.05), 0 10px 28px -14px rgba(30, 25, 20, 0.16);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #232323;
+  --foreground: #f3f0ea;
+  --card: #1a1917;
+  --card-foreground: #f3f0ea;
+  --popover: #1a1917;
+  --popover-foreground: #f3f0ea;
+
+  /* One rung above --card (#1a1917) so the chip reads as elevated over sidebar
+     and page alike; border matches --border-strong. */
+  --tooltip: #2a2620;
+  --tooltip-foreground: #f3f0ea;
+  --tooltip-border: #39342d;
+
+  --primary: #f2792f;
+  --primary-foreground: #ffffff;
+  --primary-hover: #f78a45;
+  --primary-subtle: #2b1d12;
+  --primary-accent: #f5a06a;
+
+  --secondary: #221f1c;
+  --secondary-foreground: #f3f0ea;
+  --muted: #221f1c;
+  --muted-foreground: #a49d92;
+  --subtle-foreground: #6f6a61;
+  --accent: #2a2620;
+  --accent-foreground: #f3f0ea;
+
+  --destructive: #e05a3d;
+  --destructive-foreground: #ffffff;
+  --destructive-subtle: #2c150f;
+  --success: #3ba776;
+  --success-foreground: #ffffff;
+  --success-subtle: #14271d;
+  --warning: #d0a02c;
+  /* Near-black on amber — the design solved the contrast problem itself. */
+  --warning-foreground: #121110;
+  --warning-subtle: #2a2210;
+  --info: #5b93e6;
+  --info-foreground: #ffffff;
+  --info-subtle: #121f2e;
+
+  --border: #2b2823;
+  --border-strong: #39342d;
+  --input: #39342d;
+  --ring: #f2792f;
+
+  --chart-1: #f2792f;
+  --chart-2: #5b93e6;
+  --chart-3: #3ba776;
+  --chart-4: #d0a02c;
+  --chart-5: #e05a3d;
+
+  --sidebar: #1a1917;
+  --sidebar-foreground: #f3f0ea;
+  --sidebar-muted: #a49d92;
+  --sidebar-primary: #f2792f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2b1d12;
+  --sidebar-accent-foreground: #f5a06a;
+  --sidebar-border: #2b2823;
+  --sidebar-ring: var(--ring);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-panel:
+    0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px -12px rgba(0, 0, 0, 0.55);
 }
 
 @layer base {
@@ -123,8 +367,104 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-size: 14px;
   }
   html {
     @apply font-sans;
+  }
+}
+
+@utility bg-brand-gradient {
+  background-image: linear-gradient(135deg, var(--primary), #c9560f);
+}
+
+@utility bg-header {
+  background-color: color-mix(in srgb, var(--background) 82%, transparent);
+}
+
+@utility bg-auth-card {
+  background-image: linear-gradient(150deg, var(--primary), #c9560f);
+}
+
+@utility bg-auth-wash {
+  background-image: linear-gradient(
+    150deg,
+    rgba(226, 102, 29, 0.92),
+    rgba(201, 86, 15, 0.86)
+  );
+}
+
+/* v2's motion keyframes (§ 03). Names are fx-prefixed to avoid clobbering Tailwind's. */
+@keyframes fx-sheen {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes fx-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes fx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes fx-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fx-slide {
+  from {
+    opacity: 0.4;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fx-bar {
+  from {
+    transform: scaleX(0.3);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='search'],
+  input[type='number'],
+  select,
+  textarea {
+    font-size: 16px !important;
+    transform: scale(0.875); /* Visually scales text down to ~14px equivalent */
+    transform-origin: left center;
+    width: 114.28%; /* Prevents horizontal truncation caused by scale */
   }
 }
