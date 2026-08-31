@@ -7,10 +7,12 @@ import {
   FxInput,
   FxLabel,
 } from '@/components/shared/fx'
+import { checkEmailAvailable } from '@/features/onboarding/actions'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
 import { sendPasswordReset } from '../actions'
 import { FORGOT_PASSWORD, SIGN_IN } from '../data'
 import { resetRequestSchema, type ResetRequestInput } from '../schemas'
@@ -29,18 +31,31 @@ export function ForgotPasswordForm() {
   const submit = form.handleSubmit((values) => {
     setError(null)
     startTransition(async () => {
-      const result = await sendPasswordReset(values.email)
+      const checkResult = await checkEmailAvailable(values.email)
+
+      if (!checkResult.ok) {
+        toast.error(checkResult.error ?? 'Could not check email.')
+        return
+      }
+
+      if (checkResult.data) {
+        toast.error('No account found with this email address.')
+        return
+      }
+
+      const result = await sendPasswordReset(values.email, true)
       if (!result.ok) {
         setError(result.error ?? 'Something went wrong.')
         return
       }
+
       setSentTo(values.email)
     })
   })
 
   if (sentTo) {
     return (
-      <div className="flex max-w-100 flex-col gap-3.5">
+      <div className="flex w-full flex-col gap-2">
         <div
           role="status"
           className="border-success bg-success-subtle text-success rounded-lg border px-4 py-3 text-base"
@@ -58,11 +73,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form
-      onSubmit={submit}
-      noValidate
-      className="flex max-w-100 flex-col gap-3.5"
-    >
+    <form onSubmit={submit} noValidate className="flex w-full flex-col gap-2">
       {error && (
         <div
           role="alert"

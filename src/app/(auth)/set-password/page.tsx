@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation'
 
+import { AuthLayout } from '@/components/layout/auth'
+import { AuthHeroPanel } from '@/components/shared/app/auth-hero-panel'
+import { SetPasswordForm } from '@/features/auth/components/set-password-form'
 import { AUTH_CARD_TAGLINE, AUTH_HERO, SIGN_IN } from '@/features/auth/data'
 import { verifySession } from '@/lib/dal'
 import type { Metadata } from 'next'
-import { AuthLayout } from '@/components/layout/auth-layout'
-import { AuthHeroPanel } from '@/components/shared/app/auth-hero-panel'
-import { SetPasswordForm } from '@/features/auth/components/set-password-form'
 
 export const metadata: Metadata = {
   title: 'Choose a password',
@@ -15,13 +15,13 @@ export const metadata: Metadata = {
 export default async function SetPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; reset?: string }>
+  searchParams: Promise<{ next?: string; reset?: string; forgot?: string }>
 }) {
   const session = await verifySession()
   if (!session) redirect('/sign-in?error=session_expired')
 
-  const { next, reset } = await searchParams
-  const isReset = reset === '1'
+  const { next, reset, forgot } = await searchParams
+  const isReset = reset === '1' || forgot === '1'
   const safeNext = next?.startsWith('/') && !next.startsWith('//') ? next : '/'
 
   return (
@@ -46,7 +46,7 @@ export default async function SetPasswordPage({
           ? "Pick a new password for your account. You'll use it to sign in from now on."
           : 'Your workspace is ready. Set a password so you can sign in directly next time.'}
       </p>
-      <SetPasswordForm next={safeNext} />
+      <SetPasswordForm next={safeNext} forgot={forgot} />
     </AuthLayout>
   )
 }

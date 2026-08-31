@@ -56,7 +56,7 @@ function NavItem({
         <span
           aria-hidden
           className={cn(
-            'size-3.5 shrink-0 rounded-[4px] bg-current',
+            'size-3.5 shrink-0 rounded-lg bg-current',
             density === 'dense' ? 'opacity-55' : 'opacity-60'
           )}
         />

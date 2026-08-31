@@ -2,6 +2,7 @@ import { PaymentSuccessCard } from '@/components/billing/payment-success-card'
 import { DashboardOverview } from '@/features/dashboard/components/overview/dashboard-overview'
 import { getDashboardData } from '@/features/dashboard/data'
 import { getAccount } from '@/lib/dal'
+import { PaymentSuccessLoader } from '@/skeleton/payment-success-card'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
@@ -17,7 +18,7 @@ export default async function WorkspaceHomePage({
   const dashboardData = await getDashboardData(org)
   return (
     <>
-      <Suspense fallback={null}>
+      <Suspense fallback={<PaymentSuccessLoader />}>
         <PaymentSuccessCard />
       </Suspense>
       <DashboardOverview data={dashboardData} />

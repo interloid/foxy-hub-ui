@@ -1,6 +1,7 @@
-import Image from 'next/image'
 import { NAV_ICONS, type NavIconName } from '@/components/layout/nav-icons'
 import { cn } from '@/lib/utils'
+import Image from 'next/image'
+import { ComponentProps } from 'react'
 
 export type AuthHeroPoint = { icon: NavIconName; label: string }
 
@@ -11,8 +12,8 @@ function AuthHeroPanel({
   points,
   className,
   ...props
-}: Omit<React.ComponentProps<'div'>, 'children'> & {
-  image: { src: string; width: number; height: number }
+}: Omit<ComponentProps<'div'>, 'children'> & {
+  image: { src: string; width: number; height: number; alt?: string }
   eyebrow: string
   headline: string
   points: readonly AuthHeroPoint[]
@@ -27,7 +28,7 @@ function AuthHeroPanel({
         src={image.src}
         width={image.width}
         height={image.height}
-        alt=""
+        alt={image.alt ?? 'Image not found'}
 
         priority
         sizes="(min-width: 761px) 50vw, 0px"
@@ -35,7 +36,7 @@ function AuthHeroPanel({
         className="absolute inset-0 size-full object-cover object-bottom"
       />
       <div className="bg-auth-wash pointer-events-none absolute inset-0" />
-      <div className="pointer-events-none absolute inset-0 flex flex-col justify-center px-[7%] py-12 text-white">
+      <div className="absolute inset-0 flex flex-col justify-center px-[7%] py-12">
         <div className="max-w-110">
           <div className="mb-4 text-base font-semibold tracking-[.03em] uppercase opacity-85">
             {eyebrow}
@@ -48,7 +49,7 @@ function AuthHeroPanel({
               const Icon = NAV_ICONS[point.icon]
               return (
                 <div key={point.label} className="flex items-center gap-3">
-                  <span className="flex size-8.5 shrink-0 items-center justify-center rounded-lg bg-white/18">
+                  <span className="bg-brand-white/18 flex size-8.5 shrink-0 items-center justify-center rounded-lg">
                     <Icon size={18} strokeWidth={1.8} />
                   </span>
                   <span className="text-lg">{point.label}</span>

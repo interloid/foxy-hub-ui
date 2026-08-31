@@ -11,7 +11,8 @@ import {
   FxLabel,
 } from '@/components/shared/fx'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useRef, useState, useTransition } from 'react'
+import { Loader2 } from 'lucide-react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 import { useController, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { updateFullName } from '../actions'
@@ -27,7 +28,6 @@ export function EditableNameField({
 }) {
   const [editing, setEditing] = useState<boolean>(false)
   const [saved, setSaved] = useState<boolean>(false)
-  const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -44,8 +44,13 @@ export function EditableNameField({
     name: 'fullName',
   })
 
+  useEffect(() => {
+    if (!saved) return
+    const timer = setTimeout(() => setSaved(false), 2000)
+    return () => clearTimeout(timer)
+  }, [saved])
+
   function beginEdit() {
-    setError(null)
     setSaved(false)
     form.reset({ fullName: savedName })
     setEditing(true)
@@ -54,17 +59,15 @@ export function EditableNameField({
 
   function cancelEdit() {
     form.reset({ fullName: savedName })
-    setError(null)
     setEditing(false)
   }
 
-  const save = form.handleSubmit(
-    (values) => {
-      setError(null)
-      startTransition(async () => {
+  // ✅ Wrap the submission logic inside startTransition so pending updates correctly
+  const handleSave = () => {
+    startTransition(async () => {
+      await form.handleSubmit(async (values) => {
         const result = await updateFullName(values.fullName)
         if (!result.ok) {
-          setError(result.error)
           toast.error(result.error)
           return
         }
@@ -73,10 +76,9 @@ export function EditableNameField({
         form.reset({ fullName: result.fullName })
         setEditing(false)
         setSaved(true)
-      })
-    },
-    () => setError(null)
-  )
+      })()
+    })
+  }
 
   return (
     <FxField data-invalid={Boolean(fieldState.error) || undefined}>
@@ -88,7 +90,7 @@ export function EditableNameField({
         <FxInputGroupInput
           id="full-name"
           inputSize="sm"
-          readOnly={!editing}
+          readOnly={!editing || pending}
           aria-invalid={Boolean(fieldState.error) || undefined}
           placeholder={PROFILE.noName}
           name={field.name}
@@ -100,10 +102,10 @@ export function EditableNameField({
             inputRef.current = node
           }}
           onKeyDown={(event) => {
-            if (!editing) return
+            if (!editing || pending) return
             if (event.key === 'Enter') {
               event.preventDefault()
-              save()
+              handleSave()
             }
             if (event.key === 'Escape') {
               event.preventDefault()
@@ -112,19 +114,30 @@ export function EditableNameField({
           }}
         />
 
-        <FxInputGroupAddon align="inline-end" className="gap-1 p-0 px-1.5">
+        <FxInputGroupAddon
+          align="inline-end"
+          className="gap-1 border-0 p-0 px-1.5"
+        >
           {editing ? (
             <>
+              {/* Save / Loading Button */}
               <FxButton
                 type="button"
                 className="text-success hover:text-success bg-transparent hover:bg-transparent"
+                variant={'ghost'}
                 size="icon-sm"
                 aria-label={PROFILE.edit.save}
                 disabled={pending}
-                onClick={() => void save()}
+                onClick={handleSave}
               >
-                <NAV_ICONS.check strokeWidth={2.2} />
+                {pending ? (
+                  <Loader2 className="text-muted-foreground size-4 animate-spin" />
+                ) : (
+                  <NAV_ICONS.check strokeWidth={2.2} />
+                )}
               </FxButton>
+
+              {/* Cancel Button */}
               <FxButton
                 type="button"
                 variant={'destructive'}
@@ -137,9 +150,19 @@ export function EditableNameField({
                 <NAV_ICONS.cancel strokeWidth={1.9} />
               </FxButton>
             </>
+          ) : saved ? (
+            /* Success Checkmark State */
+            <div
+              className="text-success flex size-7 items-center justify-center"
+              aria-label={PROFILE.saved}
+            >
+              <NAV_ICONS.check strokeWidth={2.2} className="size-4" />
+            </div>
           ) : (
+            /* Default Edit Button */
             <FxButton
               type="button"
+              variant={'ghost'}
               size="icon-sm"
               aria-label={PROFILE.edit.start}
               className="text-muted-foreground hover:text-foreground bg-transparent hover:bg-transparent"
@@ -152,16 +175,6 @@ export function EditableNameField({
       </FxInputGroup>
 
       <FxFieldError errors={[fieldState.error]} />
-      {error && (
-        <p role="alert" className="text-destructive text-sm">
-          {error}
-        </p>
-      )}
-      {saved && !editing && (
-        <p role="status" className="text-success text-sm">
-          {PROFILE.saved}
-        </p>
-      )}
     </FxField>
   )
 }

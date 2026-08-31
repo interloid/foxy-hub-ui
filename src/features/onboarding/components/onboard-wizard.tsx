@@ -20,14 +20,31 @@ import {
   FxInputGroupInput,
   FxLabel,
 } from '@/components/shared/fx'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  FxDropdownMenuContent,
+  FxDropdownMenuItem,
+} from '@/components/shared/fx-menu'
 import { ThemeToggle } from '@/components/shared/theme-toggle'
+import { env } from '@/config/env'
 import { cn } from '@/lib/utils'
-import { CheckEmailSkeleton } from '@/skeleton/verify-mail-skeleton'
+import { CheckEmailSkeleton } from '@/skeleton/verify-mail'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowRight, CheckIcon, MailCheck, Plus } from 'lucide-react'
+import {
+  ArrowRight,
+  Check,
+  CheckIcon,
+  ChevronDown,
+  Loader2,
+  MailCheck,
+  Plus,
+  Trash2,
+} from 'lucide-react'
 import Link from 'next/link'
 import { ComponentProps, ReactNode, useState, useTransition } from 'react'
 import {
+  Controller,
   useFieldArray,
   useForm,
   useWatch,
@@ -88,7 +105,11 @@ export function OnboardWizard() {
   const invites = useFieldArray({ control: form.control, name: 'invites' })
   const planId = useWatch({ control: form.control, name: 'planId' })
   const cycle = useWatch({ control: form.control, name: 'cycle' })
+  const watchedInvites = useWatch({ control: form.control, name: 'invites' })
 
+  const hasEmptyInvite = watchedInvites?.some(
+    (invite) => !invite.email || invite.email.trim() === ''
+  )
   const checkSlug = async () => {
     const candidate = form.getValues('slug').trim()
     if (!candidate || !(await form.trigger('slug'))) {
@@ -197,8 +218,7 @@ export function OnboardWizard() {
       [emailState, slugState].some(
         (state) => state === 'taken' || state === 'checking'
       ))
-  const domain =
-    typeof window !== 'undefined' ? window.location.host : 'yourdomain.com'
+  const domain = env.NEXT_PUBLIC_APP_DOMAIN ?? 'yourdomain.com'
 
   return (
     <div className="bg-background min-h-svh overflow-y-auto">
@@ -215,7 +235,7 @@ export function OnboardWizard() {
 
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <FxButton asChild variant="secondary" size="sm">
+            <FxButton asChild variant="secondary" size="default">
               <Link href="/sign-in">{ONBOARD_NAV.signInInstead}</Link>
             </FxButton>
           </div>
@@ -228,7 +248,7 @@ export function OnboardWizard() {
           className="mb-8"
         />
 
-        <div className="border-border bg-card shadow-panel rounded-2xl border p-7">
+        <div className="border-border bg-card shadow-panel rounded-2xl border p-3 sm:p-7">
           {pending ? (
             /* 1. Show Skeleton ONLY while launching workspace */
             <CheckEmailSkeleton />
@@ -264,7 +284,7 @@ export function OnboardWizard() {
                     title={ONBOARD_ACCOUNT.title}
                     subtitle={ONBOARD_ACCOUNT.subtitle}
                   />
-                  <div className="grid max-w-150 grid-cols-1 gap-4 min-[861px]:grid-cols-[1fr_1.3fr]">
+                  <div className="grid w-full grid-cols-1 gap-x-4 gap-y-2 min-[861px]:grid-cols-[1fr_1fr]">
                     <AccountField
                       id="onb-name"
                       name="fullName"
@@ -278,7 +298,6 @@ export function OnboardWizard() {
                       form={form}
                       onBlur={() => void checkEmail()}
                       onChange={() => setEmailState('idle')}
-                      status={checkingEmail ? 'Checking…' : null}
                       {...ONBOARD_ACCOUNT.fields.email}
                     />
                     <AccountField
@@ -296,7 +315,7 @@ export function OnboardWizard() {
                         {ONBOARD_ACCOUNT.fields.slug.label}
                       </OnboardLabel>
 
-                      <FxInputGroup>
+                      <FxInputGroup className="ring-0 ring-offset-0 focus-within:ring-0 focus-within:ring-offset-0 has-aria-invalid:ring-0 has-aria-invalid:ring-offset-0 aria-invalid:ring-0">
                         <FxInputGroupAddon
                           align="inline-start"
                           className="text-muted-foreground self-center border-r-0 py-0 select-none"
@@ -310,24 +329,26 @@ export function OnboardWizard() {
                           aria-invalid={
                             Boolean(form.formState.errors.slug) || undefined
                           }
-                          aria-describedby="onb-slug-status"
+                          className="outline-none focus-visible:ring-0 focus-visible:ring-offset-0 aria-invalid:ring-0 aria-invalid:ring-offset-0"
                           {...form.register('slug', {
                             onBlur: () => void checkSlug(),
                             onChange: () => setSlugState('idle'),
                           })}
                         />
-                      </FxInputGroup>
 
-                      <p
-                        id="onb-slug-status"
-                        aria-live="polite"
-                        className="text-success mt-1 text-sm empty:hidden"
-                      >
-                        {checkingSlug ? 'Checking…' : null}
-                        {!checkingSlug && slugState === 'free'
-                          ? 'Available'
-                          : null}
-                      </p>
+                        {(checkingSlug || slugState === 'free') && (
+                          <FxInputGroupAddon
+                            align="inline-end"
+                            className="border-none pr-3 select-none"
+                          >
+                            {checkingSlug ? (
+                              <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+                            ) : slugState === 'free' ? (
+                              <Check className="text-success h-4 w-4" />
+                            ) : null}
+                          </FxInputGroupAddon>
+                        )}
+                      </FxInputGroup>
 
                       <FxFieldError errors={[form.formState.errors.slug]} />
                     </FxField>
@@ -351,7 +372,7 @@ export function OnboardWizard() {
                       }
                     />
                   </div>
-                  <div className="grid grid-cols-1 gap-3.5 min-[561px]:grid-cols-3">
+                  <div className="dash:grid-cols-3 grid grid-cols-1 gap-3.5">
                     {ONBOARD_PLANS.map((plan) => (
                       <OnboardPlanCard
                         key={plan.id}
@@ -376,15 +397,15 @@ export function OnboardWizard() {
                     title={ONBOARD_TEAM.title}
                     subtitle={ONBOARD_TEAM.subtitle}
                   />
-                  <div className="flex max-w-150 flex-col gap-2.5">
+                  <div className="flex w-full flex-col gap-2.5">
                     {invites.fields.map((field, index) => (
                       <FxField key={field.id} className="gap-1.5">
-                        <div className="flex gap-2">
+                        <div className="flex w-full items-center gap-1.5 sm:gap-2">
                           <FxInput
                             type="email"
                             placeholder={ONBOARD_TEAM.placeholder}
                             aria-label={`Teammate ${index + 1} email`}
-                            className="flex-1"
+                            className="min-w-0 flex-1 text-xs sm:text-sm"
                             aria-invalid={
                               Boolean(
                                 form.formState.errors.invites?.[index]?.email
@@ -392,18 +413,69 @@ export function OnboardWizard() {
                             }
                             {...form.register(`invites.${index}.email`)}
                           />
-                          <select
-                            aria-label={`Teammate ${index + 1} role`}
-                            className="border-border bg-muted text-md text-foreground focus-visible:border-ring cursor-pointer rounded-lg border px-[13px] py-[11px] outline-none"
-                            {...form.register(`invites.${index}.role`)}
+
+                          <Controller
+                            control={form.control}
+                            name={`invites.${index}.role`}
+                            render={({ field: roleField }) => (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <FxButton
+                                    type="button"
+                                    variant="secondary"
+                                    size="default"
+                                    /* Replaced flex-1 with a clean fixed width */
+                                    className="w-19 shrink-0 justify-between px-2 text-xs font-medium sm:w-28 sm:px-3 sm:text-sm"
+                                  >
+                                    <span className="truncate">
+                                      {roleField.value || 'Select role'}
+                                    </span>
+                                    <ChevronDown className="text-muted-foreground size-3.5 shrink-0" />
+                                  </FxButton>
+                                </DropdownMenuTrigger>
+                                <FxDropdownMenuContent
+                                  align="end"
+                                  /* Set menu width independently so open items have plenty of room */
+                                  className="w-32 min-w-32"
+                                >
+                                  {ONBOARD_TEAM.roles.map((option) => {
+                                    const isSelected =
+                                      roleField.value === option
+
+                                    return (
+                                      <FxDropdownMenuItem
+                                        key={option}
+                                        onClick={() =>
+                                          roleField.onChange(option)
+                                        }
+                                        className={cn(
+                                          'cursor-pointer text-xs sm:text-sm',
+                                          isSelected &&
+                                            'bg-primary/10 text-primary font-semibold'
+                                        )}
+                                      >
+                                        {option}
+                                      </FxDropdownMenuItem>
+                                    )
+                                  })}
+                                </FxDropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          />
+
+                          <FxButton
+                            type="button"
+                            variant="destructive"
+                            size="xs"
+                            disabled={invites.fields.length <= 1}
+                            className="text-destructive hover:bg-destructive/10 size-3 shrink-0 bg-transparent p-0 sm:size-9"
+                            onClick={() => invites.remove(index)}
+                            aria-label={`Remove teammate ${index + 1}`}
                           >
-                            {ONBOARD_TEAM.roles.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
+                            <Trash2 className="size-4" />
+                          </FxButton>
                         </div>
+
                         <FxFieldError
                           errors={[
                             form.formState.errors.invites?.[index]?.email,
@@ -411,10 +483,16 @@ export function OnboardWizard() {
                         />
                       </FxField>
                     ))}
+
+                    {/* Add Teammate Button */}
                     <FxButton
                       type="button"
                       size="sm"
-                      className="border-border-strong mt-0.5 h-8 self-start rounded-md text-sm"
+                      disabled={
+                        hasEmptyInvite ||
+                        Object.keys(form.formState.errors).length > 0
+                      }
+                      className="border-border-strong mt-0.5 h-10 self-start rounded-md text-sm"
                       onClick={() =>
                         invites.append({ email: '', role: 'Member' })
                       }

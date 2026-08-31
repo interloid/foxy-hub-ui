@@ -25,11 +25,8 @@ export async function GET(request: NextRequest) {
   })
 
   if (error) {
-    console.error('Verify OTP Error:', error.message)
-
-    const errorUrl = new URL('/sign-in', site)
-    errorUrl.searchParams.set('error', 'invalid_link')
-    return NextResponse.redirect(errorUrl)
+    console.error('confirm failed:', error.message)
+    return NextResponse.redirect(new URL('/sign-in?error=invalid_link', site))
   }
 
   if (!data.user?.user_metadata?.password_set) {

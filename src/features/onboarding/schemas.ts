@@ -4,11 +4,16 @@ export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/
 
 const slug = z
   .string()
-  .trim()
+  .min(3, 'Slug must be at least 3 characters.')
+  .max(40, 'Slug must be at most 40 characters.')
+  .refine(
+    (value) => value === value.trim(),
+    'Space cannot be at the beginning or end.'
+  )
   .transform((value) => value.toLowerCase())
   .refine(
     (value) => SLUG_PATTERN.test(value),
-    'Use 3–40 letters, numbers or hyphens.'
+    'Use letters, numbers or hyphens.'
   )
 
 const workEmail = z
@@ -20,7 +25,7 @@ const workEmail = z
 
 /** Step 1 — the account and workspace details. */
 export const accountStepSchema = z.object({
-  fullName: z.string().trim().min(1, 'Your name is required.'),
+  fullName: z.string().trim().min(1, 'Name is required.'),
   email: workEmail,
   agencyName: z.string().trim().min(1, 'An agency name is required.'),
   slug,
@@ -55,6 +60,19 @@ export const teamStepSchema = z.object({
 export const wizardSchema = accountStepSchema
   .extend(planStepSchema.shape)
   .extend(teamStepSchema.shape)
+  .superRefine((data, ctx) => {
+    const accountEmail = data.email.toLowerCase()
+
+    data.invites.forEach((invite, index) => {
+      if (invite.email && invite.email.toLowerCase() === accountEmail) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'You cannot invite your own account email.',
+          path: ['invites', index, 'email'], // <-- Points directly to the input field
+        })
+      }
+    })
+  })
 
 export type WizardInput = z.infer<typeof wizardSchema>
 

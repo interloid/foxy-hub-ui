@@ -15,7 +15,7 @@ export default async function UnauthorizedPage({
         {org ? `"${org}"` : 'this organization'}.
       </p>
       <div className="mt-6 flex gap-4">
-        <Link href="/" className="bg-primary rounded-md px-4 py-2 text-white">
+        <Link href="/" className="bg-primary text-card rounded-md px-4 py-2">
           Go to my organization
         </Link>
       </div>

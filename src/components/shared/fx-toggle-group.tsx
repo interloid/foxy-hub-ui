@@ -1,8 +1,8 @@
 'use client'
 
-import { cva, type VariantProps } from 'class-variance-authority'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
+import { cva, type VariantProps } from 'class-variance-authority'
 import { ComponentProps } from 'react'
 
 const fxToggleGroupVariants = cva(
@@ -21,7 +21,7 @@ const fxToggleGroupVariants = cva(
 )
 
 const fxToggleGroupItemVariants = cva(
-  'text-muted-foreground hover:text-foreground min-w-0 bg-transparent font-semibold transition-colors duration-(--duration-fast) hover:bg-transparent data-[state=on]:bg-primary data-[state=on]:text-white aria-pressed:bg-primary aria-pressed:text-white',
+  'text-muted-foreground hover:text-foreground min-w-0 bg-transparent font-semibold transition-colors duration-(--duration-fast) hover:bg-transparent data-[state=on]:bg-primary data-[state=on]:text-card aria-pressed:bg-primary aria-pressed:text-card',
   {
     variants: {
       density: {
@@ -70,6 +70,6 @@ function FxToggleGroupItem({
 export {
   FxToggleGroup,
   FxToggleGroupItem,
-  fxToggleGroupVariants,
   fxToggleGroupItemVariants,
+  fxToggleGroupVariants,
 }

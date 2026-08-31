@@ -9,7 +9,7 @@ export const PROFILE = {
   changePassword: 'Change password',
   passwordHref: 'profile/password',
   edit: {
-    start: 'Edit your name',
+    start: 'Edit name',
     save: 'Save name',
     cancel: 'Cancel editing',
   },

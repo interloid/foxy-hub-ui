@@ -37,7 +37,7 @@ function FxTooltipContent({
       >
         {children}
         {showArrow && (
-          <TooltipPrimitive.Arrow className="bg-tooltip fill-tooltip z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
+          <TooltipPrimitive.Arrow className="bg-tooltip fill-tooltip z-50 size-2.5 translate-y-[calc(-50%-2px)] rotate-45 rounded-xs" />
         )}
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>

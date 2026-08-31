@@ -1,12 +1,13 @@
 import { TabSessionSync } from '@/components/common/tab-session-sync'
+import { Toaster } from '@/components/shared/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { siteConfig } from '@/config/site'
 import { ThemeProvider } from '@/context/theme-provider'
 import { themeInitScript } from '@/lib/theme'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { ReactNode } from 'react'
 import './globals.css'
-import { Toaster } from '@/components/shared/toaster'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -22,6 +23,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
 }
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
@@ -52,11 +54,7 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
@@ -64,7 +62,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: themeInitScript,
+          }}
+        />
+
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

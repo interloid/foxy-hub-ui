@@ -11,7 +11,7 @@ export const ONBOARD_ACCOUNT = {
   title: 'Create your workspace',
   subtitle: 'Tell us about your agency to get set up.',
   fields: {
-    name: { label: 'Your name', placeholder: 'Jane Doe' },
+    name: { label: 'Name', placeholder: 'Jane Doe' },
     email: { label: 'Email', placeholder: 'you@agency.com' },
     agency: { label: 'Agency name', placeholder: 'Interloid Studio' },
     slug: {
@@ -24,7 +24,7 @@ export const ONBOARD_ACCOUNT = {
 
 /** Said by both the live field check and the server that re-checks on Launch. */
 export const ONBOARD_TAKEN = {
-  email: 'An account already exists for that email. Sign in instead.',
+  email: 'An account already exists for that email.',
   slug: 'That workspace URL is already taken.',
 } as const
 

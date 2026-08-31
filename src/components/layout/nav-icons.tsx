@@ -9,6 +9,8 @@ import {
   ChevronLeft,
   Clock,
   CreditCard,
+  Eye,
+  EyeOff,
   Folder,
   House,
   LifeBuoy,
@@ -34,6 +36,8 @@ import type { ReactElement } from 'react'
 
 export const NAV_ICONS = {
   dashboard: House,
+  eye: Eye,
+  eyeOff: EyeOff,
   projects: Folder,
   time: Clock,
   invoices: Receipt,

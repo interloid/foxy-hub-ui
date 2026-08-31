@@ -166,7 +166,7 @@ serve(async (req) => {
       invoice_creation: { enabled: true },
       metadata: { invoice_id: invoice.id },
       success_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=success`,
-      cancel_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=canceled`,
+      cancel_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=cancelled`,
     })
 
     return json({ url: session.url }, 200)
