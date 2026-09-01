@@ -67,12 +67,13 @@ export async function getDashboardData(
     profile?.full_name || user.user_metadata?.full_name || user.email || 'User'
   const userName = rawName.split(' ')[0]
 
-  // 3. Fetch org-scoped resources
+  // 3. Fetch org-scoped resources & subscription info
   const [
     { data: rawProjects },
     { data: rawDeliveries },
     { data: rawActivities },
     { data: members },
+    { data: subscription },
   ] = await Promise.all([
     supabase
       .from('projects')
@@ -103,6 +104,21 @@ export async function getDashboardData(
       .select('user_id, role')
       .eq('org_id', org.id)
       .neq('role', 'client'),
+
+    supabase
+      .from('subscriptions')
+      .select(
+        `
+        status,
+        current_period_end,
+        plan:plans (
+          name,
+          seats
+        )
+      `
+      )
+      .eq('org_id', org.id)
+      .maybeSingle(),
   ])
 
   // Format Active Projects
@@ -217,6 +233,11 @@ export async function getDashboardData(
     ? `${(metrics.minutesToApprove / 60).toFixed(1)}h`
     : '0h'
 
+  // Extract nested plan relational data securely
+  const planData = Array.isArray(subscription?.plan)
+    ? subscription.plan[0]
+    : subscription?.plan
+
   return {
     userName,
     orgName: org.name,
@@ -271,11 +292,11 @@ export async function getDashboardData(
     capacities,
     capacityOverCount: overCapacityCount,
     planInfo: {
-      name: 'Studio Plan',
-      status: 'active',
+      name: planData?.name || 'Free Plan',
+      status: subscription?.status || 'inactive',
       usedSeats: metrics.activeSeats,
-      totalSeats: 5,
-      renewsAt: null,
+      totalSeats: planData?.seats ?? null,
+      renewsAt: subscription?.current_period_end || null,
     },
   }
 }

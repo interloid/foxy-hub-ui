@@ -36,7 +36,15 @@ export function StudioPlanCard({
         {/* Plan Details Subtext */}
         <p className="text-muted-foreground text-[13px] font-normal">
           {usedSeats} of {totalSeats} seats used
-          {planInfo.renewsAt ? ` · renews ${planInfo.renewsAt}` : ''}
+          {planInfo.renewsAt
+            ? ` · renews ${new Date(planInfo.renewsAt).toLocaleDateString(
+                'en-US',
+                {
+                  month: 'short',
+                  day: '2-digit',
+                }
+              )}`
+            : ''}
         </p>
 
         {/* Progress Bar */}
