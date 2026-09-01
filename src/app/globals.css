@@ -215,6 +215,8 @@
      outright. Its 1024 rung (`gDash`, `gProj`, the 2-up ⇄ 4-up stat flip) IS Tailwind's `lg`
      and reuses it rather than declaring a sixth. See decisions.md D038. */
   --breakpoint-dash: 561px;
+
+  --breakpoint-compact: 425px;
 }
 
 :root {
@@ -294,7 +296,7 @@
 }
 
 .dark {
-  --background: #232323;
+  --background: #121212;
   --foreground: #f3f0ea;
   --card: #1a1917;
   --card-foreground: #f3f0ea;

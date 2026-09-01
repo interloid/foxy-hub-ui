@@ -50,7 +50,7 @@ export function DashboardHeaders({
           <FxButton
             variant="secondary"
             onClick={onDraftUpdateClick}
-            className="text-card-foreground border-border hover:bg-card hover:text-accent-foreground h-auto justify-center gap-1.5 px-2 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:px-3 sm:whitespace-nowrap"
+            className="text-card-foreground compact:flex-row border-border hover:bg-card hover:text-accent-foreground flex h-auto flex-col justify-center gap-1.5 px-2 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:px-3 sm:whitespace-nowrap"
           >
             <Sparkles
               className="text-primary shrink-0"
@@ -64,7 +64,7 @@ export function DashboardHeaders({
           <FxButton
             variant="secondary"
             onClick={handleLogTimeClick}
-            className="text-card-foreground border-border hover:bg-card hover:text-accent-foreground h-auto justify-center gap-1.5 px-2 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:px-3 sm:whitespace-nowrap"
+            className="text-card-foreground compact:flex-row border-border hover:bg-card hover:text-accent-foreground flex h-auto flex-col justify-center gap-1.5 px-2 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:px-3 sm:whitespace-nowrap"
           >
             <Clock className="text-primary shrink-0" width={14} height={14} />
             <span className="leading-tight">Log time</span>

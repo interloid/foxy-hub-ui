@@ -40,7 +40,7 @@ export function ActiveProjects({
   const hasProjects = projects && projects.length > 0
 
   return (
-    <FxCard className="overflow-hidden">
+    <FxCard className="overflow-auto">
       <FxCardContent className="p-0">
         {/* Header */}
         <div className="border-border flex items-center justify-between border-b px-4 py-3.5 sm:px-5 sm:py-4">

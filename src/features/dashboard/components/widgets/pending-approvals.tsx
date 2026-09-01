@@ -21,7 +21,7 @@ export function PendingApprovals({
     <FxCard className="overflow-hidden">
       <FxCardContent className="p-0">
         {/* Card Header */}
-        <div className="border-border flex items-center justify-between border-b px-5 py-4">
+        <div className="border-border flex items-center justify-between gap-2.5 border-b px-5 py-4">
           <div className="flex items-center gap-2.5">
             <h3 className="text-foreground text-[14px] font-semibold">
               Pending approvals
@@ -57,9 +57,9 @@ export function PendingApprovals({
             {approvals.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between px-5 py-3.5 transition-colors"
+                className="compact:items-center compact:flex-row compact:gap-0 flex flex-col justify-between gap-4 px-5 py-3.5 transition-colors"
               >
-                <div className="flex min-w-0 items-center gap-3.5 pr-2">
+                <div className="compact:gap-3.5 flex min-w-0 items-center gap-5 pr-2">
                   {/* File Type Icon Badge */}
                   <div className="bg-warning-subtle text-primary-accent flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-xl border text-xs font-bold tracking-wider uppercase">
                     {item.ext}

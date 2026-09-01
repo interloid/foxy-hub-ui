@@ -96,7 +96,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
       })
 
     return () => controller.abort()
-  }, [open])
+  }, [open, orgSlug])
 
   // Fetch Daily Capacity when date changes (with AbortController to prevent race conditions)
   useEffect(() => {
@@ -244,7 +244,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
             <div className="w-full">
               <FxLabel
                 htmlFor="milestone"
-                className="text-muted-foreground mb-2 block text-[13px] font-medium font-normal"
+                className="text-muted-foreground mb-2 block text-[13px] font-normal"
               >
                 Milestone
               </FxLabel>
