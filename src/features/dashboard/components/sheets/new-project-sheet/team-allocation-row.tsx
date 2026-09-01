@@ -275,7 +275,7 @@ export function TeamAllocationRow({
                     variant="outline"
                     className="border-border bg-background text-foreground hover:bg-muted flex h-8 w-full items-center justify-between rounded-md border px-2 font-mono text-[11.5px] outline-none"
                   >
-                    <span className="truncate">
+                    <span className="truncate text-sm font-normal">
                       {dateField.value
                         ? new Date(
                             dateField.value + 'T00:00:00'

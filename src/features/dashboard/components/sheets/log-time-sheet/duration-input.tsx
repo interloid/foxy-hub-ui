@@ -80,20 +80,31 @@ export function DurationInput({
           </span>
         )}
       </div>
+
       {/* Quick Select Pills */}
       <div className="mt-2 flex items-center gap-2">
-        {['30m', '1h', '2h', '4h'].map((pill) => (
-          <FxButton
-            key={pill}
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onChange(pill)}
-            className="h-7 rounded-full px-3 text-[12px] font-medium"
-          >
-            {pill}
-          </FxButton>
-        ))}
+        {['30m', '1h', '2h', '4h'].map((pill) => {
+          const pillMinutes = parseDurationToMinutes(pill)
+          const isSelected =
+            parsedMinutes !== null && parsedMinutes === pillMinutes
+
+          return (
+            <FxButton
+              key={pill}
+              type="button"
+              variant={isSelected ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => onChange(pill)}
+              className={`h-auto cursor-pointer rounded-full px-3 py-0.5 text-[11.5px] font-medium transition-colors ${
+                isSelected
+                  ? 'border-primary/50 bg-primary/10 hover:bg-primary/10 text-primary font-semibold'
+                  : 'border-border text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              {pill}
+            </FxButton>
+          )
+        })}
       </div>
 
       {/* Error Feedback */}

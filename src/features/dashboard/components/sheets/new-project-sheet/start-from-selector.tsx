@@ -25,9 +25,9 @@ export function StartFromSelector({ value, onChange }: StartFromSelectorProps) {
               variant="outline"
               onClick={() => onChange(option)}
               className={cn(
-                'border-border h-auto justify-start p-2.5 text-left text-[12.5px] font-medium whitespace-normal transition-colors',
+                'border-border bg-muted/60 hover:bg-muted! h-auto justify-start p-2.5 text-left text-[12.5px] font-medium whitespace-normal transition-colors',
                 isSelected
-                  ? 'border-primary bg-primary/10 text-foreground ring-primary hover:bg-primary/10 ring-1'
+                  ? 'border-primary bg-primary/10 text-foreground ring-primary hover:bg-primary/10! ring-1'
                   : 'bg-muted/30 text-muted-foreground'
               )}
             >

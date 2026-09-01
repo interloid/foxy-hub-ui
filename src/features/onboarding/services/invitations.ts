@@ -24,12 +24,6 @@ export async function sendInvitations(
       const rawToken = `${crypto.randomUUID()}${crypto.randomUUID()}`
       const tokenHash = await sha256Hex(rawToken)
 
-      // Plain insert, not an upsert on `org_id,email` — that constraint does not exist.
-      // Duplicates are guarded by `invitations_pending_email_org_key`, a partial unique
-      // index on (org_id, lower(email)) WHERE accepted_at IS NULL, which PostgREST's
-      // on_conflict cannot target; naming it fails every insert with 42P10.
-      // Superseding the outstanding invite by hand does what the upsert meant to, while
-      // leaving an already-accepted invitation untouched.
       await admin
         .from('invitations')
         .delete()

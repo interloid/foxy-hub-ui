@@ -47,16 +47,14 @@ export function ActiveProjects({
           <h3 className="text-foreground text-[14px] font-semibold">
             Active projects
           </h3>
-          {onOpenWorkspaceClick && (
-            <FxButton
-              variant="ghost"
-              size="xs"
-              onClick={onOpenWorkspaceClick}
-              className="text-muted-foreground hover:text-foreground h-auto bg-transparent p-0 text-[12.5px] hover:bg-transparent"
-            >
-              Open workspace
-            </FxButton>
-          )}
+          <FxButton
+            variant="ghost"
+            size="xs"
+            // onClick={onOpenWorkspaceClick}
+            className="text-muted-foreground hover:text-muted-foreground h-auto bg-transparent p-0 text-[12.5px] hover:bg-transparent"
+          >
+            Open workspace
+          </FxButton>
         </div>
 
         {/* Grid Container OR Empty State */}

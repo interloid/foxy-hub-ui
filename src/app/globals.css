@@ -395,6 +395,12 @@
   );
 }
 
+@layer utilities {
+  .required-star::after {
+    content: ' *';
+    @apply text-destructive font-medium;
+  }
+}
 /* v2's motion keyframes (§ 03). Names are fx-prefixed to avoid clobbering Tailwind's. */
 @keyframes fx-sheen {
   from {

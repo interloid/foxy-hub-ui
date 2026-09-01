@@ -84,7 +84,10 @@ function FxSheetBody({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="fx-sheet-body"
-      className={cn('min-h-0 flex-1 overflow-y-auto p-5', className)}
+      className={cn(
+        'min-h-0 flex-1 scrollbar-gutter-stable overflow-y-auto p-5',
+        className
+      )}
       {...props}
     />
   )

@@ -58,7 +58,7 @@ export function TeamAllocationSection({
   return (
     <div className="w-full space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-foreground text-[13px] font-medium">
+        <label className="text-muted-foreground text-[13px] font-medium">
           Team allocation
         </label>
         <FxButton

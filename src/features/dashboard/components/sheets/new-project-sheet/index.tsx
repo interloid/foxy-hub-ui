@@ -2,7 +2,12 @@
 
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCalendar } from '@/components/shared/fx-calendar'
-import { FxInput, FxLabel } from '@/components/shared/fx-field'
+import {
+  FxField,
+  FxFieldError,
+  FxInput,
+  FxLabel,
+} from '@/components/shared/fx-field'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -47,12 +52,20 @@ interface NewProjectSheetProps {
 export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
   const todayStr = toISODate(new Date())
   const { orgSlug } = useWorkspace()
-  const { control, register, watch, setValue } = useForm<NewProjectFormValues>({
+  const {
+    control,
+    register,
+    watch,
+    setValue,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<NewProjectFormValues>({
     defaultValues: {
       projectName: '',
       selectedStartFrom: 'Blank project',
       targetDate: undefined,
-      selectedEngagement: 'full-time',
+
+      selectedEngagement: 'full_time',
       budget: '',
       fixedPrice: '',
       retainerBucketHours: '',
@@ -81,6 +94,10 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
   const selectedEngagement = watch('selectedEngagement')
   const budget = watch('budget')
   const fixedPrice = watch('fixedPrice')
+  const retainerBucketHours = watch('retainerBucketHours')
+  const retainerBillingPeriod = watch('retainerBillingPeriod')
+  const retainerAmount = watch('retainerAmount')
+  const retainerOverageRate = watch('retainerOverageRate')
   const brief = watch('brief')
   const overrideReason = watch('overrideReason')
   const allocations = watch('allocations')
@@ -101,6 +118,13 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
   const allocationKey = allocations
     .map((r) => `${r.userId}:${r.effectiveFrom}`)
     .join('|')
+
+  // Block negative symbol and scientific notation in numeric input fields
+  const preventNegativeInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+      e.preventDefault()
+    }
+  }
 
   // Check Capacity via HTTP GET Route Handler
   const checkCapacityForUser = useCallback(
@@ -138,6 +162,8 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
       string,
       'full_time' | 'part_time' | 'retainer' | 'fixed'
     > = {
+      full_time: 'full_time',
+      part_time: 'part_time',
       'full-time': 'full_time',
       'part-time': 'part_time',
       retainer: 'retainer',
@@ -147,11 +173,14 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
 
     const mappedEngagement = engagementMap[selectedEngagement] || 'full_time'
 
-    // Select relevant numeric budget based on model
-    const calculatedBudget =
+    // Compute contractValue based on model (Budget or Fixed Price)
+    const isFixed =
       selectedEngagement === 'fixed-price' || selectedEngagement === 'fixed'
-        ? fixedPrice
-        : budget
+    const rawContractVal = isFixed ? fixedPrice : budget
+    const parsedContractValue =
+      rawContractVal && rawContractVal.trim() !== ''
+        ? parseFloat(rawContractVal)
+        : null
 
     startTransition(async () => {
       const res = await createProject(
@@ -161,7 +190,28 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
           clientId: selectedClient || null,
           dueDate: targetDate ? toISODate(targetDate) : null,
           engagement: mappedEngagement,
-          budget: calculatedBudget ? parseFloat(calculatedBudget) : null,
+
+          // Map budget & fixed price into contractValue for rawParams validation
+          budget: parsedContractValue,
+
+          // Map retainer params cleanly as Numbers or Null
+          retainerBucketHours:
+            selectedEngagement === 'retainer' && retainerBucketHours
+              ? parseFloat(retainerBucketHours)
+              : null,
+          retainerBillingPeriod:
+            selectedEngagement === 'retainer'
+              ? (retainerBillingPeriod as 'Monthly' | 'Weekly')
+              : null,
+          retainerAmount:
+            selectedEngagement === 'retainer' && retainerAmount
+              ? parseFloat(retainerAmount)
+              : null,
+          retainerOverageRate:
+            selectedEngagement === 'retainer' && retainerOverageRate
+              ? parseFloat(retainerOverageRate)
+              : null,
+
           brief: brief,
           overrideReason: overrideReason,
           allocations: allocations.map((row) => ({
@@ -317,19 +367,23 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
         <FxSheetBody className="space-y-5">
           {/* Project Name */}
           <div className="w-full">
-            <FxLabel
-              htmlFor="project"
-              className="text-foreground mb-1.5 block text-[13px] font-medium"
-            >
-              Project name
-            </FxLabel>
-            <FxInput
-              type="text"
-              id="project"
-              placeholder="e.g. Nordwave Packaging Refresh"
-              className="text-[13px]"
-              {...register('projectName')}
-            />
+            <FxField data-invalid={Boolean(errors.projectName) || undefined}>
+              <FxLabel
+                htmlFor="project"
+                className="text-muted-foreground required-star mb-1.5 block text-[13px] leading-normal font-medium"
+              >
+                Project name
+              </FxLabel>
+              <FxInput
+                id="project"
+                type="text"
+                placeholder="e.g. Nordwave Packaging Refresh"
+                className="text-[13px]"
+                aria-invalid={Boolean(errors.projectName) || undefined}
+                {...register('projectName')}
+              />
+              <FxFieldError errors={[errors.projectName]} />
+            </FxField>
           </div>
 
           {/* Start From Options Grid */}
@@ -343,7 +397,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
             <div className="w-full">
               <FxLabel
                 htmlFor="client"
-                className="text-foreground mb-1.5 block text-[13px] font-medium"
+                className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
               >
                 Client
               </FxLabel>
@@ -352,7 +406,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                   <FxButton
                     id="client"
                     type="button"
-                    className="border-border bg-muted/50 text-foreground hover:bg-muted flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none"
+                    className="border-border bg-muted text-foreground hover:bg-muted flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] font-normal outline-none"
                   >
                     <span className="truncate">
                       {isLoadingClients
@@ -389,7 +443,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
             <div className="w-full">
               <FxLabel
                 htmlFor="targetdate"
-                className="text-foreground mb-1.5 block text-[13px] font-medium"
+                className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
               >
                 Target end date
               </FxLabel>
@@ -398,7 +452,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                   <FxButton
                     id="targetdate"
                     type="button"
-                    className="border-border bg-muted/50 text-foreground hover:bg-muted flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none"
+                    className="border-border bg-muted text-foreground hover:bg-muted flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] font-normal outline-none"
                   >
                     <span>{formattedTargetDate}</span>
                     <CalendarIcon className="text-muted-foreground size-4 shrink-0" />
@@ -427,12 +481,14 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
           />
 
           {/* Conditional Inputs Based on Engagement Model */}
-          {(selectedEngagement === 'full-time' ||
+          {(selectedEngagement === 'full_time' ||
+            selectedEngagement === 'full-time' ||
+            selectedEngagement === 'part_time' ||
             selectedEngagement === 'part-time') && (
             <div className="w-full">
               <FxLabel
                 htmlFor="contractvalue"
-                className="text-foreground mb-1.5 block text-[13px] font-medium"
+                className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
               >
                 Contract value / budget ($)
               </FxLabel>
@@ -442,6 +498,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                 min={1}
                 placeholder="24000"
                 className="font-mono text-[13px]"
+                onKeyDown={preventNegativeInput}
                 {...register('budget')}
               />
             </div>
@@ -452,7 +509,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
             <div className="w-full space-y-1.5">
               <FxLabel
                 htmlFor="fixedprice"
-                className="text-foreground block text-[13px] font-medium"
+                className="text-muted-foreground block text-[13px] font-medium"
               >
                 Fixed price ($)
               </FxLabel>
@@ -462,6 +519,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                 min={1}
                 placeholder="9600"
                 className="font-mono text-[13px]"
+                onKeyDown={preventNegativeInput}
                 {...register('fixedPrice')}
               />
               <p className="text-muted-foreground text-[12px]">
@@ -477,7 +535,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                 <div className="w-full">
                   <FxLabel
                     htmlFor="bucket"
-                    className="text-foreground mb-1.5 block text-[13px] font-medium"
+                    className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
                   >
                     Bucket (hours)
                   </FxLabel>
@@ -487,13 +545,14 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                     min={1}
                     placeholder="80"
                     className="font-mono text-[13px]"
+                    onKeyDown={preventNegativeInput}
                     {...register('retainerBucketHours')}
                   />
                 </div>
                 <div className="w-full">
                   <FxLabel
                     htmlFor="billingperiod"
-                    className="text-foreground mb-1.5 block text-[13px] font-medium"
+                    className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
                   >
                     Billing period
                   </FxLabel>
@@ -502,7 +561,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                       <FxButton
                         id="billingperiod"
                         type="button"
-                        className="border-border bg-muted/50 text-foreground hover:bg-muted flex h-9 w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none"
+                        className="border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground flex h-10 w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] font-normal outline-none"
                       >
                         <span className="truncate">
                           {watch('retainerBillingPeriod') || 'Monthly'}
@@ -515,9 +574,12 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                         <FxDropdownMenuItem
                           key={period}
                           onClick={() =>
-                            setValue('retainerBillingPeriod', period)
+                            setValue(
+                              'retainerBillingPeriod',
+                              period as 'Monthly' | 'Weekly'
+                            )
                           }
-                          className="hover:bg-muted/50! focus:bg-muted text-[13px]"
+                          className="hover:bg-primary! focus:bg-muted text-[13px]"
                         >
                           {period}
                         </FxDropdownMenuItem>
@@ -531,7 +593,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                 <div className="w-full">
                   <FxLabel
                     htmlFor="retaineramount"
-                    className="text-foreground mb-1.5 block text-[13px] font-medium"
+                    className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
                   >
                     Retainer amount ($)
                   </FxLabel>
@@ -541,13 +603,14 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                     min={1}
                     placeholder="6000"
                     className="font-mono text-[13px]"
+                    onKeyDown={preventNegativeInput}
                     {...register('retainerAmount')}
                   />
                 </div>
                 <div className="w-full">
                   <FxLabel
                     htmlFor="overagerate"
-                    className="text-foreground mb-1.5 block text-[13px] font-medium"
+                    className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
                   >
                     Overage rate (×)
                   </FxLabel>
@@ -558,6 +621,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                     min={0}
                     placeholder="1.25"
                     className="font-mono text-[13px]"
+                    onKeyDown={preventNegativeInput}
                     {...register('retainerOverageRate')}
                   />
                 </div>
@@ -587,7 +651,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
           <div className="w-full">
             <FxLabel
               htmlFor="brief"
-              className="text-foreground mb-1.5 block text-[13px] font-medium"
+              className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
             >
               Brief (optional)
             </FxLabel>

@@ -33,12 +33,6 @@ export async function startWorkspaceSignup(
         user_name: params.fullName,
         org_name: params.agencyName,
         slug: params.slug,
-        // Read by `create-checkout` (as `user.user_metadata.pending_invitations`) and
-        // relayed through the Stripe session metadata so `stripe-webhook` can redeem
-        // them once payment actually completes — see set-password-form's "Subscribe"
-        // dialog, which tells the user invites wait for that. Must stay named
-        // `pending_invitations`; a mismatch here means create-checkout always sees an
-        // empty list and no invite is ever sent.
         ...(params.invites.length > 0
           ? { pending_invitations: params.invites }
           : {}),

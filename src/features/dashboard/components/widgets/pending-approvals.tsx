@@ -39,12 +39,12 @@ export function PendingApprovals({
             </FxBadge>
           </div>
 
-          {hasApprovals && onViewAllClick && (
+          {hasApprovals && (
             <FxButton
               variant="ghost"
               size="xs"
-              onClick={onViewAllClick}
-              className="text-muted-foreground hover:text-foreground h-auto bg-transparent p-0 text-[12.5px] hover:bg-transparent"
+              // onClick={onViewAllClick}
+              className="text-muted-foreground hover:text-muted-foreground h-auto bg-transparent p-0 text-[12.5px] hover:bg-transparent"
             >
               View all
             </FxButton>

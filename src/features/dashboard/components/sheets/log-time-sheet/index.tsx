@@ -86,7 +86,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
 
     const controller = new AbortController()
 
-    fetch('/api/dashboard/sheet-data?type=projects', {
+    fetch(`/api/dashboard/sheet-data?type=projects&orgSlug=${orgSlug}`, {
       signal: controller.signal,
     })
       .then((res) => res.json())
@@ -198,9 +198,9 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
             <div className="w-full">
               <FxLabel
                 htmlFor="project"
-                className="text-foreground mb-2 block text-[13px] font-medium"
+                className="text-muted-foreground required-star mb-2 block text-[13px] font-medium"
               >
-                Project <span className="text-destructive">*</span>
+                Project
               </FxLabel>
 
               <DropdownMenu>
@@ -208,7 +208,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
                   <FxButton
                     id="project"
                     type="button"
-                    className="border-border bg-muted/50 text-foreground hover:bg-muted focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none focus:ring-1"
+                    className="border-border bg-muted/50 text-foreground hover:bg-muted focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] font-normal outline-none focus:ring-1"
                   >
                     <span className="truncate">
                       {selectedProject
@@ -244,7 +244,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
             <div className="w-full">
               <FxLabel
                 htmlFor="milestone"
-                className="text-foreground mb-2 block text-[13px] font-medium"
+                className="text-muted-foreground mb-2 block text-[13px] font-medium font-normal"
               >
                 Milestone
               </FxLabel>
@@ -291,7 +291,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
           <div className="w-full">
             <FxLabel
               htmlFor="workdate"
-              className="text-foreground mb-2 block text-[13px] font-medium"
+              className="text-muted-foreground mb-2 block text-[13px] font-medium"
             >
               Work date
             </FxLabel>
@@ -300,7 +300,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
                 <FxButton
                   type="button"
                   id="workdate"
-                  className="border-border bg-muted/50 text-foreground hover:bg-muted focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none focus:ring-1"
+                  className="border-border bg-muted/50 text-foreground hover:bg-muted focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] font-normal outline-none focus:ring-1"
                 >
                   <span>{formattedDate}</span>
                   <CalendarIcon className="text-muted-foreground size-4 shrink-0" />
@@ -346,10 +346,10 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
               placeholder='What did you work on? e.g. "M2 auth: RLS policies for memberships"'
               className="text-[13px]"
             />
-            <p className="text-muted-foreground mt-1.5 text-[11.5px]">
+            {/* <p className="text-muted-foreground mt-1.5 text-[11.5px]">
               Required — &quot;development&quot; is not a receipt. Be specific
               so approvers and clients can read the work.
-            </p>
+            </p> */}
           </div>
         </FxSheetBody>
 

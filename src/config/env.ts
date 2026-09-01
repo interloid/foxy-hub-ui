@@ -1,9 +1,5 @@
 import { z } from 'zod'
 
-// Only variables that are safe to evaluate in the browser belong here.
-// Next.js inlines NEXT_PUBLIC_* and NODE_ENV into client bundles; every other
-// variable is `undefined` on the client, so validating it here would throw at
-// module evaluation in the browser. Server-only vars live in `env.server.ts`.
 const envSchema = z.object({
   NEXT_PUBLIC_SITE_URL: z.url(),
   NEXT_PUBLIC_SITE_NAME: z.string().min(1),

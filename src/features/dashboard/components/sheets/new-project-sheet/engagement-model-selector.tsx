@@ -1,11 +1,12 @@
 'use client'
 
+import { useEffect } from 'react'
 import { FxButton } from '@/components/shared/fx-button'
 import { cn } from '@/lib/utils'
 import { ENGAGEMENT_MODELS } from './types'
 
 interface EngagementModelSelectorProps {
-  value: string
+  value?: string
   onChange: (value: string) => void
 }
 
@@ -13,6 +14,15 @@ export function EngagementModelSelector({
   value,
   onChange,
 }: EngagementModelSelectorProps) {
+  const activeValue = value || ENGAGEMENT_MODELS[0]?.id
+
+  // Notify parent form of the default value if none is passed
+  useEffect(() => {
+    if (!value && ENGAGEMENT_MODELS[0]?.id) {
+      onChange(ENGAGEMENT_MODELS[0].id)
+    }
+  }, [value, onChange])
+
   return (
     <div className="w-full">
       <label className="text-foreground mb-1.5 block text-[13px] font-medium">
@@ -20,7 +30,7 @@ export function EngagementModelSelector({
       </label>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {ENGAGEMENT_MODELS.map((model) => {
-          const isSelected = value === model.id
+          const isSelected = activeValue === model.id
           return (
             <FxButton
               key={model.id}
@@ -30,7 +40,12 @@ export function EngagementModelSelector({
               className={cn(
                 'border-border relative flex h-auto flex-col items-start justify-start rounded-md border p-3 text-left whitespace-normal transition-colors',
                 isSelected
-                  ? 'border-primary bg-primary/10 ring-primary ring-1'
+                  ? cn(
+                      'ring-1',
+                      model.borderClass,
+                      model.ringClass,
+                      model.softBgClass
+                    )
                   : 'bg-muted/30 hover:bg-muted/60'
               )}
             >

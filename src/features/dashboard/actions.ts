@@ -21,8 +21,8 @@ function firstIssue(error: z.ZodError): string {
 
 const createTimeEntrySchema = z.object({
   orgSlug: z.string().min(1, 'Organization slug is required'),
-  projectId: z.string().uuid('Invalid project ID'),
-  milestoneId: z.string().uuid('Invalid milestone ID').optional().nullable(),
+  projectId: z.uuid('Invalid project ID'),
+  milestoneId: z.uuid('Invalid milestone ID').optional().nullable(),
   workDate: z.string().min(1, 'Work date is required'),
   durationStr: z.string().min(1, 'Duration string is required'),
   description: z.string().max(500, 'Description too long'),
@@ -457,7 +457,7 @@ export async function createProject(
     return { ok: false, error: 'Workspace not found or access denied.' }
   }
 
-  const isAdmin = await isAdminRole(orgSlug)
+  const isAdmin = await isAdminRole(workspace.role)
   if (!isAdmin) {
     return {
       ok: false,

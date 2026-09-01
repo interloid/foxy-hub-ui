@@ -23,6 +23,16 @@ export async function getDashboardData(
   } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')
 
+  const STATUS_PROGRESS_MAP: Record<string, string> = {
+    draft: '0',
+    pending: '0',
+    'pending-approval': '90',
+    'in-progress': '50',
+    'on-hold': '40',
+    completed: '100',
+    cancelled: '0',
+  }
+
   const [{ data: membership, error: membershipError }, { data: profile }] =
     await Promise.all([
       supabase
@@ -135,7 +145,7 @@ export async function getDashboardData(
       name: p.name,
       client: clientName,
       status: p.status,
-      progress: p.status === 'completed' ? '100' : '65',
+      progress: STATUS_PROGRESS_MAP[p.status] ?? '0',
       value: val > 0 ? `$${val.toLocaleString()}` : '—',
     }
   })

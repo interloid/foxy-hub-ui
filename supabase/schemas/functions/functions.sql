@@ -376,7 +376,7 @@ begin
     v_org_id,
     project_data->>'name',
     nullif(project_data->>'due_date', '')::timestamptz,
-    (project_data->>'engagement')::public.engagement_model,
+    nullif(project_data->>'engagement', '')::public.engagement_model,
     nullif(project_data->>'client_id', '')::uuid,
     nullif(project_data->>'contract_value', '')::numeric,
     nullif(project_data->>'retainer_hours', '')::numeric,
@@ -386,7 +386,7 @@ begin
     project_data->>'description',
     project_data->>'override_reason',
     coalesce(project_data->>'start_from', 'blank'),
-    coalesce((project_data->>'status')::public.project_status, 'pending'::public.project_status)
+    coalesce(nullif(project_data->>'status', '')::public.project_status, 'pending'::public.project_status)
   )
   returning id into v_project_id;
 
@@ -408,7 +408,7 @@ begin
         (v_alloc->>'hours_per_day')::numeric,
         (v_alloc->>'days_per_week')::numeric,
         nullif(v_alloc->>'rate', '')::numeric,
-        (v_alloc->>'effective_from')::date
+        nullif(v_alloc->>'effective_from', '')::date
       );
     end loop;
   end if;
