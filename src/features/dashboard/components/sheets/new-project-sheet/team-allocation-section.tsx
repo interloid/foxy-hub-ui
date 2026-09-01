@@ -53,6 +53,8 @@ export function TeamAllocationSection({
   onAddTeammate,
   checkCapacityForUser,
 }: TeamAllocationSectionProps) {
+  const isAddDisabled = isLoadingTeam || teamMembers.length === 0
+
   return (
     <div className="w-full space-y-3">
       <div className="flex items-center justify-between">
@@ -64,6 +66,7 @@ export function TeamAllocationSection({
           variant="outline"
           size="sm"
           onClick={onAddTeammate}
+          disabled={isAddDisabled}
           className="h-7 text-[12px]"
         >
           <Plus className="mr-1 size-3.5" />

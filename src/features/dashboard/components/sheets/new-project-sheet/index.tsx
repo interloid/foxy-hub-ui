@@ -205,12 +205,14 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
 
       try {
         const [clientsRes, membersRes] = await Promise.all([
-          fetch('/api/dashboard/sheet-data?type=clients', {
-            signal: controller.signal,
-          }),
-          fetch('/api/dashboard/sheet-data?type=team-members', {
-            signal: controller.signal,
-          }),
+          fetch(
+            `/api/dashboard/sheet-data?type=clients&orgSlug=${encodeURIComponent(orgSlug)}`,
+            { signal: controller.signal }
+          ),
+          fetch(
+            `/api/dashboard/sheet-data?type=team-members&orgSlug=${encodeURIComponent(orgSlug)}`,
+            { signal: controller.signal }
+          ),
         ])
 
         const clients = await clientsRes.json()
@@ -246,7 +248,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     fetchData()
 
     return () => controller.abort()
-  }, [open, checkCapacityForUser, fields.length, setValue, todayStr])
+  }, [open, checkCapacityForUser, fields.length, setValue, todayStr, orgSlug])
 
   const selectedClientObj = clientOptions.find((c) => c.id === selectedClient)
 
@@ -515,7 +517,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                           onClick={() =>
                             setValue('retainerBillingPeriod', period)
                           }
-                          className="hover:bg-primary! focus:bg-muted text-[13px]"
+                          className="hover:bg-muted/50! focus:bg-muted text-[13px]"
                         >
                           {period}
                         </FxDropdownMenuItem>

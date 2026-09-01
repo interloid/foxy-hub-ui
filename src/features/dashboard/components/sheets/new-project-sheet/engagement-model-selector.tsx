@@ -1,5 +1,6 @@
 'use client'
 
+import { FxButton } from '@/components/shared/fx-button'
 import { cn } from '@/lib/utils'
 import { ENGAGEMENT_MODELS } from './types'
 
@@ -21,12 +22,13 @@ export function EngagementModelSelector({
         {ENGAGEMENT_MODELS.map((model) => {
           const isSelected = value === model.id
           return (
-            <button
+            <FxButton
               key={model.id}
               type="button"
+              variant="outline"
               onClick={() => onChange(model.id)}
               className={cn(
-                'border-border relative flex flex-col justify-start rounded-md border p-3 text-left transition-colors',
+                'border-border relative flex h-auto flex-col items-start justify-start rounded-md border p-3 text-left whitespace-normal transition-colors',
                 isSelected
                   ? 'border-primary bg-primary/10 ring-primary ring-1'
                   : 'bg-muted/30 hover:bg-muted/60'
@@ -41,7 +43,7 @@ export function EngagementModelSelector({
               <span className="text-muted-foreground mt-1 text-[11.5px]">
                 {model.subtitle}
               </span>
-            </button>
+            </FxButton>
           )
         })}
       </div>

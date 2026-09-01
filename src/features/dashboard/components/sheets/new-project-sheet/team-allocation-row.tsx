@@ -57,44 +57,75 @@ export function TeamAllocationRow({
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // Get current active hours directly from allocation values
   const activeHours = useWatch({
     control,
     name: `allocations.${index}.hoursPerDay`,
   })
+
+  // Watch the current user selection directly from form state
+  const selectedUserId = useWatch({
+    control,
+    name: `allocations.${index}.userId`,
+  })
+
+  const selectedMember = teamMembers.find((m) => m.id === selectedUserId)
+  const displayName =
+    selectedMember?.name || currentAllocation?.memberName || 'Select teammate'
+  const hasNoTeammates = !isLoadingTeam && teamMembers.length === 0
+
   return (
     <div className="border-border bg-muted/30 space-y-3 rounded-xl border p-3.5">
       {/* Top Header Row with Teammate Select & Cross Button */}
       <div className="flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="border-border bg-background text-foreground flex h-9 flex-1 cursor-pointer items-center justify-between rounded-lg border px-3 text-[13px] font-medium transition-colors outline-none"
-            >
-              <span className="truncate">
-                {isLoadingTeam
-                  ? 'Loading team...'
-                  : currentAllocation?.memberName || 'Select teammate'}
-              </span>
-              <ChevronDown className="text-muted-foreground size-4 shrink-0" />
-            </button>
-          </DropdownMenuTrigger>
-          <FxDropdownMenuContent align="start" className="w-64">
-            {teamMembers.map((m) => (
-              <FxDropdownMenuItem
-                key={m.id}
-                onClick={() => {
-                  setValue(`allocations.${index}.userId`, m.id)
-                  setValue(`allocations.${index}.memberName`, m.name)
-                  checkCapacityForUser(m.id, currentAllocation?.effectiveFrom)
-                }}
-              >
-                {m.name}
-              </FxDropdownMenuItem>
-            ))}
-          </FxDropdownMenuContent>
-        </DropdownMenu>
+        <Controller
+          control={control}
+          name={`allocations.${index}.userId`}
+          render={({ field }) => (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="border-border bg-background text-foreground flex h-9 flex-1 cursor-pointer items-center justify-between rounded-lg border px-3 text-[13px] font-medium transition-colors outline-none"
+                >
+                  <span className="truncate">
+                    {isLoadingTeam
+                      ? 'Loading team...'
+                      : hasNoTeammates
+                        ? 'No teammates available'
+                        : displayName}
+                  </span>
+                  <ChevronDown className="text-muted-foreground size-4 shrink-0" />
+                </button>
+              </DropdownMenuTrigger>
+              <FxDropdownMenuContent align="start" className="w-64">
+                {teamMembers.map((m) => (
+                  <FxDropdownMenuItem
+                    key={m.id}
+                    onClick={() => {
+                      // 1. Notify react-hook-form about the userId field change
+                      field.onChange(m.id)
+
+                      // 2. Set additional helper values
+                      setValue(`allocations.${index}.memberName`, m.name, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      })
+
+                      // 3. Trigger capacity check callback
+                      checkCapacityForUser(
+                        m.id,
+                        currentAllocation?.effectiveFrom
+                      )
+                    }}
+                    className="hover:bg-primary! focus:bg-muted text-[13px]"
+                  >
+                    {m.name}
+                  </FxDropdownMenuItem>
+                ))}
+              </FxDropdownMenuContent>
+            </DropdownMenu>
+          )}
+        />
 
         <FxButton
           type="button"
@@ -118,14 +149,14 @@ export function TeamAllocationRow({
       <div className="flex items-center gap-1.5">
         {['8h', '4h', '3h', '2h'].map((pill) => {
           const pillHours = parseInt(pill, 10)
-
-          // Selection is determined purely by matching the current hoursPerDay value
           const isSelected = Number(activeHours) === pillHours
 
           return (
-            <button
+            <FxButton
               key={pill}
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => {
                 const hoursVal = Math.min(maxCapacity, Math.max(0, pillHours))
                 setValue(`allocations.${index}.hoursPerDay`, hoursVal, {
@@ -139,21 +170,20 @@ export function TeamAllocationRow({
                 })
               }}
               className={cn(
-                'rounded-full border px-3 py-0.5 text-[11.5px] font-medium transition-colors',
+                'h-auto cursor-pointer rounded-full px-3 py-0.5 text-[11.5px] font-medium transition-colors',
                 isSelected
-                  ? 'border-primary/50 bg-primary/10 text-primary font-semibold'
+                  ? 'border-primary/50 bg-primary/10 hover:bg-primary/10 text-primary font-semibold'
                   : 'border-border text-muted-foreground hover:bg-muted'
               )}
             >
               {pill}
-            </button>
+            </FxButton>
           )
         })}
       </div>
 
       {/* Fields Grid */}
       <div className="grid w-full grid-cols-[0.8fr_0.8fr_0.9fr_1.5fr] gap-1.5">
-        {/* Hours/Day */}
         {/* Hours/Day */}
         <div className="w-full min-w-0">
           <label className="text-muted-foreground block truncate text-[10px] font-semibold uppercase">
@@ -240,8 +270,9 @@ export function TeamAllocationRow({
             render={({ field: dateField }) => (
               <Popover>
                 <PopoverTrigger asChild>
-                  <button
+                  <FxButton
                     type="button"
+                    variant="outline"
                     className="border-border bg-background text-foreground hover:bg-muted flex h-8 w-full items-center justify-between rounded-md border px-2 font-mono text-[11.5px] outline-none"
                   >
                     <span className="truncate">
@@ -256,7 +287,7 @@ export function TeamAllocationRow({
                         : 'MM/DD/YYYY'}
                     </span>
                     <CalendarIcon className="text-muted-foreground ml-1 size-3.5 shrink-0" />
-                  </button>
+                  </FxButton>
                 </PopoverTrigger>
                 <FxPopoverContent className="w-auto p-0" align="start">
                   <FxCalendar

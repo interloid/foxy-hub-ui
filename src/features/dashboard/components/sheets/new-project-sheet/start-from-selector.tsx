@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { START_FROM_OPTIONS } from './types'
+import { FxButton } from '@/components/shared/fx-button'
 
 interface StartFromSelectorProps {
   value: string
@@ -18,19 +19,20 @@ export function StartFromSelector({ value, onChange }: StartFromSelectorProps) {
         {START_FROM_OPTIONS.map((option) => {
           const isSelected = value === option
           return (
-            <button
+            <FxButton
               key={option}
               type="button"
+              variant="outline"
               onClick={() => onChange(option)}
               className={cn(
-                'border-border rounded-md border p-2.5 text-left text-[12.5px] font-medium transition-colors',
+                'border-border h-auto justify-start p-2.5 text-left text-[12.5px] font-medium whitespace-normal transition-colors',
                 isSelected
-                  ? 'border-primary bg-primary/10 text-foreground ring-primary ring-1'
-                  : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                  ? 'border-primary bg-primary/10 text-foreground ring-primary hover:bg-primary/10 ring-1'
+                  : 'bg-muted/30 text-muted-foreground'
               )}
             >
               {option}
-            </button>
+            </FxButton>
           )
         })}
       </div>

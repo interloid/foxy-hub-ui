@@ -175,6 +175,19 @@ serve(async (req) => {
       return json({ success: false, error: 'Invalid or free plan' }, 400)
     }
 
+    // Land back on the org's own dashboard, not the bare origin — `/` just redirects to
+    // it WITHOUT forwarding the query string, which would silently drop the success
+    // signal below before PaymentSuccessCard ever saw it.
+    let orgPrefix = ''
+    if (orgId) {
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('slug')
+        .eq('id', orgId)
+        .maybeSingle()
+      if (org?.slug) orgPrefix = `/${org.slug}`
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -185,8 +198,11 @@ serve(async (req) => {
       ],
       mode: 'subscription',
       customer_email: user.email,
-      success_url: `${base}?checkout=success`,
-      cancel_url: `${base}?checkout=canceled`,
+      // `payment=success` — matches what PaymentSuccessCard actually checks
+      // (src/components/billing/payment-success-card.tsx). `checkout=success` was never
+      // read by anything.
+      success_url: `${base}${orgPrefix}?payment=success`,
+      cancel_url: `${base}${orgPrefix}?payment=canceled`,
       metadata: {
         plan_id: plan.id,
         org_id: orgId || '',

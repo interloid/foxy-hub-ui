@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
     }
     user = data.user
   }
-  console.log(user)
 
   // 3. If still no user and no valid code, redirect to sign-in
   if (!user) {

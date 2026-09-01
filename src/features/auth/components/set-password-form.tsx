@@ -51,7 +51,6 @@ export function SetPasswordForm({
 
   const submit = form.handleSubmit((values) => {
     startTransition(async () => {
-      console.log(values)
       const result = await setPassword(
         encodePassword(values.password),
         encodePassword(values.confirm)

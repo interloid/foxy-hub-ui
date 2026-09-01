@@ -96,7 +96,21 @@ function formatDueDate(dueDate: string | null): string {
   });
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  // `verify_jwt = false` for this function (config.toml), since the caller is the
+  // pg_cron job in 20260727123025_cron_jobs.sql, not a logged-in user — so this is the
+  // only gate. It sends `Authorization: Bearer <webhook_secret>` from Vault; the same
+  // value must be set as this function's `webhook_secret` secret
+  // (`supabase secrets set webhook_secret=...`) for the comparison below to pass.
+  const expected = Deno.env.get("webhook_secret");
+  if (!expected) {
+    console.error("webhook_secret is not configured for invoice-overdue-handler");
+    return new Response(JSON.stringify({ error: "Not configured" }), { status: 500 });
+  }
+  if (req.headers.get("Authorization") !== `Bearer ${expected}`) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  }
+
   // One query, with the project and organisation embedded, instead of a second round trip
   // for projects. Named columns rather than `select('*')`.
   const { data: invoices, error } = await supabase

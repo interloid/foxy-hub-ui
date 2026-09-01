@@ -65,19 +65,36 @@ async function redeemPendingInvites(
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')
 
-    // 1. Insert/Upsert invitation record into `invitations` table
+    // 1. Insert invitation record into `invitations` table.
+    //
+    // NOT an upsert with `onConflict: 'org_id,email'` — no such unique constraint
+    // exists. The only thing guarding duplicates is
+    //   create unique index invitations_pending_email_org_key
+    //     on public.invitations (org_id, lower(email)) where accepted_at is null
+    // a PARTIAL index on an EXPRESSION, which PostgREST's on_conflict cannot name;
+    // asking for one made every insert fail with 42P10 ("no unique or exclusion
+    // constraint matching the ON CONFLICT specification"), which threw before the
+    // subscription update below ever ran.
+    //
+    // Superseding the outstanding invite by hand reproduces what the upsert intended:
+    // re-inviting reissues the token, while an ALREADY ACCEPTED invite is left alone
+    // (accepted_at is not null), so a redeemed invitation can never be silently reset.
+    await supabaseClient
+      .from('invitations')
+      .delete()
+      .eq('org_id', orgId)
+      .eq('email', email)
+      .is('accepted_at', null)
+
     const { data: row, error: inviteError } = await supabaseClient
       .from('invitations')
-      .upsert(
-        {
-          org_id: orgId,
-          email: email,
-          role: role,
-          token_hash: tokenHash,
-          invited_by: userId || null,
-        },
-        { onConflict: 'org_id,email' }
-      )
+      .insert({
+        org_id: orgId,
+        email: email,
+        role: role,
+        token_hash: tokenHash,
+        invited_by: userId || null,
+      })
       .select('id')
       .single()
 
@@ -155,6 +172,17 @@ serve(async (req) => {
     return new Response('Could not claim event', { status: 500 })
   }
 
+  // Deferred until AFTER the billing writes below. Redeeming invites used to run first,
+  // and it threw on every failure — so one bad invitation stopped the subscription row
+  // from ever recording its customer id, payment intent and card details, even though
+  // the payment itself had succeeded. Billing state is what the app reads; it must not
+  // depend on whether an email went out.
+  let pendingInviteJob: {
+    orgId: string
+    userId: string
+    raw: string
+  } | null = null
+
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -163,7 +191,7 @@ serve(async (req) => {
           `checkout.session.completed ${session.id} mode=${session.mode}`
         )
 
-        // Process pending invitations from checkout metadata if present
+        // Captured now, redeemed after the billing writes.
         const orgIdFromMeta =
           session.metadata?.org_id || session.metadata?.orgId
         const userIdFromMeta =
@@ -171,27 +199,10 @@ serve(async (req) => {
         const rawPendingInvites = session.metadata?.pending_invitations
 
         if (orgIdFromMeta && rawPendingInvites) {
-          try {
-            const parsedInvites = JSON.parse(rawPendingInvites)
-            if (Array.isArray(parsedInvites) && parsedInvites.length > 0) {
-              await redeemPendingInvites(
-                supabase,
-                orgIdFromMeta,
-                userIdFromMeta || '',
-                parsedInvites
-              )
-              console.log(
-                `Successfully processed ${parsedInvites.length} pending invitations for org ${orgIdFromMeta}`
-              )
-            }
-          } catch (invErr) {
-            const invErrMessage =
-              invErr instanceof Error ? invErr.message : String(invErr)
-            console.error(
-              'Error processing pending_invitations:',
-              invErrMessage
-            )
-            throw invErr // Re-throw so handler catch block triggers Stripe retry logic
+          pendingInviteJob = {
+            orgId: orgIdFromMeta,
+            userId: userIdFromMeta || '',
+            raw: rawPendingInvites,
           }
         }
 
@@ -273,9 +284,13 @@ serve(async (req) => {
               expand: ['latest_invoice.payment_intent'],
             }
           )
-          const invoice = subData.latest_invoice as Stripe.Invoice
+          // Optional chaining: `latest_invoice` is null on a subscription that has not
+          // been billed yet (trials, $0 first period). Reading `.payment_intent` off it
+          // threw a TypeError that took the whole update down with it — the card details
+          // are worth skipping, the subscription row is not.
+          const invoice = subData.latest_invoice as Stripe.Invoice | null
           const paymentIntent =
-            invoice.payment_intent as Stripe.PaymentIntent | null
+            (invoice?.payment_intent as Stripe.PaymentIntent | null) ?? null
           const stripePriceId = subData.items?.data?.[0]?.price?.id
 
           const { data: plan, error: planError } = await supabase
@@ -327,14 +342,17 @@ serve(async (req) => {
           }
 
           const orgId = session.metadata?.orgId || session.metadata?.org_id
-          const subId = session.metadata?.subId || session.metadata?.sub_id
 
-          if (!orgId || !subId) {
+          if (!orgId) {
             throw new Error(
-              `Missing metadata in checkout session (orgId: ${orgId}, subId: ${subId})`
+              `Missing metadata in checkout session (orgId: ${orgId})`
             )
           }
 
+          // Matched by org_id rather than a subscription row id: create-checkout never
+          // has one to send (the row is created once by handle_new_user_signup, on the
+          // Free plan, and only ever updated afterwards — never re-inserted), and
+          // subscriptions_org_id_active_key guarantees at most one active row per org.
           const { data: updatedSubs, error: updateError } = await supabase
             .from('subscriptions')
             .update({
@@ -343,7 +361,6 @@ serve(async (req) => {
               stripe_payment_intent: paymentIntentId,
               payment_method_type: paymentMethodType,
               payment_method_details: paymentMethodDetails,
-              org_id: orgId,
               ...(mapSubscriptionStatus(subData.status)
                 ? { status: mapSubscriptionStatus(subData.status) as string }
                 : {}),
@@ -352,17 +369,17 @@ serve(async (req) => {
                 ? new Date(subData.current_period_end * 1000).toISOString()
                 : null,
             })
-            .eq('id', subId)
+            .eq('org_id', orgId)
             .select()
 
           if (updateError) {
             throw new Error(
-              `Failed to update subscription ${subId}: ${updateError.message}`
+              `Failed to update subscription for org ${orgId}: ${updateError.message}`
             )
           }
 
           if (!updatedSubs || updatedSubs.length === 0) {
-            throw new Error(`Subscription row not found for id: ${subId}`)
+            throw new Error(`Subscription row not found for org: ${orgId}`)
           }
 
           console.log('Subscription updated successfully:', updatedSubs[0])
@@ -413,6 +430,31 @@ serve(async (req) => {
           )
         }
         break
+      }
+    }
+
+    // Invitations last, so the billing writes above are already committed. Still throws
+    // on failure, which releases the event claim and lets Stripe retry — and every write
+    // above is idempotent (same row, same values), so a retry re-applies them safely.
+    if (pendingInviteJob) {
+      try {
+        const parsedInvites = JSON.parse(pendingInviteJob.raw)
+        if (Array.isArray(parsedInvites) && parsedInvites.length > 0) {
+          await redeemPendingInvites(
+            supabase,
+            pendingInviteJob.orgId,
+            pendingInviteJob.userId,
+            parsedInvites
+          )
+          console.log(
+            `Successfully processed ${parsedInvites.length} pending invitations for org ${pendingInviteJob.orgId}`
+          )
+        }
+      } catch (invErr) {
+        const invErrMessage =
+          invErr instanceof Error ? invErr.message : String(invErr)
+        console.error('Error processing pending_invitations:', invErrMessage)
+        throw invErr
       }
     }
 

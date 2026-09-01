@@ -28,6 +28,12 @@ ALTER TABLE public.deliveries ADD COLUMN created_at timestamp with time zone DEF
 CREATE INDEX deliveries_org_status_due_idx ON public.deliveries (org_id, status, due_date);
 ALTER TABLE public.plans ADD COLUMN seats smallint;
 ALTER TABLE public.plans ADD CONSTRAINT plans_seats_check CHECK (seats IS NULL OR seats > 0);
+-- Backfilled here rather than at INSERT time in 20260729102721_seed_plans.sql, which
+-- runs before this column exists. Free has no seat cap (null); Starter/Studio/Agency
+-- match the design's seats line, per plan name regardless of billing period.
+UPDATE public.plans SET seats = 5  WHERE name = 'Starter' AND duration_months IN (1, 12);
+UPDATE public.plans SET seats = 10 WHERE name = 'Studio'  AND duration_months IN (1, 12);
+UPDATE public.plans SET seats = 15 WHERE name = 'Agency'  AND duration_months IN (1, 12);
 ALTER TABLE public.project_allocations ADD COLUMN effective_to date;
 ALTER TABLE public.project_allocations ADD CONSTRAINT project_allocations_check CHECK (effective_to IS NULL OR effective_to >= effective_from);
 ALTER TABLE public.projects ADD COLUMN client_org_id uuid;
