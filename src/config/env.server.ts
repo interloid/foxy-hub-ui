@@ -21,9 +21,6 @@ const serverEnvSchema = z.object({
     .enum(['development', 'preview', 'production'])
     .optional()
     .or(z.literal('')),
-  NODE_ENV: z
-    .enum(['development', 'production', 'test'])
-    .default('development'),
 })
 
 export const serverEnv = serverEnvSchema.parse({

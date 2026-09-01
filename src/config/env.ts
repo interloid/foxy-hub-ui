@@ -17,6 +17,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
 
   NEXT_PUBLIC_SENTRY_DSN: z.string().optional().or(z.literal('')),
+  NODE_ENV: z.enum(['development', 'production', 'test']),
 })
 
 export const env = envSchema.parse({
@@ -29,4 +30,6 @@ export const env = envSchema.parse({
 
   NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   NEXT_PUBLIC_APP_DOMAIN: process.env.NEXT_PUBLIC_APP_DOMAIN,
+
+  NODE_ENV: process.env.NODE_ENV,
 })
