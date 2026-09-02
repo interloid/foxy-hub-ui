@@ -126,7 +126,9 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     setSelectedProject(project)
     setSelectedMilestone(null)
 
-    fetch(`/api/dashboard/sheet-data?type=milestones&projectId=${project.id}`)
+    fetch(
+      `/api/dashboard/sheet-data?type=milestones&orgSlug=${orgSlug}&projectId=${project.id}`
+    )
       .then((res) => res.json())
       .then((msList) => setMilestones(msList))
       .catch(console.error)
