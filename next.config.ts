@@ -54,19 +54,59 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
-  // Emit a minimal, self-contained server bundle (.next/standalone) for Docker —
-  // only the traced runtime files + node_modules, not the whole repo. See Dockerfile.
-  output: 'standalone',
   // Pin the build ID when running multiple replicas of the same build (so they all
   // agree and avoid version skew). Reads NEXT_BUILD_ID if set; otherwise returns null,
   // which tells Next.js to use its own per-build default (fine for single-instance).
   generateBuildId: async () => process.env.NEXT_BUILD_ID || null,
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        'localhost:3000',
+        '*.localhost:3000',
+        'foxyhub.localhost:3000',
+        '*.foxyhub.localhost:3000',
+      ],
+    },
+  },
+
   async headers() {
     return [
+      // 1. Existing security headers
       {
         source: '/(.*)',
         headers: securityHeaders,
       },
+      // 2. Local development CORS headers for subdomains (fixed M9 CORS wildcard + credentials violation)
+      ...(isDev
+        ? [
+            {
+              source: '/:path*',
+              headers: [
+                {
+                  key: 'Access-Control-Allow-Origin',
+                  value: 'http://foxyhub.localhost:3000',
+                },
+                {
+                  key: 'Access-Control-Allow-Credentials',
+                  value: 'true',
+                },
+                {
+                  key: 'Access-Control-Allow-Methods',
+                  value: 'GET, POST, PUT, DELETE, OPTIONS',
+                },
+                {
+                  key: 'Access-Control-Allow-Headers',
+                  value:
+                    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, rsc, next-router-state-tree, next-router-prefetch',
+                },
+                {
+                  key: 'Vary',
+                  value: 'Origin',
+                },
+              ],
+            },
+          ]
+        : []),
     ]
   },
 }

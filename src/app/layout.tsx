@@ -1,8 +1,12 @@
-import { ThemeProvider } from '@/components/theme-provider'
+import { TabSessionSync } from '@/components/common/tab-session-sync'
+import { Toaster } from '@/components/shared/toaster'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { siteConfig } from '@/config/site'
-import type { Metadata } from 'next'
+import { ThemeProvider } from '@/context/theme-provider'
+import { themeInitScript } from '@/lib/theme'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Toaster } from 'sonner'
+import { ReactNode } from 'react'
 import './globals.css'
 
 const geistSans = Geist({
@@ -14,6 +18,11 @@ const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 })
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
@@ -45,26 +54,41 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
-      <body className="antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster position="top-right" richColors closeButton />
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: themeInitScript,
+          }}
+        />
+
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: siteConfig.name,
+              description: siteConfig.description,
+              url: siteConfig.url,
+            }),
+          }}
+        />
+      </head>
+
+      <body className="bg-background text-foreground antialiased">
+        <ThemeProvider>
+          <TooltipProvider>
+            <TabSessionSync />
+            {children}
+            <Toaster position="bottom-right" richColors closeButton />
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>

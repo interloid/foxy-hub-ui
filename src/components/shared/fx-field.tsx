@@ -1,0 +1,76 @@
+'use client'
+
+import { cva, type VariantProps } from 'class-variance-authority'
+import type { ComponentProps } from 'react'
+
+import { Field, FieldError } from '@/components/ui/field'
+import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
+import { Input } from '@base-ui/react'
+
+const fxInputVariants = cva(
+  'w-full min-w-0 border border-border bg-muted text-foreground transition-colors duration-(--duration-fast) outline-none placeholder:text-subtle-foreground focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive',
+  {
+    variants: {
+      inputSize: {
+        default: 'rounded-lg px-[13px] py-[11px] text-md',
+        sm: 'rounded-md px-2.5 py-2 text-base',
+      },
+    },
+    defaultVariants: {
+      inputSize: 'default',
+    },
+  }
+)
+
+function FxInput({
+  className,
+  inputSize,
+  type,
+  ...props
+}: ComponentProps<'input'> & VariantProps<typeof fxInputVariants>) {
+  return (
+    <Input
+      type={type}
+      data-slot="fx-input"
+      data-size={inputSize ?? 'default'}
+      className={cn(fxInputVariants({ inputSize }), className)}
+      {...props}
+    />
+  )
+}
+
+function FxLabel({ className, ...props }: ComponentProps<typeof Label>) {
+  return (
+    <Label
+      data-slot="fx-label"
+      className={cn('text-muted-foreground font-semibold', className)}
+      {...props}
+    />
+  )
+}
+
+function FxField({ className, ...props }: ComponentProps<typeof Field>) {
+  return (
+    <Field
+      data-slot="fx-field"
+      className={cn('relative gap-1.5 pb-5', className)}
+      {...props}
+    />
+  )
+}
+
+function FxFieldError({
+  className,
+  ...props
+}: ComponentProps<typeof FieldError>) {
+  return (
+    <FieldError
+      data-slot="fx-field-error"
+      className={cn('absolute bottom-0 left-0 text-xs', className)}
+      {...props}
+    />
+  )
+}
+
+export { FxField, FxFieldError, FxInput, fxInputVariants, FxLabel }
