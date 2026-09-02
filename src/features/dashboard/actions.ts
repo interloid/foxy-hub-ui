@@ -14,11 +14,6 @@ import { createProjectSchema } from './schema'
 function firstIssue(error: z.ZodError): string {
   return error.issues[0]?.message ?? 'Invalid input parameters'
 }
-
-// ==========================================
-// ZOD SCHEMAS (Request Payloads Only)
-// ==========================================
-
 const createTimeEntrySchema = z.object({
   orgSlug: z.string().min(1, 'Organization slug is required'),
   projectId: z.uuid('Invalid project ID'),
@@ -27,10 +22,6 @@ const createTimeEntrySchema = z.object({
   durationStr: z.string().min(1, 'Duration string is required'),
   description: z.string().max(500, 'Description too long'),
 })
-
-// ==========================================
-// EXPORTED TYPES
-// ==========================================
 
 export interface ClientOption {
   id: string
@@ -68,10 +59,6 @@ export interface MilestoneOption {
 type ProjectInsert = Database['public']['Tables']['projects']['Insert']
 type AllocationInsert =
   Database['public']['Tables']['project_allocations']['Insert']
-
-// ==========================================
-// SERVER ACTIONS & READ QUERIES
-// ==========================================
 
 export async function getUserName(): Promise<ActionResult<{ name: string }>> {
   const supabase = await createClient()
@@ -641,10 +628,6 @@ export async function getTeamMembersForOrg(
     }
   })
 }
-
-// ==========================================
-// EXPORT ALIASES
-// ==========================================
 
 export const getProjects = getProjectsForOrg
 export const getMilestones = getMilestonesForProject

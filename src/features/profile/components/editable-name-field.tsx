@@ -62,7 +62,6 @@ export function EditableNameField({
     setEditing(false)
   }
 
-  // ✅ Wrap the submission logic inside startTransition so pending updates correctly
   const handleSave = () => {
     startTransition(async () => {
       await form.handleSubmit(async (values) => {
