@@ -38,7 +38,9 @@ export function DashboardOverview({ data }: DashboardOverviewProps) {
             capacities={data.capacities}
             overCount={data.capacityOverCount}
           />
-          <StudioPlanCard planInfo={data.planInfo} isAdmin={isAdmin} />
+          {isAdmin && (
+            <StudioPlanCard planInfo={data.planInfo} isAdmin={isAdmin} />
+          )}
         </div>
       </div>
     </div>

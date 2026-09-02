@@ -17,6 +17,7 @@ type FxCalendarProps = React.ComponentProps<typeof Calendar> & {
 
 function FxCalendar({
   className,
+  classNames,
   variant = 'default',
   ...props
 }: FxCalendarProps) {
@@ -24,6 +25,15 @@ function FxCalendar({
     <Calendar
       data-slot="fx-calendar"
       className={cn(fxCalendarVariants[variant], className)}
+      classNames={{
+        ...classNames,
+        day_button: cn(
+          'cursor-pointer hover:text-foreground',
+          classNames?.day_button
+        ),
+        button_previous: cn('cursor-pointer', classNames?.button_previous),
+        button_next: cn('cursor-pointer', classNames?.button_next),
+      }}
       {...props}
     />
   )
