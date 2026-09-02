@@ -9,14 +9,12 @@ import { headers } from 'next/headers'
 
 import { rateLimit } from '@/lib/rate-limit'
 import { SupabaseClient } from '@supabase/supabase-js'
-import z from 'zod'
 import { ONBOARD_TAKEN } from './data'
 import {
   createWorkspaceSchema,
   emailSchema,
   firstIssue,
   slugSchema,
-  teamInviteSchema,
 } from './schemas'
 import { CheckoutServiceError, createCheckoutSession } from './services/billing'
 import { findOwnedOrgId, sendInvitations } from './services/invitations'
@@ -28,7 +26,6 @@ import {
 import type { ActionResult, InviteOutcome, TeamInvite } from './types'
 
 const siteUrl = () => siteConfig.url
-const MAX_SIGNUP_INVITES = 5
 
 export async function checkSlugAvailable(
   slug: string
@@ -235,45 +232,4 @@ export async function startPlanCheckout(
       (err.message.startsWith('No active') ? err.message : null)
     return { ok: false, error: message || 'Could not start checkout.' }
   }
-}
-
-export async function redeemPendingInvites(): Promise<
-  ActionResult<InviteOutcome>
-> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { ok: false, error: 'Not signed in.' }
-
-  const parsed = z
-    .array(teamInviteSchema)
-    .max(MAX_SIGNUP_INVITES)
-    .safeParse(user.user_metadata?.team_invites)
-
-  if (!parsed.success || parsed.data.length === 0) {
-    return { ok: true, data: { created: 0, emailed: 0, failed: [] } }
-  }
-
-  const orgId = await findOwnedOrgId(supabase)
-  if (!orgId)
-    return { ok: false, error: 'No workspace found for this account.' }
-
-  const result = await inviteTeam(orgId, parsed.data)
-
-  if (result.ok) {
-    const failedEmails = new Set(result.data.failed)
-
-    const remaining = parsed.data.filter((invite) =>
-      failedEmails.has(invite.email.trim().toLowerCase())
-    )
-
-    await supabase.auth.updateUser({
-      data: {
-        team_invites: remaining.length > 0 ? remaining : null,
-      },
-    })
-  }
-
-  return result
 }

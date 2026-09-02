@@ -45,7 +45,6 @@ export async function signInWithPassword(
     .limit(1)
     .maybeSingle()
 
-  console.log(membership)
   const orgSlug = membership?.organizations?.slug
 
   if (membershipError || !orgSlug) {
