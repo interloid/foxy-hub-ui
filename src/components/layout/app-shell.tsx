@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { ReactNode, useState } from 'react'
 import { AppFooter, type FooterProps } from './app-footer'
 import { AppSidebar, type NavSection } from './app-sidebar'
-import { TopBar } from './top-bar'
+import { TopBar, type BreadcrumbNavItem } from './top-bar'
 
 export function AppShell({
   sections,
@@ -29,7 +29,7 @@ export function AppShell({
     initials: string
     org?: string
   }
-  breadcrumb?: ReactNode
+  breadcrumb?: BreadcrumbNavItem[]
   footer: FooterProps
   notificationCount?: number
   onSearch?: () => void
@@ -41,7 +41,8 @@ export function AppShell({
 
   const currentActiveHref = activeHref ?? pathname
 
-  const currentBreadcrumb = breadcrumb ?? getBreadcrumbFromPath(pathname)
+  const currentBreadcrumbs =
+    breadcrumb ?? generateBreadcrumbs(pathname, workspace.org)
 
   return (
     <div
@@ -87,7 +88,7 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar
-          breadcrumb={currentBreadcrumb}
+          breadcrumbs={currentBreadcrumbs}
           account={{ ...account, org: account.org ?? workspace.org }}
           notificationCount={notificationCount}
           onMenuClick={() => setMobileOpen(true)}
@@ -104,8 +105,49 @@ export function AppShell({
   )
 }
 
-function getBreadcrumbFromPath(pathname: string): ReactNode {
-  if (pathname.endsWith('/profile/password')) return 'Change password'
-  if (pathname.endsWith('/profile')) return 'Profile'
-  return 'Home'
+function generateBreadcrumbs(
+  pathname: string,
+  orgSlug: string
+): BreadcrumbNavItem[] {
+  const segments = pathname.split('/').filter(Boolean)
+  const projectsIndex = segments.indexOf('projects')
+
+  // Handle Projects & Project Detail Routes
+  if (projectsIndex !== -1) {
+    const isDetailPage = segments.length > projectsIndex + 1
+    const projectId = segments[projectsIndex + 1]
+
+    if (isDetailPage && projectId) {
+      return [
+        {
+          label: 'Projects',
+          href: `/${orgSlug}/projects`,
+        },
+        {
+          // Fallback label for dynamic ID parameter
+          label: 'Project Details',
+        },
+      ]
+    }
+
+    return [
+      {
+        label: 'Projects',
+      },
+    ]
+  }
+
+  // Handle Profile & Password Routes
+  if (pathname.endsWith('/profile/password')) {
+    return [
+      { label: 'Profile', href: `/${orgSlug}/profile` },
+      { label: 'Change password' },
+    ]
+  }
+
+  if (pathname.endsWith('/profile')) {
+    return [{ label: 'Profile' }]
+  }
+
+  return [{ label: 'Home', href: `/${orgSlug}` }]
 }

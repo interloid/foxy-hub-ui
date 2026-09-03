@@ -1,21 +1,33 @@
 'use client'
 
 import { ThemeToggle } from '@/components/shared/theme-toggle'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 import { cn } from '@/lib/utils'
-import { ReactNode } from 'react'
+import { Fragment } from 'react/jsx-runtime'
 import { FxTooltipContent, FxTooltipTrigger } from '../shared/fx-tooltip'
 import { Tooltip, TooltipProvider } from '../ui/tooltip'
 import { AccountMenu } from './account-menu'
 import { NAV_ICONS } from './nav-icons'
 
+export interface BreadcrumbNavItem {
+  label: string
+  href?: string
+}
 export function TopBar({
-  breadcrumb,
+  breadcrumbs = [],
   account,
   notificationCount = 0,
   onMenuClick,
   className,
 }: {
-  breadcrumb: ReactNode
+  breadcrumbs: BreadcrumbNavItem[]
   account: { name: string; email: string; initials: string; org?: string }
   notificationCount?: number
   onMenuClick?: () => void
@@ -39,9 +51,28 @@ export function TopBar({
         <NAV_ICONS.menu size={18} strokeWidth={1.8} />
       </button>
 
-      <div className="text-muted-foreground flex min-w-0 items-center gap-1.75 text-base">
-        {breadcrumb}
-      </div>
+      <Breadcrumb className="min-w-0">
+        <BreadcrumbList>
+          {breadcrumbs.map((item, index) => {
+            const isLast = index === breadcrumbs.length - 1
+
+            return (
+              <Fragment key={item.label + index}>
+                <BreadcrumbItem>
+                  {isLast || !item.href ? (
+                    <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                  ) : (
+                    <BreadcrumbLink href={item.href}>
+                      {item.label}
+                    </BreadcrumbLink>
+                  )}
+                </BreadcrumbItem>
+                {!isLast && <BreadcrumbSeparator />}
+              </Fragment>
+            )
+          })}
+        </BreadcrumbList>
+      </Breadcrumb>
 
       <div className="flex-1" />
 
