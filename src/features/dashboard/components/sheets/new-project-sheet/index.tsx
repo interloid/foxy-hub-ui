@@ -57,6 +57,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     register,
     watch,
     setValue,
+    reset,
     handleSubmit,
     formState: { errors },
   } = useForm<NewProjectFormValues>({
@@ -231,6 +232,34 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
         return
       }
       toast.success('Project created successfully')
+      reset({
+        projectName: '',
+        selectedStartFrom: 'Blank project',
+        targetDate: undefined,
+        selectedEngagement: 'full_time',
+        budget: '',
+        fixedPrice: '',
+        retainerBucketHours: '',
+        retainerBillingPeriod: 'Monthly',
+        retainerAmount: '',
+        retainerOverageRate: '',
+        brief: '',
+        overrideReason: '',
+        allocations:
+          teamMembers.length > 0
+            ? [
+                {
+                  userId: teamMembers[0].id,
+                  memberName: teamMembers[0].name,
+                  preset: '8h',
+                  hoursPerDay: 8,
+                  daysPerWk: 5,
+                  rate: 120,
+                  effectiveFrom: todayStr,
+                },
+              ]
+            : [],
+      })
       onOpenChange(false)
     })
   }
