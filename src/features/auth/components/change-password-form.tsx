@@ -11,15 +11,14 @@ import {
   FxInput,
   FxLabel,
 } from '@/components/shared/fx'
+import { encodePassword } from '@/lib/password-encoding'
 import { zodResolver } from '@hookform/resolvers/zod'
-import Link from 'next/link'
 import { useState, useTransition } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { toast } from 'sonner'
 import { changePassword } from '../actions'
 import { CHANGE_PASSWORD } from '../data'
 import { changePasswordSchema, type ChangePasswordInput } from '../schemas'
-import { encodePassword } from '@/lib/password-encoding'
 
 type Org = {
   org: string
@@ -36,9 +35,28 @@ export function ChangePasswordForm({ org }: Org) {
 
   const form = useForm<ChangePasswordInput>({
     resolver: zodResolver(changePasswordSchema),
-    mode: 'onTouched',
+    mode: 'onChange',
     defaultValues: { current: '', password: '', confirm: '' },
   })
+
+  const { errors, isValid } = form.formState
+
+  const [currentVal, passwordVal, confirmVal] = useWatch({
+    control: form.control,
+    name: ['current', 'password', 'confirm'],
+  })
+
+  const isFormFilled =
+    Boolean(currentVal?.trim()) &&
+    Boolean(passwordVal?.trim()) &&
+    Boolean(confirmVal?.trim())
+
+  const isSubmitDisabled = !isValid || !isFormFilled || pending
+
+  const handleClear = () => {
+    form.reset({ current: '', password: '', confirm: '' })
+    setError(null)
+  }
 
   const submit = form.handleSubmit((values) => {
     setError(null)
@@ -58,8 +76,6 @@ export function ChangePasswordForm({ org }: Org) {
       form.reset({ current: '', password: '', confirm: '' })
     })
   })
-
-  const { errors } = form.formState
 
   const fields = [
     {
@@ -81,7 +97,6 @@ export function ChangePasswordForm({ org }: Org) {
       autoComplete: 'new-password',
     },
   ] as const
-  const backNav = CHANGE_PASSWORD.back.href(org)
 
   return (
     <FxCard>
@@ -142,12 +157,12 @@ export function ChangePasswordForm({ org }: Org) {
           <div className="mt-1 flex justify-end gap-2">
             <FxButton
               type="button"
-              asChild
+              onClick={handleClear}
               className="border-border bg-muted text-foreground hover:border-border-strong hover:bg-muted"
             >
-              <Link href={backNav}>{CHANGE_PASSWORD.cancel}</Link>
+              {CHANGE_PASSWORD.cancel}
             </FxButton>
-            <FxButton type="submit" disabled={pending}>
+            <FxButton type="submit" disabled={isSubmitDisabled}>
               {pending ? 'Saving…' : CHANGE_PASSWORD.submit}
             </FxButton>
           </div>

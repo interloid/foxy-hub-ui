@@ -18,7 +18,11 @@ export const projectAllocationSchema = z.object({
 
 export const createProjectSchema = z
   .object({
-    name: z.string().min(1, 'Project name is required').max(150),
+    name: z
+      .string()
+      .trim()
+      .min(2, 'Project name must be at least 2 characters')
+      .max(100, 'Project name must be 100 characters or less'),
     startFrom: z.string().optional(),
     clientId: z.string().optional().nullable(),
     dueDate: z.string().optional().nullable(),

@@ -24,15 +24,15 @@ export function DashboardOverview({ data }: DashboardOverviewProps) {
       <StatsGrid stats={data.stats} />
 
       {/* Grid ratio: 60% Left / 40% Right */}
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-5">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-20">
         {/* Main Content Column (60%) */}
-        <div className="space-y-6 lg:col-span-3">
+        <div className="space-y-6 lg:col-span-11">
           <PendingApprovals approvals={data.approvals} />
           <ActiveProjects projects={data.projects} />
         </div>
 
         {/* Sidebar Column (40%) */}
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-6 lg:col-span-9">
           <RecentActivity activities={data.activities} />
           <TeamCapacity
             capacities={data.capacities}
