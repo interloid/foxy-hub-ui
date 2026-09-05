@@ -3,8 +3,11 @@ create table public.deliveries (
   project_id  uuid not null    references public.projects(id) on delete cascade,
   org_id      uuid not null    references public.organizations(id) on delete cascade,
   milestone_id uuid references public.milestones(id) on delete cascade,
+  author_id    uuid references public.profiles(id) on delete set null,
   title       text not null,
   description text,
+  file_size    text,
+  file_type    text,
   status      public.delivery_status not null    default 'pending',
   approved_at  timestamptz,
 
@@ -24,6 +27,7 @@ create table public.deliveries (
 
 create index if not exists deliveries_project_id_idx on public.deliveries(project_id);
 create index if not exists deliveries_org_id_idx     on public.deliveries(org_id);
+create index if not exists deliveries_author_id_idx on public.deliveries(author_id);
 
 -- The dashboard counts deliverables awaiting sign-off and how many fall due this week, per org.
 -- Both filters live in this one index.

@@ -134,9 +134,12 @@ export type Database = {
       deliveries: {
         Row: {
           approved_at: string | null
+          author_id: string | null
           created_at: string
           description: string | null
           due_date: string | null
+          file_size: string | null
+          file_type: string | null
           id: string
           milestone_id: string | null
           org_id: string
@@ -146,9 +149,12 @@ export type Database = {
         }
         Insert: {
           approved_at?: string | null
+          author_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
+          file_size?: string | null
+          file_type?: string | null
           id?: string
           milestone_id?: string | null
           org_id: string
@@ -158,9 +164,12 @@ export type Database = {
         }
         Update: {
           approved_at?: string | null
+          author_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
+          file_size?: string | null
+          file_type?: string | null
           id?: string
           milestone_id?: string | null
           org_id?: string
@@ -169,6 +178,13 @@ export type Database = {
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'deliveries_author_id_fkey'
+            columns: ['author_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'deliveries_milestone_id_fkey'
             columns: ['milestone_id']
