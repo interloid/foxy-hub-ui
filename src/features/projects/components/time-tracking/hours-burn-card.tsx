@@ -1,4 +1,5 @@
 import { FxProgress } from '@/components/shared/fx-progress'
+import { AlertCircle } from 'lucide-react'
 import type { ProjectAllocationItem } from '../../types'
 
 interface HoursBurnCardProps {
@@ -6,6 +7,7 @@ interface HoursBurnCardProps {
   projectEndDate?: string | Date | null
   /** Actual hours logged in the current month (defaults to 0 if not yet fetched) */
   loggedHours?: number
+  isError?: boolean
 }
 
 /**
@@ -75,6 +77,7 @@ export function HoursBurnCard({
   allocations = [],
   projectEndDate,
   loggedHours = 0,
+  isError = false,
 }: HoursBurnCardProps) {
   const safeAllocations = allocations ?? []
 
@@ -108,31 +111,42 @@ export function HoursBurnCard({
         >
           Hours burn
         </h3>
-        <span className="text-primary font-bold">{percentage}%</span>
+        {!isError && (
+          <span className="text-primary font-bold">{percentage}%</span>
+        )}
       </div>
 
-      {/* Main Metric Display */}
-      <div className="mt-2 flex items-baseline gap-1.5">
-        <span className="text-foreground text-3xl font-extrabold tracking-tight">
-          {formatHours(loggedHours)}h
-        </span>
-        <span className="text-subtle-foreground text-sm font-normal">
-          of {formatHours(totalAllocatedHours)}h
-        </span>
-      </div>
+      {isError ? (
+        <div className="text-destructive flex items-center gap-2 py-4 text-xs font-medium">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>Failed to load hours burn data.</span>
+        </div>
+      ) : (
+        <>
+          {/* Main Metric Display */}
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className="text-foreground text-3xl font-extrabold tracking-tight">
+              {formatHours(loggedHours)}h
+            </span>
+            <span className="text-subtle-foreground text-sm font-normal">
+              of {formatHours(totalAllocatedHours)}h
+            </span>
+          </div>
 
-      {/* Progress Bar Track */}
-      <FxProgress
-        value={percentage}
-        variant="default"
-        size="lg"
-        className="mt-3.5"
-      />
+          {/* Progress Bar Track */}
+          <FxProgress
+            value={percentage}
+            variant="default"
+            size="lg"
+            className="mt-3.5"
+          />
 
-      {/* Footer / Remaining Hours */}
-      <p className="text-subtle-foreground mt-3 text-xs font-normal">
-        {formatHours(remainingHours)}h remaining this month
-      </p>
+          {/* Footer / Remaining Hours */}
+          <p className="text-subtle-foreground mt-3 text-xs font-normal">
+            {formatHours(remainingHours)}h remaining this month
+          </p>
+        </>
+      )}
     </section>
   )
 }

@@ -1,12 +1,12 @@
 'use client'
 
 import { Sparkles } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
-
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
-import { toast } from 'sonner'
 
 import { createInvoiceAction } from '../../actions'
 import { PROJECT_STATUS_CONFIG } from '../../constants'
@@ -15,16 +15,17 @@ import {
   NewInvoiceSheet,
   ProjectInvoiceContext,
 } from '../meta/new-invoice-sheet'
-import { useState } from 'react'
 
 interface ProjectDetailHeaderProps {
   project: Project
   invoiceProjects?: ProjectInvoiceContext[]
+  isInvoiceError?: boolean
 }
 
 export function ProjectDetailHeader({
   project,
   invoiceProjects = [],
+  isInvoiceError = false,
 }: ProjectDetailHeaderProps) {
   const [isInvoiceSheetOpen, setIsInvoiceSheetOpen] = useState(false)
   const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false)
@@ -67,6 +68,16 @@ export function ProjectDetailHeader({
 
     toast.success('Invoice generated')
     setIsInvoiceSheetOpen(false)
+  }
+
+  const handleOpenInvoiceSheet = () => {
+    if (isInvoiceError) {
+      toast.error(
+        'Unable to load invoicing data. Please refresh and try again.'
+      )
+      return
+    }
+    setIsInvoiceSheetOpen(true)
   }
 
   return (
@@ -139,7 +150,7 @@ export function ProjectDetailHeader({
 
           <FxButton
             variant="default"
-            onClick={() => setIsInvoiceSheetOpen(true)}
+            onClick={handleOpenInvoiceSheet}
             className="bg-primary text-primary-foreground hover:bg-primary/90 h-auto justify-center px-3 py-2 text-center text-[13px] font-semibold whitespace-normal sm:h-9 sm:whitespace-nowrap"
           >
             <span className="leading-tight">New Invoice</span>
@@ -147,7 +158,6 @@ export function ProjectDetailHeader({
         </nav>
       </header>
 
-      {/* Invoice Side Sheet */}
       <NewInvoiceSheet
         open={isInvoiceSheetOpen}
         onOpenChange={setIsInvoiceSheetOpen}

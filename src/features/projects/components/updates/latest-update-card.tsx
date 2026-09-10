@@ -1,6 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
+import { AlertCircle } from 'lucide-react'
 import { useRealtimeUpdates } from '../../hooks/use-realtime-updates'
 import type { ProjectUpdate } from '../../types'
 
@@ -8,11 +9,13 @@ interface LatestUpdatesCardProps {
   updates: ProjectUpdate[]
   projectId: string
   isPostingUpdate?: boolean
+  isError?: boolean
 }
 
 export function LatestUpdatesCard({
   updates: initialUpdates,
   projectId,
+  isError = false,
 }: LatestUpdatesCardProps) {
   // Hook handles realtime updates and limits display to top 5
   const updates = useRealtimeUpdates(initialUpdates, projectId, 5)
@@ -31,7 +34,14 @@ export function LatestUpdatesCard({
         </h2>
       </header>
 
-      {updates.length === 0 ? (
+      {isError ? (
+        <div className="text-destructive flex items-center justify-center gap-2 p-6 text-center text-xs font-medium">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>
+            Failed to load latest updates. Please refresh to try again.
+          </span>
+        </div>
+      ) : updates.length === 0 ? (
         <div className="text-muted-foreground p-6 text-center text-xs">
           No updates posted yet.
         </div>

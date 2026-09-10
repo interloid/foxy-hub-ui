@@ -1,15 +1,10 @@
-'use client'
-
 import {
   FxTabsListUnderline,
   FxTabsTriggerUnderline,
 } from '@/components/shared/fx-tabs'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
-import { useBreadcrumb } from '@/context/breadcrump'
 import { ProjectDetailHeader } from '@/features/projects/components/common/project-detail-header'
 import { LatestUpdatesCard } from '@/features/projects/components/updates/latest-update-card'
-import { initialsOf } from '@/lib/initials'
-import { useEffect, useState } from 'react'
 import type {
   ClientItem,
   CurrentUser,
@@ -33,22 +28,27 @@ import {
   TimeEntriesTableCard,
   TimeEntryItem,
 } from '../time-tracking/time-entries-card'
-import { UpdatesInput } from '../updates/update-input'
-import { postUpdateAction } from '../../actions'
+import { ProjectUpdatesSection } from '../updates/project-updates-section'
+import { ProjectBreadcrumbSetter } from './project-breadcrump-setter'
+
+type QueryResult<T> = {
+  data: T
+  isError: boolean
+}
 
 interface ProjectDetailViewProps {
   project: Project
-  invoiceProjects: ProjectInvoiceContext[]
-  updates: ProjectUpdate[]
-  deliverables: DeliverableItem[]
-  milestones: MilestoneItem[]
-  allocations: ProjectAllocationItem[]
-  loggedHours: number
-  client: ClientItem | null
-  user: CurrentUser | null
-  hoursSummary: HoursSummaryData
-  timeEntries: TimeEntryItem[]
-  deliveries: ProjectDelivery[]
+  invoiceProjects: QueryResult<ProjectInvoiceContext[]>
+  updates: QueryResult<ProjectUpdate[]>
+  deliverables: QueryResult<DeliverableItem[]>
+  milestones: QueryResult<MilestoneItem[]>
+  allocations: QueryResult<ProjectAllocationItem[]>
+  loggedHours: QueryResult<number>
+  client: QueryResult<ClientItem | null>
+  user: QueryResult<CurrentUser | null>
+  hoursSummary: QueryResult<HoursSummaryData>
+  timeEntries: QueryResult<TimeEntryItem[]>
+  deliveries: QueryResult<ProjectDelivery[]>
   canManageAllocations?: boolean
 }
 
@@ -66,32 +66,14 @@ export function ProjectDetailView({
   deliveries,
   canManageAllocations = false,
 }: ProjectDetailViewProps) {
-  const [isPostingUpdate, setIsPostingUpdate] = useState(false)
-  const { setProjectName } = useBreadcrumb()
-
-  useEffect(() => {
-    if (project?.name) {
-      setProjectName(project.name)
-    }
-  }, [project?.name, setProjectName])
-
-  const handlePostUpdate = async (body: string) => {
-    if (!user || !user.id || !project.id) return
-
-    try {
-      setIsPostingUpdate(true)
-      await postUpdateAction(project.id, user.id, body)
-    } catch (error) {
-      console.error('Failed to post project update:', error)
-    } finally {
-      setIsPostingUpdate(false)
-    }
-  }
   return (
     <main className="ds:p-6 min-w-full space-y-6">
+      <ProjectBreadcrumbSetter name={project?.name} />
+
       <ProjectDetailHeader
         project={project}
-        invoiceProjects={invoiceProjects}
+        invoiceProjects={invoiceProjects.data}
+        isInvoiceError={invoiceProjects.isError}
       />
 
       <Tabs defaultValue="overview" className="w-full space-y-6">
@@ -130,23 +112,29 @@ export function ProjectDetailView({
             {/* Left Column (Main content) */}
             <div className="space-y-6">
               <LatestUpdatesCard
-                updates={updates}
+                updates={updates.data}
+                isError={updates.isError}
                 projectId={project.id}
                 isPostingUpdate={false}
               />
               <DeliverablesSection
-                deliveries={deliveries}
+                deliveries={deliveries.data}
+                isError={deliveries.isError}
                 projectId={project.id}
-                milestones={milestones}
+                milestones={milestones.data}
                 isOverview={true}
               />
             </div>
 
             {/* Right Column (Sidebar widgets) */}
             <div className="space-y-6">
-              <ProgressCard milestones={milestones} />
+              <ProgressCard
+                milestones={milestones.data}
+                isError={milestones.isError}
+              />
               <EngagementCard
-                allocations={allocations}
+                allocations={allocations.data}
+                isError={allocations.isError}
                 engagementModel={project.engagement}
                 projectId={project.id}
                 canManage={canManageAllocations}
@@ -157,52 +145,56 @@ export function ProjectDetailView({
                 fixedPriceFee={project.contractValue}
               />
               <HoursBurnCard
-                allocations={allocations}
+                allocations={allocations.data}
+                isError={allocations.isError || loggedHours.isError}
                 projectEndDate={project.dueDate}
-                loggedHours={loggedHours}
+                loggedHours={loggedHours.data}
               />
-              <MilestonesListCard milestones={milestones} />
-              <ClientCard client={client} />
+              <MilestonesListCard
+                milestones={milestones.data}
+                isError={milestones.isError}
+              />
+              <ClientCard client={client.data} isError={client.isError} />
             </div>
           </div>
         </TabsContent>
 
-        {/* Other Tab Placeholders */}
+        {/* Other Tab Content */}
         <TabsContent value="milestones" className="2xl:mx-62.5">
           <MilestonesListCard
-            milestones={milestones}
+            milestones={milestones.data}
+            isError={milestones.isError}
             isInOverview={false}
             projectId={project.id}
           />
         </TabsContent>
 
         <TabsContent value="hours" className="grid gap-5 2xl:mx-62.5">
-          <HoursSummaryCards summary={hoursSummary} />
-          <TimeEntriesTableCard entries={timeEntries} />
+          <HoursSummaryCards
+            summary={hoursSummary.data}
+            isError={hoursSummary.isError}
+          />
+          <TimeEntriesTableCard
+            entries={timeEntries.data}
+            isError={timeEntries.isError}
+          />
         </TabsContent>
 
-        <TabsContent value="updates" className="grid gap-5 2xl:mx-62.5">
-          <UpdatesInput
-            userInitials={initialsOf(
-              user?.full_name ?? null,
-              user?.email ?? null
-            )}
-            userAvatarUrl={user?.avatar_url}
-            onSubmit={handlePostUpdate}
-            isSubmitting={isPostingUpdate}
-          />
-          <LatestUpdatesCard
-            updates={updates}
+        <TabsContent value="updates" className="2xl:mx-62.5">
+          <ProjectUpdatesSection
             projectId={project.id}
-            isPostingUpdate={true}
+            updates={updates.data}
+            isError={updates.isError}
+            user={user.data}
           />
         </TabsContent>
 
         <TabsContent value="deliveries" className="2xl:mx-62.5">
           <DeliverablesSection
-            deliveries={deliveries}
+            deliveries={deliveries.data}
+            isError={deliveries.isError}
             projectId={project.id}
-            milestones={milestones}
+            milestones={milestones.data}
           />
         </TabsContent>
       </Tabs>

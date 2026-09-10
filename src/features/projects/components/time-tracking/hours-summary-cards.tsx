@@ -1,11 +1,13 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { AlertCircle } from 'lucide-react'
 import { HoursSummaryData } from '../../types'
 
 interface HoursSummaryCardsProps {
-  summary: HoursSummaryData
+  summary?: HoursSummaryData | null
   className?: string
+  isError?: boolean
 }
 
 function formatHours(minutes: number = 0): string {
@@ -18,29 +20,50 @@ function formatHours(minutes: number = 0): string {
 }
 
 export function HoursSummaryCards({
-  summary,
+  summary = { loggedMinutes: 0, approvedMinutes: 0, pendingMinutes: 0 },
   className,
+  isError = false,
 }: HoursSummaryCardsProps) {
+  const safeSummary = summary ?? {
+    loggedMinutes: 0,
+    approvedMinutes: 0,
+    pendingMinutes: 0,
+  }
+
   const cards = [
     {
       id: 'logged',
       label: 'Logged',
-      value: formatHours(summary.loggedMinutes),
+      value: formatHours(safeSummary.loggedMinutes),
       valueColorClass: 'text-foreground',
     },
     {
       id: 'approved',
       label: 'Approved',
-      value: formatHours(summary.approvedMinutes),
-      valueColorClass: 'text-success', // or 'text-success'
+      value: formatHours(safeSummary.approvedMinutes),
+      valueColorClass: 'text-success',
     },
     {
       id: 'pending',
       label: 'Pending review',
-      value: formatHours(summary.pendingMinutes),
-      valueColorClass: 'text-warning', // or 'text-warning'
+      value: formatHours(safeSummary.pendingMinutes),
+      valueColorClass: 'text-warning',
     },
   ]
+
+  if (isError) {
+    return (
+      <div
+        className={cn(
+          'bg-card border-border text-destructive flex items-center gap-2 rounded-2xl border p-5 text-xs font-medium shadow-xs',
+          className
+        )}
+      >
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        <span>Failed to load monthly hours summary.</span>
+      </div>
+    )
+  }
 
   return (
     <section

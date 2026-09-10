@@ -142,8 +142,8 @@ export function NewInvoiceSheet({
         {/* Header */}
         <FxSheetHeader className="flex flex-row items-start justify-between">
           <div className="space-y-1">
-            <FxSheetTitle>New invoice</FxSheetTitle>
-            <FxSheetDescription>
+            <FxSheetTitle className="text-[16px]">New invoice</FxSheetTitle>
+            <FxSheetDescription className="text-[12px]">
               Generated from approved, unbilled hours.
             </FxSheetDescription>
           </div>
@@ -159,7 +159,7 @@ export function NewInvoiceSheet({
             <div className="space-y-2">
               <Label
                 htmlFor="project-select"
-                className="text-foreground text-xs font-semibold"
+                className="text-muted-foreground text-[12.5px] font-semibold"
               >
                 Project
               </Label>
@@ -232,7 +232,7 @@ export function NewInvoiceSheet({
 
             {/* Invoice Lines Table */}
             <div className="space-y-3">
-              <Label className="text-foreground text-xs font-semibold">
+              <Label className="text-subtle-foreground text-[12px] font-semibold">
                 Invoice lines — from approved hours
               </Label>
 
@@ -250,7 +250,7 @@ export function NewInvoiceSheet({
                   currentProject.lines.map((line) => (
                     <div
                       key={line.id}
-                      className="border-border/50 grid grid-cols-12 items-center border-t px-4 py-3.5 text-xs"
+                      className="border-border/50 grid grid-cols-12 items-center border-t px-4 py-3.5 text-[12px]"
                     >
                       <div className="col-span-6 space-y-0.5">
                         <div className="text-foreground font-bold">
@@ -266,7 +266,7 @@ export function NewInvoiceSheet({
                       <div className="text-muted-foreground col-span-2 text-right">
                         {line.rate}
                       </div>
-                      <div className="text-foreground col-span-2 text-right font-bold">
+                      <div className="text-foreground col-span-2 text-right text-[12.5px] font-bold">
                         {formatCurrency(line.amount)}
                       </div>
                     </div>
@@ -281,8 +281,8 @@ export function NewInvoiceSheet({
             </div>
 
             {/* Total Row */}
-            <div className="border-border/80 flex items-center justify-between border-t pt-3">
-              <span className="text-foreground text-sm font-bold">Total</span>
+            <div className="border-border/80 flex items-center justify-between border-t pt-3 text-[15px]">
+              <span className="text-muted-foreground font-bold">Total</span>
               <span className="text-foreground text-base font-bold">
                 {formatCurrency(totalAmount)}
               </span>
@@ -296,7 +296,7 @@ export function NewInvoiceSheet({
             <div className="space-y-2">
               <Label
                 htmlFor="notes"
-                className="text-foreground text-xs font-semibold"
+                className="text-muted-foreground text-[12px] font-semibold"
               >
                 Notes to client (optional)
               </Label>
@@ -331,7 +331,7 @@ export function NewInvoiceSheet({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="bg-muted h-9 px-4 text-xs font-medium"
+                className="bg-muted h-9 px-4 text-[13px] font-medium"
               >
                 Cancel
               </FxButton>
@@ -341,7 +341,7 @@ export function NewInvoiceSheet({
               form="new-invoice-form"
               size="sm"
               disabled={isSubmitting || !currentProject?.lines.length}
-              className="bg-primary text-brand-white h-9 px-4 text-xs font-semibold"
+              className="bg-primary text-brand-white h-9 px-4 text-[13px] font-semibold"
             >
               <Send className="mr-1.5 h-3.5 w-3.5" />
               Generate invoice

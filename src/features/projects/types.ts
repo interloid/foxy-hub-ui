@@ -162,6 +162,7 @@ export interface CreateDeliveryInput {
   projectId: string
   orgId: string
   title: string
+  orgSlug: string
   description?: string
   milestoneId?: string
   dueDate: string
@@ -187,6 +188,7 @@ export interface CreateMilestoneInput {
   orgId: string
   title: string
   dueDate: string
+  orgSlug: string
   status?: MilestoneStatus
 }
 
@@ -194,6 +196,7 @@ export interface GetProjectsParams {
   orgSlug: string
   page?: number
   pageSize?: number
+  search?: string
 }
 
 export interface GetProjectsResult {

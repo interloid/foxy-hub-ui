@@ -29,6 +29,7 @@ import {
   FxSheetTitle,
   Sheet,
 } from '@/components/shared/fx-sheet'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { createMilestone } from '../../actions'
 import { CreateMilestoneFormValues, createMilestoneSchema } from '../../schema'
 
@@ -70,6 +71,7 @@ export function CreateMilestoneSheet({
     setIsCalendarOpen(false)
     setServerError(null)
   }
+  const { orgSlug } = useWorkspace()
 
   const onSubmit = async (values: CreateMilestoneFormValues) => {
     setServerError(null)
@@ -78,6 +80,7 @@ export function CreateMilestoneSheet({
       await createMilestone({
         projectId,
         orgId,
+        orgSlug,
         title: values.title.trim(),
         dueDate: values.dueDate,
         status: 'pending', // Explicitly setting default status

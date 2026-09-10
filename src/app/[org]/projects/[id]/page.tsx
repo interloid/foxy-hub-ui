@@ -17,6 +17,7 @@ import { getMonthlyLoggedHours } from '@/features/projects/queries/get-time-entr
 import { getProjectUpdates } from '@/features/projects/queries/get-updates'
 import { HoursSummaryData } from '@/features/projects/types'
 import { getWorkspace, isAdminRole } from '@/lib/dal'
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 interface ProjectDetailPageProps {
@@ -24,6 +25,24 @@ interface ProjectDetailPageProps {
     org: string
     id: string
   }>
+}
+
+export async function generateMetadata({
+  params,
+}: ProjectDetailPageProps): Promise<Metadata> {
+  const { org, id } = await params
+  const project = await getProjectById(org, id)
+
+  if (!project) {
+    return {
+      title: 'Project Not Found | Foxy Hub',
+    }
+  }
+
+  return {
+    title: `${project.name} | Foxy Hub`,
+    description: project.description ?? `Project overview for ${project.name}`,
+  }
 }
 
 export default async function ProjectDetailPage({
@@ -44,7 +63,20 @@ export default async function ProjectDetailPage({
   const workspace = await getWorkspace(org)
   const canManageAllocations = workspace ? isAdminRole(workspace.role) : false
 
-  const results = await Promise.allSettled([
+  // 1. Execute queries concurrently
+  const [
+    invoiceProjectsResult,
+    updatesResult,
+    deliverablesResult,
+    milestonesResult,
+    allocationsResult,
+    loggedHoursResult,
+    clientResult,
+    userResult,
+    hoursSummaryResult,
+    timeEntriesResult,
+    deliveriesResult,
+  ] = await Promise.allSettled([
     getProjectsForInvoicing(org),
     getProjectUpdates(id),
     getProjectDeliverables(id),
@@ -58,24 +90,62 @@ export default async function ProjectDetailPage({
     getProjectDeliveries(id),
   ])
 
-  // Extract result values or fallback to empty state defaults
-  const invoiceProjects =
-    results[0].status === 'fulfilled' ? results[0].value : []
-  const updates = results[1].status === 'fulfilled' ? results[1].value : []
-  const deliverables = results[2].status === 'fulfilled' ? results[2].value : []
-  const milestones = results[3].status === 'fulfilled' ? results[3].value : []
-  const allocations = results[4].status === 'fulfilled' ? results[4].value : []
-  const loggedHours =
-    results[5].status === 'fulfilled' && typeof results[5].value === 'number'
-      ? results[5].value
-      : 0
-  const client = results[6].status === 'fulfilled' ? results[6].value : null
-  const user = results[7].status === 'fulfilled' ? results[7].value : null
-  const hoursSummary =
-    (results[8].status === 'fulfilled' ? results[8].value : null) ??
+  // Helper to handle results, log errors to Sentry, and return state
+  function processResult<T>(
+    result: PromiseSettledResult<T>,
+    queryName: string,
+    fallback: T
+  ): { data: T; isError: boolean } {
+    if (result.status === 'fulfilled') {
+      return { data: result.value ?? fallback, isError: false }
+    }
+
+    const error =
+      result.reason instanceof Error
+        ? result.reason
+        : new Error(`Query failed: ${queryName}`)
+
+    console.error(`[ProjectPage Query Error] ${queryName}:`, error)
+
+    return { data: fallback, isError: true }
+  }
+
+  // 2. Safely process each query result
+  const invoiceProjects = processResult(
+    invoiceProjectsResult,
+    'getProjectsForInvoicing',
+    []
+  )
+  const updates = processResult(updatesResult, 'getProjectUpdates', [])
+  const deliverables = processResult(
+    deliverablesResult,
+    'getProjectDeliverables',
+    []
+  )
+  const milestones = processResult(milestonesResult, 'getProjectMilestones', [])
+  const allocations = processResult(
+    allocationsResult,
+    'getProjectAllocations',
+    []
+  )
+  const loggedHours = processResult(
+    loggedHoursResult,
+    'getMonthlyLoggedHours',
+    0
+  )
+  const client = processResult(clientResult, 'getClientByProjectId', null)
+  const user = processResult(userResult, 'getCurrentUser', null)
+  const hoursSummary = processResult(
+    hoursSummaryResult,
+    'getProjectHoursSummary',
     DEFAULT_HOURS_SUMMARY
-  const timeEntries = results[9].status === 'fulfilled' ? results[9].value : []
-  const deliveries = results[10].status === 'fulfilled' ? results[10].value : []
+  )
+  const timeEntries = processResult(
+    timeEntriesResult,
+    'getRecentProjectTimeEntries',
+    []
+  )
+  const deliveries = processResult(deliveriesResult, 'getProjectDeliveries', [])
 
   return (
     <ProjectDetailView

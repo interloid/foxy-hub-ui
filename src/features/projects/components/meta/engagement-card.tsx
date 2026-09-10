@@ -1,4 +1,5 @@
 import { FxBadge } from '@/components/shared/fx-badge'
+import { AlertCircle } from 'lucide-react'
 import Image from 'next/image'
 import type {
   EngagementModel,
@@ -17,6 +18,7 @@ interface EngagementCardProps {
   retainerFee?: number | null
   overageMultiplier?: number | string | null
   fixedPriceFee?: number | null
+  isError?: boolean
 }
 
 function formatMoney(value?: number | null): string {
@@ -45,6 +47,7 @@ export function EngagementCard({
   retainerFee,
   overageMultiplier,
   fixedPriceFee,
+  isError = false,
 }: EngagementCardProps) {
   const safeAllocations = allocations ?? []
 
@@ -67,88 +70,98 @@ export function EngagementCard({
         >
           Engagement
         </h3>
-        <BadgeForModel model={engagementModel} />
+        {!isError && <BadgeForModel model={engagementModel} />}
       </div>
 
       {/* Content Body */}
       <div className="space-y-4 p-5">
-        {/* Model Details Header */}
-        <EngagementDetails
-          model={engagementModel}
-          totalHoursPerDay={totalHoursPerDay}
-          retainerBucketHours={retainerBucketHours}
-          retainerPeriod={retainerPeriod}
-          retainerFee={retainerFee}
-          overageMultiplier={overageMultiplier}
-          fixedPriceFee={fixedPriceFee}
-        />
+        {isError ? (
+          <div className="text-destructive flex items-center gap-2 py-4 text-xs font-medium">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>Failed to load engagement details.</span>
+          </div>
+        ) : (
+          <>
+            {/* Model Details Header */}
+            <EngagementDetails
+              model={engagementModel}
+              totalHoursPerDay={totalHoursPerDay}
+              retainerBucketHours={retainerBucketHours}
+              retainerPeriod={retainerPeriod}
+              retainerFee={retainerFee}
+              overageMultiplier={overageMultiplier}
+              fixedPriceFee={fixedPriceFee}
+            />
 
-        {/* Allocated Section */}
-        <div className="pt-1">
-          <span className="text-subtle-foreground/80 mb-3 block text-[10.5px] font-semibold tracking-wider uppercase">
-            Allocated
-          </span>
+            {/* Allocated Section */}
+            <div className="pt-1">
+              <span className="text-subtle-foreground/80 mb-3 block text-[10.5px] font-semibold tracking-wider uppercase">
+                Allocated
+              </span>
 
-          {safeAllocations.length > 0 ? (
-            <div className="space-y-4">
-              {safeAllocations.map((alloc) => (
-                <div
-                  key={alloc.id}
-                  className="flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3">
-                    {alloc.userAvatarUrl ? (
-                      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full">
-                        <Image
-                          src={alloc.userAvatarUrl}
-                          alt={alloc.userName}
-                          fill
-                          sizes="32px"
-                          className="object-cover"
-                        />
+              {safeAllocations.length > 0 ? (
+                <div className="space-y-4">
+                  {safeAllocations.map((alloc) => (
+                    <div
+                      key={alloc.id}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        {alloc.userAvatarUrl ? (
+                          <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full">
+                            <Image
+                              src={alloc.userAvatarUrl}
+                              alt={alloc.userName}
+                              fill
+                              sizes="32px"
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="bg-primary/10 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold select-none">
+                            {getInitials(alloc.userName)}
+                          </div>
+                        )}
+
+                        <div>
+                          <p className="text-foreground text-[13px] leading-tight font-semibold">
+                            {alloc.userName}
+                          </p>
+                          <p className="text-subtle-foreground text-xs leading-normal">
+                            {alloc.hoursPerDay} h/day x {alloc.daysPerWeek}{' '}
+                            days/wk
+                          </p>
+                        </div>
                       </div>
-                    ) : (
-                      <div className="bg-primary/10 text-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold select-none">
-                        {getInitials(alloc.userName)}
-                      </div>
-                    )}
 
-                    <div>
-                      <p className="text-foreground text-[13px] leading-tight font-semibold">
-                        {alloc.userName}
-                      </p>
-                      <p className="text-subtle-foreground text-xs leading-normal">
-                        {alloc.hoursPerDay} h/day x {alloc.daysPerWeek} days/wk
-                      </p>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {/* Hourly Rate */}
+                        {alloc.rate !== null && alloc.rate !== undefined && (
+                          <span className="text-subtle-foreground text-xs font-bold">
+                            ${alloc.rate}/hr
+                          </span>
+                        )}
+                        {canManage && projectId && (
+                          <EndAllocationControl
+                            allocationId={alloc.id}
+                            projectId={projectId}
+                            userName={alloc.userName}
+                            effectiveFrom={alloc.effectiveFrom}
+                            effectiveTo={alloc.effectiveTo}
+                          />
+                        )}
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="flex shrink-0 items-center gap-2">
-                    {/* Hourly Rate */}
-                    {alloc.rate !== null && alloc.rate !== undefined && (
-                      <span className="text-subtle-foreground text-xs font-bold">
-                        ${alloc.rate}/hr
-                      </span>
-                    )}
-                    {canManage && projectId && (
-                      <EndAllocationControl
-                        allocationId={alloc.id}
-                        projectId={projectId}
-                        userName={alloc.userName}
-                        effectiveFrom={alloc.effectiveFrom}
-                        effectiveTo={alloc.effectiveTo}
-                      />
-                    )}
-                  </div>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <p className="text-muted-foreground text-xs italic">
+                  No team members allocated.
+                </p>
+              )}
             </div>
-          ) : (
-            <p className="text-muted-foreground text-xs italic">
-              No team members allocated.
-            </p>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </section>
   )

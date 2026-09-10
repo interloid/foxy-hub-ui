@@ -9,6 +9,7 @@ import {
   FxTableRow,
   FxTableScroll,
 } from '@/components/shared/fx-table'
+import { AlertCircle } from 'lucide-react'
 import { TimeEntryStatus } from '../../types'
 
 export interface TimeEntryItem {
@@ -25,6 +26,7 @@ export interface TimeEntryItem {
 
 interface TimeEntriesTableCardProps {
   entries?: TimeEntryItem[] | null
+  isError?: boolean
 }
 
 const STATUS_BADGE_CONFIG: Record<
@@ -64,6 +66,7 @@ function formatDuration(minutes: number): string {
 
 export function TimeEntriesTableCard({
   entries = [],
+  isError = false,
 }: TimeEntriesTableCardProps) {
   const safeEntries = (entries ?? []).slice(0, 5)
 
@@ -96,7 +99,16 @@ export function TimeEntriesTableCard({
             </FxTableRow>
           </FxTableHeader>
           <tbody>
-            {safeEntries.length > 0 ? (
+            {isError ? (
+              <FxTableRow className="hover:bg-transparent">
+                <FxTableCell colSpan={6} className="px-5 py-8 text-center">
+                  <div className="text-destructive flex items-center justify-center gap-2 text-xs font-medium">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>Failed to load time entries. Please try again.</span>
+                  </div>
+                </FxTableCell>
+              </FxTableRow>
+            ) : safeEntries.length > 0 ? (
               safeEntries.map((entry) => {
                 const statusConfig =
                   STATUS_BADGE_CONFIG[entry.status] || STATUS_BADGE_CONFIG.draft

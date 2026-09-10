@@ -207,13 +207,18 @@ function buildInvoiceLines(
         ? 1
         : Number(project.retainer_overage)
 
-    const consumedMinutes = entries
-      .filter(
-        (e) =>
-          (!periodStart || e.work_date >= periodStart) &&
-          (!periodEnd || e.work_date <= periodEnd)
-      )
-      .reduce((sum, e) => sum + (e.duration_minutes || 0), 0)
+    const periodEntries = entries.filter(
+      (e) =>
+        (!periodStart || e.work_date >= periodStart) &&
+        (!periodEnd || e.work_date <= periodEnd)
+    )
+
+    entryIds.push(...periodEntries.map((e) => e.id))
+
+    const consumedMinutes = periodEntries.reduce(
+      (sum, e) => sum + (e.duration_minutes || 0),
+      0
+    )
 
     const consumedHours = roundHoursUp(consumedMinutes, roundingMinutes)
     const overageHours =
@@ -251,6 +256,8 @@ function buildInvoiceLines(
     }
   } else if (project.engagement === 'fixed') {
     const fixedFee = Number(project.contract_value) || 0
+
+    entryIds.push(...entries.map((e) => e.id))
 
     calloutMessage = 'Hours are tracked for context; the fee is fixed.'
     lines.push({

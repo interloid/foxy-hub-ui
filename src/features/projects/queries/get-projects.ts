@@ -1,17 +1,18 @@
+import { calculateMilestoneProgress } from '@/lib/progress'
 import { createClient } from '@/lib/supabase/server'
+import { QueryData } from '@supabase/supabase-js'
 import {
   GetProjectsParams,
   GetProjectsResult,
   Project,
   ProjectMetrics,
 } from '../types'
-import { QueryData } from '@supabase/supabase-js'
-import { calculateMilestoneProgress } from '@/lib/progress'
 
 export async function getProjectsData({
   orgSlug,
   page = 1,
   pageSize = 10,
+  search = '',
 }: GetProjectsParams): Promise<GetProjectsResult> {
   const supabase = await createClient()
 
@@ -47,7 +48,7 @@ export async function getProjectsData({
   const to = from + pageSize - 1
 
   // 2. Fetch paginated projects along with total count
-  const projectsQuery = supabase
+  let projectsQuery = supabase
     .from('projects')
     .select(
       `
@@ -81,6 +82,13 @@ export async function getProjectsData({
       { count: 'exact' }
     )
     .eq('org_id', orgData.id)
+
+  if (search.trim()) {
+    projectsQuery = projectsQuery.ilike('name', `%${search.trim()}%`)
+  }
+
+  // Apply ordering and range bounds
+  projectsQuery = projectsQuery
     .order('updated_at', { ascending: false })
     .range(from, to)
 
@@ -129,15 +137,24 @@ export async function getProjectsData({
   // 4. Calculate organization-wide metrics
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const { data: allStatuses } = await supabase
+    .from('projects')
+    .select('status, updated_at')
+    .eq('org_id', orgData.id)
+
+  const statusList = allStatuses ?? []
 
   const metrics: ProjectMetrics = {
-    totalProjects: totalCount,
-    activeProjects: projects.filter(
+    totalProjects: statusList.length,
+    activeProjects: statusList.filter(
       (p) => p.status === 'in-progress' || p.status === 'pending-approval'
     ).length,
-    delayedProjects: projects.filter((p) => p.status === 'draft').length,
-    completedThisMonth: projects.filter(
-      (p) => p.status === 'completed' && new Date(p.updatedAt) >= startOfMonth
+    delayedProjects: statusList.filter((p) => p.status === 'on-hold').length,
+    completedThisMonth: statusList.filter(
+      (p) =>
+        p.status === 'completed' &&
+        p.updated_at &&
+        new Date(p.updated_at) >= startOfMonth
     ).length,
   }
 

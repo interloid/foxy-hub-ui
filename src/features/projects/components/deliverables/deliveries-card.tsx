@@ -13,20 +13,21 @@ import {
 import { TableRow } from '@/components/ui/table'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { format } from 'date-fns'
-import { Eye } from 'lucide-react'
+import { AlertCircle, Eye } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { submitDeliveryForApproval } from '../../actions'
 import { useFileActions } from '../../hooks/use-file-actions'
 import { ProjectDelivery, ProjectMilestone } from '../../types'
 import { CreateDeliverySheet } from './create-deliverables-sheet'
 import { DeliverableFileSheet } from './deliverables-file-sheet'
-import { submitDeliveryForApproval } from '../../actions'
 
 interface DeliverablesSectionProps {
   projectId: string
   milestones: ProjectMilestone[]
   deliveries: ProjectDelivery[]
   isOverview?: boolean
+  isError?: boolean
 }
 
 export function DeliverablesSection({
@@ -34,6 +35,7 @@ export function DeliverablesSection({
   milestones,
   deliveries,
   isOverview = false,
+  isError = false,
 }: DeliverablesSectionProps) {
   const [selectedDelivery, setSelectedDelivery] =
     useState<ProjectDelivery | null>(null)
@@ -41,7 +43,7 @@ export function DeliverablesSection({
   const [isCreateOpen, setIsCreateOpen] = useState(false)
 
   const { handleViewFile, handleDownloadFile } = useFileActions('deliverables')
-  const { orgId, userRole } = useWorkspace()
+  const { orgId, userRole, orgSlug } = useWorkspace()
 
   const isAuthorized = userRole === 'admin' || userRole === 'owner'
 
@@ -54,7 +56,11 @@ export function DeliverablesSection({
     if (!selectedDelivery) return
 
     try {
-      await submitDeliveryForApproval(deliveryId, selectedDelivery.projectId)
+      await submitDeliveryForApproval(
+        deliveryId,
+        selectedDelivery.projectId,
+        orgSlug
+      )
 
       setSelectedDelivery((prev) =>
         prev ? { ...prev, status: 'submitted' } : null
@@ -114,10 +120,25 @@ export function DeliverablesSection({
             </FxTableHeader>
 
             <tbody>
-              {deliveries.length === 0 ? (
+              {isError ? (
                 <FxTableRow>
                   <FxTableCell
-                    colSpan={7}
+                    colSpan={isOverview ? 6 : 7}
+                    className="px-5 py-8 text-center"
+                  >
+                    <div className="text-destructive flex items-center justify-center gap-2 text-xs font-medium">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>
+                        Failed to load deliverables. Please refresh to try
+                        again.
+                      </span>
+                    </div>
+                  </FxTableCell>
+                </FxTableRow>
+              ) : deliveries.length === 0 ? (
+                <FxTableRow>
+                  <FxTableCell
+                    colSpan={isOverview ? 6 : 7}
                     className="text-muted-foreground px-5 py-8 text-center text-sm"
                   >
                     No deliverables recorded for this project yet.

@@ -4,6 +4,7 @@ import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { cn } from '@/lib/utils'
+import { AlertCircle } from 'lucide-react'
 import { useState } from 'react'
 import type { MilestoneItem, MilestoneStatus } from '../../types'
 import { CreateMilestoneSheet } from './create-milestone-sheet'
@@ -12,6 +13,7 @@ interface MilestonesListCardProps {
   milestones?: MilestoneItem[] | null
   isInOverview?: boolean
   projectId?: string
+  isError?: boolean
 }
 
 const STATUS_CONFIG: Record<
@@ -54,6 +56,7 @@ export function MilestonesListCard({
   milestones = [],
   isInOverview = true,
   projectId = '',
+  isError = false,
 }: MilestonesListCardProps) {
   const safeMilestones = milestones ?? []
   const { userRole, orgId = '' } = useWorkspace()
@@ -76,17 +79,19 @@ export function MilestonesListCard({
           >
             Milestones
           </h3>
-          {!isInOverview && (userRole === 'admin' || userRole === 'owner') && (
-            <div>
-              <FxButton
-                variant="default"
-                size="default"
-                onClick={() => setIsCreateSheetOpen(true)}
-              >
-                Create Milestone
-              </FxButton>
-            </div>
-          )}
+          {!isInOverview &&
+            !isError &&
+            (userRole === 'admin' || userRole === 'owner') && (
+              <div>
+                <FxButton
+                  variant="default"
+                  size="default"
+                  onClick={() => setIsCreateSheetOpen(true)}
+                >
+                  Create Milestone
+                </FxButton>
+              </div>
+            )}
         </header>
 
         {/* List Content */}
@@ -96,7 +101,12 @@ export function MilestonesListCard({
             isInOverview ? 'py-2' : 'py-1'
           )}
         >
-          {safeMilestones.length > 0 ? (
+          {isError ? (
+            <div className="text-destructive flex items-center gap-2 py-4 text-xs font-medium">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>Failed to load milestones.</span>
+            </div>
+          ) : safeMilestones.length > 0 ? (
             safeMilestones.map((item) => {
               const config = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending
               const loggedHoursStr = formatHours(item.loggedMinutes)

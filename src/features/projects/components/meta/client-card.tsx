@@ -1,7 +1,9 @@
+import { AlertCircle } from 'lucide-react'
 import type { ClientItem } from '../../types'
 
 interface ClientCardProps {
   client?: ClientItem | null
+  isError?: boolean
 }
 
 function getInitials(name: string): string {
@@ -15,7 +17,27 @@ function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-export function ClientCard({ client }: ClientCardProps) {
+export function ClientCard({ client, isError = false }: ClientCardProps) {
+  if (isError) {
+    return (
+      <section
+        aria-labelledby="client-card-heading"
+        className="bg-card border-border rounded-xl border p-5 shadow-xs"
+      >
+        <h3
+          id="client-card-heading"
+          className="text-foreground text-[14px] font-semibold"
+        >
+          Client
+        </h3>
+        <div className="text-destructive flex items-center gap-2 py-3 text-xs font-medium">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>Failed to load client details.</span>
+        </div>
+      </section>
+    )
+  }
+
   if (!client) {
     return (
       <section

@@ -197,6 +197,10 @@ export async function createMilestone(input: CreateMilestoneInput) {
     title: input.title,
     dueDate: input.dueDate,
   })
+  const workspace = await getWorkspace(input.orgSlug)
+  if (!workspace || !isAdminRole(workspace.role)) {
+    throw new Error('Unauthorized')
+  }
 
   const supabase = await createClient()
 
@@ -222,18 +226,26 @@ export async function createMilestone(input: CreateMilestoneInput) {
 
 export async function submitDeliveryForApproval(
   deliveryId: string,
-  projectId: string
+  projectId: string,
+  orgSlug: string
 ) {
+  const workspace = await getWorkspace(orgSlug)
+  if (!workspace) {
+    throw new Error('Unauthorized')
+  }
+
   const supabase = await createClient()
 
-  // 1. Verify user authentication
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  const { data: delivery, error: fetchErr } = await supabase
+    .from('deliveries')
+    .select('id, project:projects!inner(id, org_id)')
+    .eq('id', deliveryId)
+    .eq('project_id', projectId)
+    .eq('projects.org_id', workspace.id)
+    .maybeSingle()
 
-  if (authError || !user) {
-    throw new Error('Unauthorized')
+  if (fetchErr || !delivery) {
+    throw new Error('Delivery not found or access denied')
   }
 
   const { error } = await supabase
@@ -247,25 +259,36 @@ export async function submitDeliveryForApproval(
     throw new Error('Failed to update delivery status.')
   }
 
-  revalidatePath(`/projects/${projectId}`)
-
+  revalidatePath(`/${orgSlug}/projects/${projectId}`)
   return { success: true }
 }
 
 export async function postUpdateAction(
   projectId: string,
-  authorId: string,
-  body: string
+  body: string,
+  orgSlug: string
 ) {
   if (!body.trim()) return
 
+  const supabase = await createClient()
+
+  // Derive authorId from the authenticated server session
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    throw new Error('Unauthorized')
+  }
+
   await createProjectUpdate({
     projectId,
-    authorId,
+    authorId: user.id, // Securely set by server session
     body,
   })
 
-  revalidatePath(`/projects/${projectId}`)
+  revalidatePath(`/${orgSlug}/projects/${projectId}`)
 }
 
 export async function fetchProjectsAction(
@@ -308,6 +331,10 @@ export async function uploadDeliveryAssets(
 }
 
 export async function createDelivery(input: CreateDeliveryInput) {
+  const workspace = await getWorkspace(input.orgSlug)
+  if (!workspace) {
+    throw new Error('Unauthorized')
+  }
   const supabase = await createClient()
 
   // 1. Get authenticated user ID

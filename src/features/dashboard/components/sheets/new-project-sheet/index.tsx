@@ -32,19 +32,22 @@ import {
   createProject,
   TeamMemberOption,
 } from '@/features/dashboard/actions'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Calendar as CalendarIcon, ChevronDown } from 'lucide-react'
 import {
   KeyboardEvent,
   useCallback,
   useEffect,
+  useRef,
   useState,
   useTransition,
 } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { computePricingInsight } from '@/features/dashboard/pricing'
+import { newProjectFormSchema } from '@/features/dashboard/schema'
 import { toISODate } from '@/lib/date'
 import { EngagementModelSelector } from './engagement-model-selector'
 import { PricingHint } from './pricing-hint'
@@ -53,8 +56,6 @@ import {
   ModelFitSuggestion,
   TeamAllocationSection,
 } from './team-allocation-section'
-import { computePricingInsight } from '@/features/dashboard/pricing'
-import { newProjectFormSchema } from '@/features/dashboard/schema'
 import { NewProjectFormValues } from './types'
 
 interface NewProjectSheetProps {
@@ -260,9 +261,13 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     }
   }, [open, allocationKey, checkCapacityForUser])
 
-  // Fetch initial clients and team members in parallel
+  const hasSeededRef = useRef(false)
+
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      hasSeededRef.current = false
+      return
+    }
 
     const controller = new AbortController()
 
@@ -282,17 +287,19 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
           ),
         ])
 
-        const clients = await clientsRes.json()
-        const members = await membersRes.json()
+        const clients = clientsRes.ok ? await clientsRes.json() : []
+        const members = membersRes.ok ? await membersRes.json() : []
 
-        setClientOptions(clients)
+        setClientOptions(Array.isArray(clients) ? clients : [])
         setIsLoadingClients(false)
 
-        setTeamMembers(members)
+        setTeamMembers(Array.isArray(members) ? members : [])
         setIsLoadingTeam(false)
 
-        if (members.length > 0 && fields.length === 0) {
+        if (members.length > 0 && !hasSeededRef.current) {
+          hasSeededRef.current = true
           const first = members[0]
+
           setValue('allocations', [
             {
               userId: first.id,
@@ -315,7 +322,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     fetchData()
 
     return () => controller.abort()
-  }, [open, checkCapacityForUser, fields.length, setValue, todayStr, orgSlug])
+  }, [open, checkCapacityForUser, setValue, todayStr, orgSlug])
 
   const selectedClientObj = clientOptions.find((c) => c.id === selectedClient)
 

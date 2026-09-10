@@ -897,6 +897,18 @@ export type Database = {
         Args: { allocations_data?: Json; project_data: Json }
         Returns: string
       }
+      create_time_entry_with_capacity_check: {
+        Args: {
+          p_description: string
+          p_duration_minutes: number
+          p_milestone_id: string
+          p_org_id: string
+          p_project_id: string
+          p_user_id: string
+          p_work_date: string
+        }
+        Returns: Json
+      }
       current_user_orgs: { Args: never; Returns: string[] }
       has_org_role: {
         Args: {

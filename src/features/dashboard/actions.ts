@@ -98,7 +98,6 @@ export async function getDailyCapacityAndLoggedMinutes(
   dateString: string,
   orgSlug: string
 ): Promise<CapacityAndLoggedData> {
-  // Manual Query Parameter Validation (No Zod)
   if (!dateString || !orgSlug) {
     return { dailyCapacityHours: 8, alreadyLoggedMinutes: 0 }
   }
@@ -128,9 +127,10 @@ export async function getDailyCapacityAndLoggedMinutes(
 
   const { data: entries } = await supabase
     .from('time_entries')
-    .select('duration_minutes')
+    .select('duration_minutes, projects!inner(org_id)')
     .eq('user_id', user.id)
     .eq('work_date', dateString)
+    .eq('projects.org_id', workspace.id)
 
   const alreadyLoggedMinutes =
     entries?.reduce((sum, entry) => sum + (entry.duration_minutes || 0), 0) ?? 0
@@ -227,7 +227,6 @@ export async function getMilestonesForProject(
 export async function createTimeEntry(
   rawInput: unknown
 ): Promise<ActionResult> {
-  // 1. Zod Body Validation
   const parsed = createTimeEntrySchema.safeParse(rawInput)
   if (!parsed.success) {
     return { ok: false, error: firstIssue(parsed.error) }
@@ -236,7 +235,6 @@ export async function createTimeEntry(
   const params = parsed.data
   const supabase = await createClient()
 
-  // 2. Authentication
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -274,58 +272,33 @@ export async function createTimeEntry(
     }
   }
 
-  const { data: orgData } = await supabase
-    .from('organizations')
-    .select('id, daily_capacity_hours')
-    .eq('slug', params.orgSlug)
-    .maybeSingle()
-
-  if (!orgData) {
-    return { ok: false, error: 'Organization not found.' }
-  }
-
-  const dailyCapacityMinutes = (orgData.daily_capacity_hours ?? 8) * 60
-
-  const { data: existingEntries } = await supabase
-    .from('time_entries')
-    .select('duration_minutes, projects!inner(org_id)')
-    .eq('user_id', user.id)
-    .eq('work_date', params.workDate)
-    .eq('projects.org_id', orgData.id)
-
-  const alreadyLoggedMinutes = (existingEntries ?? []).reduce(
-    (sum, entry) => sum + (entry.duration_minutes ?? 0),
-    0
+  const { data: rpcResult, error: rpcError } = await supabase.rpc(
+    'create_time_entry_with_capacity_check',
+    {
+      p_user_id: user.id,
+      p_project_id: params.projectId,
+      p_milestone_id: (params.milestoneId || null) as string,
+      p_work_date: params.workDate,
+      p_duration_minutes: durationMinutes,
+      p_description: params.description.trim(),
+      p_org_id: project.org_id,
+    }
   )
 
-  if (alreadyLoggedMinutes + durationMinutes > dailyCapacityMinutes) {
-    const remainingMinutes = Math.max(
-      0,
-      dailyCapacityMinutes - alreadyLoggedMinutes
-    )
-    const remainingHours = (remainingMinutes / 60).toFixed(1)
-    return {
-      ok: false,
-      error: `Exceeds daily capacity. You only have ${remainingHours} hours remaining for ${params.workDate}.`,
-    }
-  }
-
-  const { error } = await supabase.from('time_entries').insert({
-    user_id: user.id,
-    project_id: params.projectId,
-    milestone_id: params.milestoneId || null,
-    work_date: params.workDate,
-    duration_minutes: durationMinutes,
-    description: params.description.trim(),
-    status: 'draft',
-  })
-
-  if (error) {
-    console.error('Create Time Entry Error:', error.message)
+  if (rpcError) {
+    console.error('Create Time Entry RPC Error:', rpcError.message)
     return { ok: false, error: 'Failed to record time entry.' }
   }
 
-  // 3. Revalidate Path
+  const result = rpcResult as { ok: boolean; error?: string; id?: string }
+
+  if (!result?.ok) {
+    return {
+      ok: false,
+      error: result?.error || 'Exceeds daily capacity.',
+    }
+  }
+
   revalidatePath(`/${params.orgSlug}`)
   return { ok: true }
 }
@@ -654,6 +627,7 @@ export async function getTeamMembersForOrg(
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return []
 
+  const canSeeCost = isAdminRole(workspace.role)
   const { data: memberships, error: membershipsError } = await supabase
     .from('memberships')
     .select('user_id, role, default_rate, cost_rate')
@@ -686,7 +660,8 @@ export async function getTeamMembersForOrg(
       role: item.role,
       defaultRate:
         item.default_rate !== null ? Number(item.default_rate) : null,
-      costRate: item.cost_rate !== null ? Number(item.cost_rate) : null,
+      costRate:
+        canSeeCost && item.cost_rate !== null ? Number(item.cost_rate) : null,
     }
   })
 }

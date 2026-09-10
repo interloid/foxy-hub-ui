@@ -19,8 +19,26 @@ export default function WorkspaceError({
   reset: () => void
 }) {
   const router = useRouter()
-  const isNotFound = error.message.toLowerCase().includes('not found')
-  const isUnauthorized = error.message.toLowerCase().includes('unauthorized')
+
+  // Match known Next.js server error digest codes or fallback properties
+  const isNotFound =
+    error.digest === 'NEXT_NOT_FOUND' ||
+    error.message.toLowerCase().includes('not_found')
+  const isUnauthorized =
+    error.digest === 'NEXT_UNAUTHORIZED' ||
+    error.message.toLowerCase().includes('unauthorized')
+
+  const title = isNotFound
+    ? 'Workspace Not Found'
+    : isUnauthorized
+      ? 'Access Denied'
+      : 'Failed to load workspace'
+
+  const description = isNotFound
+    ? 'The requested workspace could not be found or does not exist.'
+    : isUnauthorized
+      ? 'You do not have permission to view or manage this workspace.'
+      : 'An unexpected error occurred while loading this workspace. Please try again.'
 
   return (
     <div className="flex h-[calc(100vh-4rem)] w-full items-center justify-center p-6">
@@ -29,17 +47,8 @@ export default function WorkspaceError({
           <div className="bg-destructive/10 text-destructive mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full">
             <AlertTriangle className="h-6 w-6" />
           </div>
-          <CardTitle className="text-xl">
-            {isNotFound
-              ? 'Workspace Not Found'
-              : isUnauthorized
-                ? 'Access Denied'
-                : 'Failed to load workspace'}
-          </CardTitle>
-          <CardDescription>
-            {error.message ||
-              'An unexpected error occurred while loading this dashboard.'}
-          </CardDescription>
+          <CardTitle className="text-xl">{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center gap-3 pt-2">
           <Button variant="outline" onClick={() => router.push('/')}>

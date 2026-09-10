@@ -85,12 +85,15 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     if (!open) return
 
     const controller = new AbortController()
-
-    fetch(`/api/dashboard/sheet-data?type=projects&orgSlug=${orgSlug}`, {
+    const query = new URLSearchParams({
+      type: 'projects',
+      orgSlug,
+    })
+    fetch(`/api/dashboard/sheet-data?${query.toString()}`, {
       signal: controller.signal,
     })
-      .then((res) => res.json())
-      .then((data) => setProjects(data))
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setProjects(Array.isArray(data) ? data : []))
       .catch((err) => {
         if (err.name !== 'AbortError') console.error(err)
       })
@@ -104,10 +107,15 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     const controller = new AbortController()
     const dateStr = toISODate(selectedDate)
 
-    fetch(
-      `/api/dashboard/sheet-data?type=capacity&orgSlug=${orgSlug}&dateStr=${dateStr}`,
-      { signal: controller.signal }
-    )
+    const query = new URLSearchParams({
+      type: 'capacity',
+      orgSlug,
+      dateStr,
+    })
+
+    fetch(`/api/dashboard/sheet-data?${query.toString()}`, {
+      signal: controller.signal,
+    })
       .then((res) => res.json())
       .then((data) => {
         setDailyCapacityHours(data.dailyCapacityHours ?? 8)
@@ -119,15 +127,22 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
 
     return () => controller.abort()
   }, [open, selectedDate, orgSlug])
+  const controller = new AbortController()
 
   // Fetch Milestones when project changes
   const handleProjectSelect = (project: ProjectOption) => {
     setSelectedProject(project)
     setSelectedMilestone(null)
 
-    fetch(
-      `/api/dashboard/sheet-data?type=milestones&orgSlug=${orgSlug}&projectId=${project.id}`
-    )
+    const query = new URLSearchParams({
+      type: 'milestones',
+      orgSlug,
+      projectId: project.id,
+    })
+
+    fetch(`/api/dashboard/sheet-data?${query.toString()}`, {
+      signal: controller.signal,
+    })
       .then((res) => res.json())
       .then((msList) => setMilestones(msList))
       .catch(console.error)

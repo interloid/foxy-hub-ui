@@ -37,10 +37,11 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { PopoverTrigger } from '@radix-ui/react-popover'
 
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { toast } from 'sonner'
+import { createDelivery } from '../../actions'
 import { CreateDeliveryFormValues, createDeliverySchema } from '../../schema'
 import { ProjectMilestone } from '../../types'
-import { createDelivery } from '../../actions'
 
 interface CreateDeliverySheetProps {
   open: boolean
@@ -88,7 +89,7 @@ export function CreateDeliverySheet({
     setIsCalendarOpen(false)
     setServerError(null)
   }
-
+  const { orgSlug } = useWorkspace()
   const handleMilestoneSelect = (milestone: ProjectMilestone | null) => {
     setSelectedMilestone(milestone)
     setValue('milestoneId', milestone?.id ?? null, { shouldValidate: true })
@@ -106,6 +107,7 @@ export function CreateDeliverySheet({
         projectId,
         orgId,
         title: values.title.trim(),
+        orgSlug,
         description: values.description?.trim() || undefined,
         milestoneId: values.milestoneId || undefined,
         dueDate: values.dueDate,

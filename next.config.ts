@@ -57,6 +57,16 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  images: {
+    remotePatterns: supabaseHost
+      ? [
+          {
+            protocol: 'https',
+            hostname: supabaseHost,
+          },
+        ]
+      : [],
+  },
   // Pin the build ID when running multiple replicas of the same build (so they all
   // agree and avoid version skew). Reads NEXT_BUILD_ID if set; otherwise returns null,
   // which tells Next.js to use its own per-build default (fine for single-instance).
