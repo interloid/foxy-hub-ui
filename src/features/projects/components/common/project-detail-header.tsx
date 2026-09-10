@@ -1,7 +1,6 @@
 'use client'
 
 import { Sparkles } from 'lucide-react'
-import * as React from 'react'
 
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
@@ -16,6 +15,7 @@ import {
   NewInvoiceSheet,
   ProjectInvoiceContext,
 } from '../meta/new-invoice-sheet'
+import { useState } from 'react'
 
 interface ProjectDetailHeaderProps {
   project: Project
@@ -26,8 +26,8 @@ export function ProjectDetailHeader({
   project,
   invoiceProjects = [],
 }: ProjectDetailHeaderProps) {
-  const [isInvoiceSheetOpen, setIsInvoiceSheetOpen] = React.useState(false)
-  const [isSubmittingInvoice, setIsSubmittingInvoice] = React.useState(false)
+  const [isInvoiceSheetOpen, setIsInvoiceSheetOpen] = useState(false)
+  const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false)
 
   const { orgSlug } = useWorkspace()
 

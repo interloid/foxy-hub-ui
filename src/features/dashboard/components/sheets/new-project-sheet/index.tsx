@@ -33,7 +33,13 @@ import {
   TeamMemberOption,
 } from '@/features/dashboard/actions'
 import { Calendar as CalendarIcon, ChevronDown } from 'lucide-react'
-import { useCallback, useEffect, useState, useTransition } from 'react'
+import {
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useState,
+  useTransition,
+} from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -131,7 +137,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     .join('|')
 
   // Block negative symbol and scientific notation in numeric input fields
-  const preventNegativeInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const preventNegativeInput = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === '-' || e.key === 'e' || e.key === 'E') {
       e.preventDefault()
     }

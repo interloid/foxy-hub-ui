@@ -27,7 +27,7 @@ import {
   Upload,
   XCircle,
 } from 'lucide-react'
-import React, { useRef, useState } from 'react'
+import { ChangeEvent, DragEvent, useRef, useState } from 'react'
 import { uploadDeliveryAssets } from '../../actions'
 import type { ProjectDelivery } from '../../types'
 
@@ -132,14 +132,14 @@ export function DeliverableFileSheet({
     setSelectedFiles((prev) => [...prev, ...validFiles])
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       validateAndAddFiles(e.target.files)
       e.target.value = ''
     }
   }
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {

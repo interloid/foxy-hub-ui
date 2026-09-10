@@ -5,7 +5,7 @@ import { FxTextarea } from '@/components/shared/fx-textarea'
 import { Sparkles } from 'lucide-react'
 import Form from 'next/form'
 import Image from 'next/image'
-import { useState } from 'react'
+import { KeyboardEvent, useState } from 'react'
 import { toast } from 'sonner'
 
 interface CreateUpdateInputProps {
@@ -39,7 +39,7 @@ export function UpdatesInput({
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault()
       if (!isInputEmpty && !isSubmitting) {

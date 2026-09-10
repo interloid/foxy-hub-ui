@@ -1,7 +1,6 @@
 'use client'
 
 import { AlertCircle, ChevronDown, Send } from 'lucide-react'
-import * as React from 'react'
 import { Controller, useForm } from 'react-hook-form'
 
 import { FxBadge } from '@/components/shared/fx-badge'
@@ -26,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
+import { useEffect, useMemo } from 'react'
 
 export type EngagementModel = 'full_time' | 'part_time' | 'retainer' | 'fixed'
 
@@ -103,7 +103,7 @@ export function NewInvoiceSheet({
     })
 
   // Sync form state if defaultProjectId or projects list updates
-  React.useEffect(() => {
+  useEffect(() => {
     if (defaultProjectId) {
       setValue('projectId', defaultProjectId)
     } else if (projects.length > 0 && !getValues('projectId')) {
@@ -118,7 +118,7 @@ export function NewInvoiceSheet({
   const currentProject =
     projects.find((p) => p.id === activeProjectId) || projects[0]
 
-  const totalAmount = React.useMemo(() => {
+  const totalAmount = useMemo(() => {
     if (!currentProject?.lines) return 0
     return currentProject.lines.reduce((sum, line) => sum + line.amount, 0)
   }, [currentProject])
