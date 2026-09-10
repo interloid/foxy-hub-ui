@@ -1,5 +1,6 @@
-import { AppShell } from '@/components/layout/app-shell'
+import { AppShellWrapper } from '@/components/layout/app-shell-wrapper'
 import { getFooter, withInvoiceCount, WORKSPACE } from '@/config/nav'
+import { BreadcrumbProvider } from '@/context/breadcrump'
 import { WorkspaceProvider } from '@/features/dashboard/context/workspace-context'
 import { PROFILE } from '@/features/profile/data'
 import { getAccount, getUnpaidInvoiceCount, getWorkspace } from '@/lib/dal'
@@ -29,25 +30,33 @@ export default async function OrgLayout({
   const sections = withInvoiceCount(unpaidInvoices, org)
 
   return (
-    <WorkspaceProvider orgSlug={org} orgId={workspace?.id}>
-      <AppShell
-        sections={sections}
-        workspace={{
-          name: workspace?.name ?? account.orgName ?? WORKSPACE.name,
-          org,
-        }}
-        account={{
-          name:
-            account.fullName ?? account.email?.split('@')[0] ?? PROFILE.noName,
-          email: account.email ?? '',
-          role: account.role ?? '',
-          initials: account.initials,
-          org,
-        }}
-        footer={getFooter(org, account.orgName)}
-      >
-        {children}
-      </AppShell>
+    <WorkspaceProvider
+      orgSlug={org}
+      orgId={workspace?.id}
+      userRole={account.role}
+    >
+      <BreadcrumbProvider>
+        <AppShellWrapper
+          sections={sections}
+          workspace={{
+            name: workspace?.name ?? account.orgName ?? WORKSPACE.name,
+            org,
+          }}
+          account={{
+            name:
+              account.fullName ??
+              account.email?.split('@')[0] ??
+              PROFILE.noName,
+            email: account.email ?? '',
+            role: account.role ?? '',
+            initials: account.initials,
+            org,
+          }}
+          footer={getFooter(org, account.orgName)}
+        >
+          {children}
+        </AppShellWrapper>
+      </BreadcrumbProvider>
     </WorkspaceProvider>
   )
 }

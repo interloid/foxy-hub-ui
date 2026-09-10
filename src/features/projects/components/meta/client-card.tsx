@@ -1,4 +1,4 @@
-import type { ClientItem } from '../types'
+import type { ClientItem } from '../../types'
 
 interface ClientCardProps {
   client?: ClientItem | null

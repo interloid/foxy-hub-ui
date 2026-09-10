@@ -9,7 +9,7 @@ import {
   FxTableRow,
   FxTableScroll,
 } from '@/components/shared/fx-table'
-import { TimeEntryStatus } from '../types'
+import { TimeEntryStatus } from '../../types'
 
 export interface TimeEntryItem {
   id: string
@@ -86,13 +86,13 @@ export function TimeEntriesTableCard({
       <FxTableScroll>
         <FxTable>
           <FxTableHeader>
-            <FxTableRow className="hover:bg-transparent">
-              <FxTableHead className="w-25">DATE</FxTableHead>
-              <FxTableHead className="w-45">TEAM</FxTableHead>
-              <FxTableHead className="w-40">MILESTONE</FxTableHead>
+            <FxTableRow className="text-[11px]">
+              <FxTableHead className="w-30">DATE</FxTableHead>
+              <FxTableHead className="w-60">TEAM</FxTableHead>
+              <FxTableHead className="w-100">MILESTONE</FxTableHead>
               <FxTableHead>DESCRIPTION</FxTableHead>
-              <FxTableHead className="w-27.5 text-right">HOURS</FxTableHead>
-              <FxTableHead className="w-27.5 text-right">STATUS</FxTableHead>
+              <FxTableHead className="w-30 text-right">HOURS</FxTableHead>
+              <FxTableHead className="w-30 text-right">STATUS</FxTableHead>
             </FxTableRow>
           </FxTableHeader>
           <tbody>
@@ -104,7 +104,7 @@ export function TimeEntriesTableCard({
                 return (
                   <FxTableRow key={entry.id}>
                     {/* Date */}
-                    <FxTableCell className="text-muted-foreground text-xs font-normal">
+                    <FxTableCell className="text-muted-foreground text-[12.5px] font-normal">
                       {formatDate(entry.workDate)}
                     </FxTableCell>
 
@@ -113,35 +113,35 @@ export function TimeEntriesTableCard({
                       <div className="flex items-center gap-2">
                         <div
                           aria-hidden="true"
-                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${
-                            entry.avatarColorClass || 'bg-emerald-600'
+                          className={`text-brand-white flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                            entry.avatarColorClass || 'bg-success'
                           }`}
                         >
                           {entry.authorInitials}
                         </div>
-                        <span className="text-foreground text-xs font-medium">
+                        <span className="text-foreground text-[12.5px] font-medium">
                           {entry.authorName}
                         </span>
                       </div>
                     </FxTableCell>
 
                     {/* Milestone */}
-                    <FxTableCell className="text-subtle-foreground text-xs font-normal">
+                    <FxTableCell className="text-subtle-foreground text-[12.5px] font-normal">
                       {entry.milestoneTitle || '—'}
                     </FxTableCell>
 
                     {/* Description */}
-                    <FxTableCell className="text-foreground max-w-[320px] truncate text-xs font-normal">
+                    <FxTableCell className="text-foreground max-w-[320px] truncate text-[12.5px] font-normal">
                       {entry.description}
                     </FxTableCell>
 
                     {/* Hours */}
-                    <FxTableCell numeric className="text-xs">
+                    <FxTableCell numeric className="text-[13px]">
                       {formatDuration(entry.durationMinutes)}
                     </FxTableCell>
 
                     {/* Status */}
-                    <FxTableCell className="text-right">
+                    <FxTableCell className="text-right text-[11px]">
                       <FxBadge variant={statusConfig.variant} size="sm" dot>
                         {statusConfig.label}
                       </FxBadge>

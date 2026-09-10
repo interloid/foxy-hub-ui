@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import { HoursSummaryData } from '../types'
+import { HoursSummaryData } from '../../types'
 
 interface HoursSummaryCardsProps {
   summary: HoursSummaryData
@@ -56,14 +56,14 @@ export function HoursSummaryCards({
           className="bg-card border-border flex flex-col justify-between rounded-2xl border p-5 shadow-xs transition-colors"
         >
           <header>
-            <h4 className="text-muted-foreground text-xs font-medium tracking-wide">
+            <h4 className="text-muted-foreground text-[12.5px] tracking-wide">
               {card.label}
             </h4>
           </header>
 
           <p
             className={cn(
-              'mt-3 text-2xl font-bold tracking-tight',
+              'mt-3 text-[24px] font-bold tracking-tight',
               card.valueColorClass
             )}
           >

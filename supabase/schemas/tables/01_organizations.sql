@@ -31,7 +31,23 @@ create table public.organizations (
   -- way (D041/D043). This is what timesheets and invoices ROUND TO when they summarise, and
   -- it must never be applied on input, or the stored figure stops matching what was typed.
   rounding_minutes     smallint    not null    default 15
-    check (rounding_minutes between 1 and 60)
+    check (rounding_minutes between 1 and 60),
+
+  -- How long a client has to pay, in days, counted from the day the invoice is issued.
+  --
+  -- Nothing stored payment terms, so nothing could set `invoices.due_date` — and without a due
+  -- date an invoice can never lapse. `invoice-overdue-handler` selects exactly
+  -- `status = 'due' and due_date < now()`, so every invoice the app generated sat outside that
+  -- query forever: never chased, never counted as outstanding, never payable.
+  --
+  -- Org-level rather than per-invoice: an agency has standard terms, and the design shows no
+  -- per-invoice picker. Beside `currency` and `rounding_minutes` because it is the same kind of
+  -- fact — a billing default every invoice inherits.
+  --
+  -- 30 is the common default. The range allows same-day (0 would mean "due on receipt", which
+  -- is a real term) through a year, which is well past anything legitimate.
+  payment_terms_days   smallint    not null    default 30
+    check (payment_terms_days between 0 and 365)
 );
 
 create index if not exists organizations_user_id_idx on public.organizations(user_id);

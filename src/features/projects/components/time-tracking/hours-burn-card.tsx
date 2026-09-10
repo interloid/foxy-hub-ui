@@ -1,5 +1,5 @@
 import { FxProgress } from '@/components/shared/fx-progress'
-import type { ProjectAllocationItem } from '../types'
+import type { ProjectAllocationItem } from '../../types'
 
 interface HoursBurnCardProps {
   allocations?: ProjectAllocationItem[] | null

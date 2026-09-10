@@ -1,6 +1,7 @@
 import { FxBadge } from '@/components/shared/fx-badge' // Adjust import path if needed
-import { Check, Clock, Hourglass, XCircle } from 'lucide-react'
-import type { DeliverableItem, DeliveryStatus } from '../types'
+import { FxButton } from '@/components/shared/fx-button'
+import { Check, Clock, Hourglass, Upload, XCircle } from 'lucide-react'
+import type { DeliverableItem, DeliveryStatus } from '../../types'
 
 interface DeliverablesCardProps {
   deliverables: DeliverableItem[]
@@ -12,13 +13,23 @@ export function DeliverablesCard({ deliverables }: DeliverablesCardProps) {
       aria-labelledby="deliverables-heading"
       className="bg-card border-border rounded-xl border shadow-xs"
     >
-      <header className="border-border border-b px-5 py-4">
+      <header className="border-border flex items-center justify-between border-b px-5 py-4">
         <h2
           id="deliverables-heading"
           className="text-foreground text-[14px] font-bold"
         >
           Deliverables
         </h2>
+        <FxButton
+          type="button"
+          variant="outline"
+          size="sm"
+          // onClick={onUploadClick}
+          className="h-8 bg-transparent px-3 text-xs font-medium"
+        >
+          <Upload className="mr-1.5 size-3.5" />
+          Upload
+        </FxButton>
       </header>
 
       {deliverables.length === 0 ? (

@@ -6,9 +6,16 @@ import * as React from 'react'
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 
-import { PROJECT_STATUS_CONFIG } from '../constants'
-import type { Project, ProjectStatus } from '../types'
-import { NewInvoiceSheet, ProjectInvoiceContext } from './new-invoice-sheet'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { toast } from 'sonner'
+
+import { createInvoiceAction } from '../../actions'
+import { PROJECT_STATUS_CONFIG } from '../../constants'
+import type { Project, ProjectStatus } from '../../types'
+import {
+  NewInvoiceSheet,
+  ProjectInvoiceContext,
+} from '../meta/new-invoice-sheet'
 
 interface ProjectDetailHeaderProps {
   project: Project
@@ -21,6 +28,8 @@ export function ProjectDetailHeader({
 }: ProjectDetailHeaderProps) {
   const [isInvoiceSheetOpen, setIsInvoiceSheetOpen] = React.useState(false)
   const [isSubmittingInvoice, setIsSubmittingInvoice] = React.useState(false)
+
+  const { orgSlug } = useWorkspace()
 
   const formattedValue = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -41,25 +50,29 @@ export function ProjectDetailHeader({
     notes: string
     totalAmount: number
   }) => {
-    try {
-      setIsSubmittingInvoice(true)
-      // Call your API / Server action to create the invoice here:
-      // await createInvoice(data)
-      console.log('Generating invoice data:', data)
-      setIsInvoiceSheetOpen(false)
-    } catch (error) {
-      console.error('Failed to generate invoice:', error)
-    } finally {
-      setIsSubmittingInvoice(false)
+    setIsSubmittingInvoice(true)
+
+    const res = await createInvoiceAction({
+      projectId: data.projectId,
+      orgSlug,
+      notes: data.notes,
+    })
+
+    setIsSubmittingInvoice(false)
+
+    if (!res.ok) {
+      toast.error(res.error)
+      return
     }
+
+    toast.success('Invoice generated')
+    setIsInvoiceSheetOpen(false)
   }
 
   return (
     <>
       <header className="ds:items-between ds:justify-between flex flex-col gap-4 md:flex-row md:justify-between">
-        {/* Left Metadata Group */}
         <div className="space-y-2">
-          {/* Title + Status Badge */}
           <div className="flex items-center gap-3">
             <h1 className="text-foreground ds:text-2xl min-w-0 text-[22px] font-bold tracking-tight">
               {project.name}
@@ -99,7 +112,9 @@ export function ProjectDetailHeader({
 
             {/* Milestones Counter */}
             <div className="text-muted-foreground compact:justify-start compact:flex-row flex min-w-0 flex-col items-start justify-around gap-1 text-right md:items-center md:justify-start">
-              <span>2/5</span>
+              <span>
+                {project.milestones?.completed}/{project.milestones?.total}
+              </span>
               <span>milestones</span>
             </div>
           </div>

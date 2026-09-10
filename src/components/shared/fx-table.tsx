@@ -42,7 +42,7 @@ function FxTableHeader({
   return (
     <TableHeader
       data-slot="fx-table-header"
-      className={cn('bg-muted', className)}
+      className={cn(className)}
       {...props}
     />
   )
@@ -71,10 +71,7 @@ function FxTableRow({
   return (
     <TableRow
       data-slot="fx-table-row"
-      className={cn(
-        'border-border hover:bg-muted cursor-pointer border-b',
-        className
-      )}
+      className={cn('border-border border-b hover:bg-transparent', className)}
       {...props}
     />
   )

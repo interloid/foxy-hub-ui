@@ -1,37 +1,22 @@
 'use client'
 
 import { FxProgress } from '@/components/shared/fx-progress'
+import { calculateMilestoneProgress } from '@/lib/progress'
 import { useEffect, useState } from 'react'
-import type { MilestoneItem } from '../types'
+import type { MilestoneItem } from '../../types'
 
 interface ProgressCardProps {
   milestones: MilestoneItem[]
 }
 
 export function ProgressCard({ milestones }: ProgressCardProps) {
-  const totalCount = milestones.length
+  const { completedCount, percentage, totalCount } =
+    calculateMilestoneProgress(milestones)
 
-  // Count completed milestones
-  const completedCount = milestones.filter(
-    (m) => m.status === 'completed'
-  ).length
-
-  // Calculate percentage: completed = 100%, in_progress = 50% contribution
-  const weightedProgress = milestones.reduce((acc, m) => {
-    if (m.status === 'completed') return acc + 1
-    if (m.status === 'in_progress') return acc + 0.5
-    return acc
-  }, 0)
-
-  const percentage =
-    totalCount > 0 ? Math.round((weightedProgress / totalCount) * 100) : 0
-
-  // Calculate starting point near target (e.g., 40% of target value) so it doesn't animate from 0
   const initialOffset = Math.max(10, Math.floor(percentage * 0.4))
   const [animatedValue, setAnimatedValue] = useState(initialOffset)
 
   useEffect(() => {
-    // Trigger paint cycle so the browser renders initial offset before animating to target
     const frameId = requestAnimationFrame(() => {
       setAnimatedValue(percentage)
     })

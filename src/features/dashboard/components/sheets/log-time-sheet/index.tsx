@@ -98,7 +98,6 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     return () => controller.abort()
   }, [open, orgSlug])
 
-  // Fetch Daily Capacity when date changes (with AbortController to prevent race conditions)
   useEffect(() => {
     if (!open || !selectedDate) return
 

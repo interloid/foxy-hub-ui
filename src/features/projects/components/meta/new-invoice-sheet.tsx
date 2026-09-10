@@ -1,9 +1,15 @@
 'use client'
 
-import { AlertCircle, Send, X } from 'lucide-react'
+import { AlertCircle, ChevronDown, Send } from 'lucide-react'
 import * as React from 'react'
+import { Controller, useForm } from 'react-hook-form'
 
 import { FxBadge } from '@/components/shared/fx-badge'
+import { FxButton } from '@/components/shared/fx-button'
+import {
+  FxDropdownMenuContent,
+  FxDropdownMenuItem,
+} from '@/components/shared/fx-menu'
 import {
   FxSheetBody,
   FxSheetContent,
@@ -14,16 +20,12 @@ import {
   Sheet,
   SheetClose,
 } from '@/components/shared/fx-sheet'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
+import { FxTextarea } from '@/components/shared/fx-textarea'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
+  DropdownMenu,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Label } from '@/components/ui/label'
 
 export type EngagementModel = 'full_time' | 'part_time' | 'retainer' | 'fixed'
 
@@ -34,6 +36,8 @@ export interface InvoiceLine {
   qty: string
   rate: string
   amount: number
+  quantityValue?: number | null
+  unitRateValue?: number | null
 }
 
 export interface ProjectInvoiceContext {
@@ -43,6 +47,11 @@ export interface ProjectInvoiceContext {
   engagement: EngagementModel
   calloutMessage?: string | null
   lines: InvoiceLine[]
+}
+
+interface InvoiceFormValues {
+  projectId: string
+  notes: string
 }
 
 interface NewInvoiceSheetProps {
@@ -85,15 +94,26 @@ export function NewInvoiceSheet({
   onSubmit,
   isSubmitting = false,
 }: NewInvoiceSheetProps) {
-  // 1. Manage user selection override in state
-  const [userSelectedProjectId, setUserSelectedProjectId] = React.useState<
-    string | null
-  >(null)
-  const [notes, setNotes] = React.useState('')
+  const { control, handleSubmit, watch, setValue, getValues } =
+    useForm<InvoiceFormValues>({
+      defaultValues: {
+        projectId: defaultProjectId ?? projects[0]?.id ?? '',
+        notes: '',
+      },
+    })
 
-  // 2. Derive active project ID directly during render without useEffect
+  // Sync form state if defaultProjectId or projects list updates
+  React.useEffect(() => {
+    if (defaultProjectId) {
+      setValue('projectId', defaultProjectId)
+    } else if (projects.length > 0 && !getValues('projectId')) {
+      setValue('projectId', projects[0].id)
+    }
+  }, [defaultProjectId, projects, setValue, getValues])
+
+  const selectedProjectId = watch('projectId')
   const activeProjectId =
-    userSelectedProjectId ?? defaultProjectId ?? projects[0]?.id ?? ''
+    selectedProjectId || defaultProjectId || projects[0]?.id || ''
 
   const currentProject =
     projects.find((p) => p.id === activeProjectId) || projects[0]
@@ -103,12 +123,11 @@ export function NewInvoiceSheet({
     return currentProject.lines.reduce((sum, line) => sum + line.amount, 0)
   }, [currentProject])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleFormSubmit = (values: InvoiceFormValues) => {
     if (!currentProject) return
     onSubmit?.({
       projectId: currentProject.id,
-      notes,
+      notes: values.notes,
       totalAmount,
     })
   }
@@ -134,10 +153,9 @@ export function NewInvoiceSheet({
         <FxSheetBody className="space-y-6">
           <form
             id="new-invoice-form"
-            onSubmit={handleSubmit}
+            onSubmit={handleSubmit(handleFormSubmit)}
             className="space-y-6"
           >
-            {/* Project Select */}
             <div className="space-y-2">
               <Label
                 htmlFor="project-select"
@@ -145,24 +163,47 @@ export function NewInvoiceSheet({
               >
                 Project
               </Label>
-              <Select
-                value={activeProjectId}
-                onValueChange={(val) => setUserSelectedProjectId(val)}
-              >
-                <SelectTrigger
-                  id="project-select"
-                  className="border-border h-10 w-full bg-stone-50/80 text-sm"
-                >
-                  <SelectValue placeholder="Select a project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                control={control}
+                name="projectId"
+                render={({ field }) => (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      asChild
+                      disabled={projects.length === 0}
+                    >
+                      <FxButton
+                        type="button"
+                        id="project-select"
+                        disabled={projects.length === 0}
+                        className="border-border bg-muted/50 text-foreground hover:bg-muted focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <span className="truncate">
+                          {currentProject?.name ?? 'Select project...'}
+                        </span>
+                        <ChevronDown className="text-muted-foreground size-4 shrink-0" />
+                      </FxButton>
+                    </DropdownMenuTrigger>
+                    <FxDropdownMenuContent align="start" className="w-60">
+                      {projects.length === 0 ? (
+                        <div className="text-muted-foreground px-2 py-1.5 text-[12px]">
+                          No projects available
+                        </div>
+                      ) : (
+                        projects.map((project) => (
+                          <FxDropdownMenuItem
+                            key={project.id}
+                            onClick={() => field.onChange(project.id)}
+                            className="hover:bg-primary! hover:text-brand-white! focus:bg-muted text-[13px]"
+                          >
+                            {project.name}
+                          </FxDropdownMenuItem>
+                        ))
+                      )}
+                    </FxDropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              />
             </div>
 
             {/* Billed To Meta */}
@@ -173,7 +214,7 @@ export function NewInvoiceSheet({
                   {currentProject.clientName}
                 </span>
                 {engagementConfig && (
-                  <FxBadge variant={'default'} size="sm" dot>
+                  <FxBadge variant="default" size="sm" dot>
                     {engagementConfig.label}
                   </FxBadge>
                 )}
@@ -182,8 +223,9 @@ export function NewInvoiceSheet({
 
             {/* Callout Notice (Retainer / Fixed info) */}
             {currentProject?.calloutMessage && (
-              <div className="flex items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-900 dark:border-amber-900/30 dark:bg-amber-950/20 dark:text-amber-300">
-                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div className="border-warning bg-warning-subtle text-foreground flex items-center gap-2 rounded-md border p-3 text-xs">
+                {' '}
+                <AlertCircle className="text-primary h-4 w-4 shrink-0" />
                 <span>{currentProject.calloutMessage}</span>
               </div>
             )}
@@ -250,7 +292,7 @@ export function NewInvoiceSheet({
               Time rounded up to the nearest 15 min at invoicing.
             </p>
 
-            {/* Notes Section */}
+            {/* Notes Section with FxTextarea */}
             <div className="space-y-2">
               <Label
                 htmlFor="notes"
@@ -258,45 +300,52 @@ export function NewInvoiceSheet({
               >
                 Notes to client (optional)
               </Label>
-              <Textarea
-                id="notes"
-                placeholder="Payment terms, thanks, etc."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="border-border min-h-[90px] resize-y bg-stone-50/80 text-xs"
+              <Controller
+                control={control}
+                name="notes"
+                render={({ field }) => (
+                  <FxTextarea
+                    {...field}
+                    id="notes"
+                    placeholder="Payment terms, thanks, etc."
+                    className="min-h-22.5 bg-stone-50/80 text-xs"
+                  />
+                )}
               />
             </div>
           </form>
         </FxSheetBody>
 
         {/* Footer */}
-        <FxSheetFooter>
-          <div className="text-muted-foreground flex items-center gap-2 text-xs">
-            <span className="flex h-5 w-5 items-center justify-center rounded bg-indigo-600 text-[10px] font-extrabold text-white">
+        <FxSheetFooter className="flex flex-col items-start md:flex-row md:items-center">
+          <div className="text-muted-foreground hidden items-center gap-2 text-xs md:flex">
+            <span className="bg-info flex h-5 w-5 items-center justify-center rounded text-[10px] font-extrabold text-white">
               S
             </span>
             <span>Billed via Stripe · test mode</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex gap-2 self-end">
             <SheetClose asChild>
-              <Button
+              <FxButton
                 type="button"
                 variant="outline"
-                className="h-9 bg-stone-50 px-4 text-xs font-medium"
+                size="sm"
+                className="bg-muted h-9 px-4 text-xs font-medium"
               >
                 Cancel
-              </Button>
+              </FxButton>
             </SheetClose>
-            <Button
+            <FxButton
               type="submit"
               form="new-invoice-form"
+              size="sm"
               disabled={isSubmitting || !currentProject?.lines.length}
-              className="h-9 bg-orange-600 px-4 text-xs font-semibold text-white hover:bg-orange-700"
+              className="bg-primary text-brand-white h-9 px-4 text-xs font-semibold"
             >
               <Send className="mr-1.5 h-3.5 w-3.5" />
               Generate invoice
-            </Button>
+            </FxButton>
           </div>
         </FxSheetFooter>
       </FxSheetContent>

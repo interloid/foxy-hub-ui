@@ -12,6 +12,9 @@ const sentryIngestHost = process.env.NEXT_PUBLIC_SENTRY_DSN
   ? new URL(process.env.NEXT_PUBLIC_SENTRY_DSN).host
   : null
 
+const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).host
+  : null
 // Static (no-nonce) CSP — see docs/CONVENTIONS.md and Next.js's CSP guide for why:
 // nonce-based CSP requires every page to render dynamically via proxy.ts (this
 // fork's renamed middleware.ts), which would take the homepage and every other
@@ -23,9 +26,9 @@ const cspHeader = `
   default-src 'self';
   script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''};
   style-src 'self' 'unsafe-inline';
-  img-src 'self' data: blob:;
+  img-src 'self' data: blob: https://${supabaseHost};
   font-src 'self';
-  connect-src 'self'${sentryIngestHost ? ` https://${sentryIngestHost}` : ''};
+  connect-src 'self' https://${supabaseHost} wss://${supabaseHost}${sentryIngestHost ? ` https://${sentryIngestHost}` : ''};  
   object-src 'none';
   base-uri 'self';
   form-action 'self';

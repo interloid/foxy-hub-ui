@@ -23,6 +23,7 @@ import {
   UseFormSetValue,
   useWatch,
 } from 'react-hook-form'
+import type { AllocationRowIssues } from './team-allocation-section'
 import { AllocationFormValues, NewProjectFormValues } from './types'
 
 interface TeamAllocationRowProps {
@@ -33,6 +34,7 @@ interface TeamAllocationRowProps {
   isLoadingTeam: boolean
   maxCapacity: number
   orgMaxDaysPerWk: number
+  issues: AllocationRowIssues
   control: Control<NewProjectFormValues>
   register: UseFormRegister<NewProjectFormValues>
   setValue: UseFormSetValue<NewProjectFormValues>
@@ -48,6 +50,7 @@ export function TeamAllocationRow({
   isLoadingTeam,
   maxCapacity,
   orgMaxDaysPerWk,
+  issues,
   control,
   register,
   setValue,
@@ -110,6 +113,12 @@ export function TeamAllocationRow({
                         shouldValidate: true,
                         shouldDirty: true,
                       })
+
+                      setValue(
+                        `allocations.${index}.rate`,
+                        m.defaultRate ?? undefined,
+                        { shouldValidate: true, shouldDirty: true }
+                      )
 
                       // 3. Trigger capacity check callback
                       checkCapacityForUser(
@@ -200,6 +209,7 @@ export function TeamAllocationRow({
                 min={1}
                 max={maxCapacity}
                 className="h-8 px-1.5 font-mono text-[12px]"
+                aria-invalid={issues.invalid.hoursPerDay || undefined}
                 value={field.value ?? ''}
                 onChange={(e) => {
                   const parsed = parseFloat(e.target.value) || 0
@@ -230,6 +240,7 @@ export function TeamAllocationRow({
             min={1}
             max={orgMaxDaysPerWk}
             className="h-8 px-1.5 font-mono text-[12px]"
+            aria-invalid={issues.invalid.daysPerWk || undefined}
             {...register(`allocations.${index}.daysPerWk`, {
               valueAsNumber: true,
               onChange: (e) => {
@@ -253,8 +264,12 @@ export function TeamAllocationRow({
             type="number"
             min={1}
             className="h-8 px-1.5 font-mono text-[12px]"
+            aria-invalid={issues.invalid.rate || undefined}
             {...register(`allocations.${index}.rate`, {
-              valueAsNumber: true,
+              setValueAs: (value) =>
+                value === '' || value === null || value === undefined
+                  ? undefined
+                  : Number(value),
             })}
           />
         </div>
@@ -312,6 +327,14 @@ export function TeamAllocationRow({
           />
         </div>
       </div>
+      {issues.messages.length > 0 && (
+        <p
+          role="alert"
+          className="text-destructive text-[11px] leading-snug font-medium"
+        >
+          {issues.messages.join(' · ')}
+        </p>
+      )}
     </div>
   )
 }

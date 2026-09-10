@@ -9,13 +9,14 @@ export type ProjectStatus =
 
 export type EngagementModel = 'full_time' | 'part_time' | 'fixed' | 'retainer'
 
-export type RetainerPeriod = 'weekly' | 'monthly' | 'quarterly' | 'annually'
+export type RetainerPeriod = 'weekly' | 'monthly'
 
 export type DeliveryStatus = 'pending' | 'submitted' | 'approved' | 'rejected'
 
 export type TimeEntryStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
 
 export type MilestoneStatus = 'pending' | 'in_progress' | 'completed'
+export type MilestoneCounts = { completed: number; total: number }
 
 export interface CurrentUser {
   email: string | undefined
@@ -34,7 +35,6 @@ export interface Project {
   id: string
   orgId: string
   name: string
-  code: string
   clientId?: string | null
   clientName: string
   description?: string | null
@@ -43,6 +43,7 @@ export interface Project {
   startFrom?: string | null
   dueDate?: string | null
   engagement: EngagementModel
+  milestones?: MilestoneCounts
   contractValue?: number | null
   retainerHours?: number | null
   retainerPeriod?: RetainerPeriod | null
@@ -52,7 +53,6 @@ export interface Project {
   createdAt: string
   updatedAt: string
   progressPercent: number
-  members: ProjectMember[]
 }
 
 export interface ProjectMetrics {
@@ -142,4 +142,65 @@ export interface HoursSummaryData {
   approvedMinutes: number
   /** Total duration in minutes for entries with status === 'submitted' */
   pendingMinutes: number
+}
+
+export interface ProjectDelivery {
+  id: string
+  title: string
+  description?: string | null
+  status: 'pending' | 'approved' | 'rejected' | 'submitted'
+  dueDate?: string | null
+  createdAt: string
+  orgId: string
+  projectId: string
+  approvedAt?: string | null
+  milestoneTitle?: string | null
+  assets?: DeliveryAsset[]
+}
+
+export interface CreateDeliveryInput {
+  projectId: string
+  orgId: string
+  title: string
+  description?: string
+  milestoneId?: string
+  dueDate: string
+}
+
+export interface ProjectMilestone {
+  id: string
+  title: string
+  dueDate?: string | null
+}
+
+export interface CreateDeliverySheetProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  projectId: string
+  orgId: string
+  milestones: ProjectMilestone[]
+  onSuccess?: () => void
+}
+
+export interface CreateMilestoneInput {
+  projectId: string
+  orgId: string
+  title: string
+  dueDate: string
+  status?: MilestoneStatus
+}
+
+export interface GetProjectsParams {
+  orgSlug: string
+  page?: number
+  pageSize?: number
+}
+
+export interface GetProjectsResult {
+  projects: Project[]
+  metrics: ProjectMetrics
+  totalCount: number
+  page: number
+  pageSize: number
+  totalPages: number
 }

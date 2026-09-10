@@ -1,6 +1,6 @@
 import { Skeleton } from '@/components/ui/skeleton'
-import { ProjectsOverview } from '@/features/projects/components/project-overview'
-import { getProjectsData } from '@/features/projects/data'
+import { ProjectsOverview } from '@/features/projects/components/overview/projects-overview'
+import { getProjectsData } from '@/features/projects/queries/get-projects'
 import { Suspense } from 'react'
 
 interface ProjectsPageProps {
@@ -38,13 +38,22 @@ function ProjectsLoadingSkeleton() {
 }
 
 async function ProjectsContent({ org }: { org: string }) {
-  const { projects, metrics } = await getProjectsData(org)
+  const { projects, metrics, page, pageSize, totalCount, totalPages } =
+    await getProjectsData({
+      orgSlug: org,
+      page: 1,
+      pageSize: 5,
+    })
 
   return (
     <ProjectsOverview
       initialProjects={projects}
       metrics={metrics}
       orgSlug={org}
+      page={page}
+      pageSize={pageSize}
+      totalCount={totalCount}
+      totalPages={totalPages}
     />
   )
 }

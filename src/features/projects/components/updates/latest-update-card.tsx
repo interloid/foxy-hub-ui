@@ -1,8 +1,8 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { useRealtimeUpdates } from '../hooks/use-realtime-updates'
-import type { ProjectUpdate } from '../types'
+import { useRealtimeUpdates } from '../../hooks/use-realtime-updates'
+import type { ProjectUpdate } from '../../types'
 
 interface LatestUpdatesCardProps {
   updates: ProjectUpdate[]
@@ -76,7 +76,7 @@ export function LatestUpdatesCard({
                         {formatRelativeTime(update.createdAt)}
                       </time>
                     </div>
-                    <p className="text-muted-foreground text-[13px] leading-relaxed break-words">
+                    <p className="text-muted-foreground text-[13px] leading-relaxed wrap-break-word">
                       {update.body}
                     </p>
                   </article>

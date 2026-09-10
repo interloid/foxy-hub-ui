@@ -13,6 +13,7 @@ export function AppShell({
   workspace,
   account,
   breadcrumb,
+  projectName,
   footer,
   notificationCount,
   onSearch,
@@ -30,6 +31,7 @@ export function AppShell({
     org?: string
   }
   breadcrumb?: BreadcrumbNavItem[]
+  projectName?: string
   footer: FooterProps
   notificationCount?: number
   onSearch?: () => void
@@ -42,7 +44,7 @@ export function AppShell({
   const currentActiveHref = activeHref ?? pathname
 
   const currentBreadcrumbs =
-    breadcrumb ?? generateBreadcrumbs(pathname, workspace.org)
+    breadcrumb ?? generateBreadcrumbs(pathname, workspace.org, projectName)
 
   return (
     <div
@@ -64,7 +66,7 @@ export function AppShell({
         <div className="shell:hidden fixed inset-0 z-50 flex">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/50 transition-opacity"
+            className="bg-popover/80 fixed inset-0 backdrop-blur-xs transition-opacity"
             onClick={() => setMobileOpen(false)}
           />
 
@@ -107,7 +109,8 @@ export function AppShell({
 
 function generateBreadcrumbs(
   pathname: string,
-  orgSlug: string
+  orgSlug: string,
+  projectName?: string
 ): BreadcrumbNavItem[] {
   const segments = pathname.split('/').filter(Boolean)
   const projectsIndex = segments.indexOf('projects')
@@ -124,8 +127,7 @@ function generateBreadcrumbs(
           href: `/${orgSlug}/projects`,
         },
         {
-          // Fallback label for dynamic ID parameter
-          label: 'Project Details',
+          label: projectName ?? 'Project Details',
         },
       ]
     }

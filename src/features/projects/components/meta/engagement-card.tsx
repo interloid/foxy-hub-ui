@@ -1,15 +1,28 @@
 import { FxBadge } from '@/components/shared/fx-badge'
 import Image from 'next/image'
-import type { EngagementModel, ProjectAllocationItem } from '../types'
+import type {
+  EngagementModel,
+  ProjectAllocationItem,
+  RetainerPeriod,
+} from '../../types'
+import { EndAllocationControl } from '../time-tracking/end-allocation-control'
 
 interface EngagementCardProps {
   engagementModel?: EngagementModel | null
   allocations?: ProjectAllocationItem[] | null
-  // Optional extra parameters for Retainer & Fixed engagement models
-  retainerBucketHours?: number | null // e.g. 80
-  retainerFee?: number | null // e.g. 6000
-  overageMultiplier?: number | string | null // e.g. "1.25"
-  fixedPriceFee?: number | null // e.g. 9600
+  projectId?: string
+  canManage?: boolean
+  retainerBucketHours?: number | null
+  retainerPeriod?: RetainerPeriod | null
+  retainerFee?: number | null
+  overageMultiplier?: number | string | null
+  fixedPriceFee?: number | null
+}
+
+function formatMoney(value?: number | null): string {
+  return value === null || value === undefined
+    ? '—'
+    : `$${value.toLocaleString()}`
 }
 
 function getInitials(name: string): string {
@@ -25,10 +38,13 @@ function getInitials(name: string): string {
 export function EngagementCard({
   engagementModel = 'full_time',
   allocations = [],
-  retainerBucketHours = 80,
-  retainerFee = 6000,
-  overageMultiplier = '1.25',
-  fixedPriceFee = 9600,
+  projectId,
+  canManage = false,
+  retainerBucketHours,
+  retainerPeriod,
+  retainerFee,
+  overageMultiplier,
+  fixedPriceFee,
 }: EngagementCardProps) {
   const safeAllocations = allocations ?? []
 
@@ -61,6 +77,7 @@ export function EngagementCard({
           model={engagementModel}
           totalHoursPerDay={totalHoursPerDay}
           retainerBucketHours={retainerBucketHours}
+          retainerPeriod={retainerPeriod}
           retainerFee={retainerFee}
           overageMultiplier={overageMultiplier}
           fixedPriceFee={fixedPriceFee}
@@ -106,12 +123,23 @@ export function EngagementCard({
                     </div>
                   </div>
 
-                  {/* Hourly Rate */}
-                  {alloc.rate !== null && alloc.rate !== undefined && (
-                    <span className="text-subtle-foreground text-xs font-bold">
-                      ${alloc.rate}/hr
-                    </span>
-                  )}
+                  <div className="flex shrink-0 items-center gap-2">
+                    {/* Hourly Rate */}
+                    {alloc.rate !== null && alloc.rate !== undefined && (
+                      <span className="text-subtle-foreground text-xs font-bold">
+                        ${alloc.rate}/hr
+                      </span>
+                    )}
+                    {canManage && projectId && (
+                      <EndAllocationControl
+                        allocationId={alloc.id}
+                        projectId={projectId}
+                        userName={alloc.userName}
+                        effectiveFrom={alloc.effectiveFrom}
+                        effectiveTo={alloc.effectiveTo}
+                      />
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -163,6 +191,7 @@ function EngagementDetails({
   model,
   totalHoursPerDay,
   retainerBucketHours,
+  retainerPeriod,
   retainerFee,
   overageMultiplier,
   fixedPriceFee,
@@ -170,10 +199,14 @@ function EngagementDetails({
   model?: EngagementModel | null
   totalHoursPerDay: number
   retainerBucketHours?: number | null
+  retainerPeriod?: RetainerPeriod | null
   retainerFee?: number | null
   overageMultiplier?: number | string | null
   fixedPriceFee?: number | null
 }) {
+  const periodWord = retainerPeriod === 'weekly' ? 'week' : 'month'
+  const periodAdjective = retainerPeriod === 'weekly' ? 'weekly' : 'monthly'
+
   switch (model) {
     case 'full_time':
       return (
@@ -193,25 +226,27 @@ function EngagementDetails({
       return (
         <div className="space-y-2 border-b pb-4">
           <p className="text-muted-foreground text-xs font-normal">
-            A monthly bucket of hours
+            A {periodAdjective} bucket of hours
           </p>
           <div className="space-y-1.5 text-xs">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Bucket</span>
               <span className="text-foreground font-bold">
-                {retainerBucketHours} h / month
+                {retainerBucketHours ?? '—'} h / {periodWord}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Retainer</span>
               <span className="text-foreground font-bold">
-                ${retainerFee?.toLocaleString()}
+                {formatMoney(retainerFee)}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Beyond bucket</span>
               <span className="text-foreground font-bold">
-                x {overageMultiplier} overage rate
+                {overageMultiplier === null || overageMultiplier === undefined
+                  ? '—'
+                  : `x ${overageMultiplier} overage rate`}
               </span>
             </div>
           </div>
@@ -227,7 +262,7 @@ function EngagementDetails({
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Fixed price</span>
             <span className="text-foreground font-bold">
-              ${fixedPriceFee?.toLocaleString()}
+              {formatMoney(fixedPriceFee)}
             </span>
           </div>
         </div>

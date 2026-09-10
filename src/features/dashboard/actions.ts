@@ -32,6 +32,10 @@ export interface TeamMemberOption {
   id: string
   name: string
   role: string
+  /** `memberships.default_rate` — seeds an allocation's bill rate. Null until someone sets it. */
+  defaultRate: number | null
+  /** `memberships.cost_rate` — internal. Carried for margin, never shown to a client. */
+  costRate: number | null
 }
 
 export interface TeammateAllocationCheck {
@@ -421,6 +425,60 @@ export async function getTeammateAllocatedHours(
   }
 }
 
+const memberRateValue = z
+  .number({ error: 'Rate must be a number' })
+  .positive('Rate must be greater than 0')
+  .nullable()
+  .optional()
+
+const memberRatesSchema = z.object({
+  orgSlug: z.string().min(1, 'Organization slug is required'),
+  userId: z.uuid('Invalid teammate ID'),
+  defaultRate: memberRateValue,
+  costRate: memberRateValue,
+})
+
+export async function updateMemberRatesAction(
+  rawParams: unknown
+): Promise<ActionResult> {
+  const parsed = memberRatesSchema.safeParse(rawParams)
+  if (!parsed.success) {
+    return { ok: false, error: firstIssue(parsed.error) }
+  }
+
+  const { orgSlug, userId, defaultRate, costRate } = parsed.data
+
+  const workspace = await getWorkspace(orgSlug)
+  if (!workspace) {
+    return { ok: false, error: 'Workspace not found or access denied.' }
+  }
+
+  const isAdmin = await isAdminRole(workspace.role)
+  if (!isAdmin) {
+    return {
+      ok: false,
+      error: 'Unauthorized: Only administrators can set teammate rates.',
+    }
+  }
+
+  const supabase = await createClient()
+
+  const { error } = await supabase.rpc('set_member_rates', {
+    target_user_id: userId,
+    target_org_id: workspace.id,
+    new_default_rate: defaultRate ?? undefined,
+    new_cost_rate: costRate ?? undefined,
+  })
+
+  if (error) {
+    console.error('set_member_rates RPC error:', error.message)
+    return { ok: false, error: 'Failed to save rates.' }
+  }
+
+  revalidatePath(`/${orgSlug}`)
+  return { ok: true }
+}
+
 export async function createProject(
   rawParams: unknown,
   orgSlug: string
@@ -508,8 +566,9 @@ export async function createProject(
     name: params.name.trim(),
     due_date: params.dueDate || null,
     engagement: dbEngagement,
-    client_id: params.clientId,
+    client_org_id: params.clientId || null,
     contract_value: params.budget ?? null,
+    estimated_hours: params.estimatedHours ?? null,
     retainer_hours: params.retainerBucketHours ?? null,
     retainer_period: dbRetainerPeriod,
     retainer_amount: params.retainerAmount ?? null,
@@ -597,7 +656,7 @@ export async function getTeamMembersForOrg(
 
   const { data: memberships, error: membershipsError } = await supabase
     .from('memberships')
-    .select('user_id, role')
+    .select('user_id, role, default_rate, cost_rate')
     .eq('org_id', workspace.id)
     .neq('role', 'client')
 
@@ -625,6 +684,9 @@ export async function getTeamMembersForOrg(
       id: item.user_id,
       name: `${fullName} · ${role}`,
       role: item.role,
+      defaultRate:
+        item.default_rate !== null ? Number(item.default_rate) : null,
+      costRate: item.cost_rate !== null ? Number(item.cost_rate) : null,
     }
   })
 }

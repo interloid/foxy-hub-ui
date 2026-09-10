@@ -3,6 +3,7 @@ import { ActiveProjects } from '../widgets/active-projects'
 import { PendingApprovals } from '../widgets/pending-approvals'
 import { RecentActivity } from '../widgets/recent-activity'
 import { TeamCapacity } from '../widgets/team-capacity'
+import { TeamCapacityCard } from '../widgets/team-capacity-card'
 import { DashboardHeaders } from './dashboard-headers'
 import { StatsGrid } from './stats-grid'
 import { StudioPlanCard } from './studio-plan-card'
@@ -34,10 +35,17 @@ export function DashboardOverview({ data }: DashboardOverviewProps) {
         {/* Sidebar Column (40%) */}
         <div className="space-y-6 lg:col-span-2">
           <RecentActivity activities={data.activities} />
-          <TeamCapacity
-            capacities={data.capacities}
-            overCount={data.capacityOverCount}
-          />
+          {isAdmin ? (
+            <TeamCapacityCard
+              capacities={data.capacities}
+              overCount={data.capacityOverCount}
+            />
+          ) : (
+            <TeamCapacity
+              capacities={data.capacities}
+              overCount={data.capacityOverCount}
+            />
+          )}
           {isAdmin && (
             <StudioPlanCard planInfo={data.planInfo} isAdmin={isAdmin} />
           )}

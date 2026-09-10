@@ -108,7 +108,7 @@ export function UpdatesInput({
             disabled={isSubmitting}
             className="text-card-foreground border-border hover:bg-card hover:text-accent-foreground flex h-auto justify-center gap-1.5 px-3 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:whitespace-nowrap"
           >
-            <Sparkles className="h-3.5 w-3.5 fill-amber-500/20 text-amber-500" />
+            <Sparkles className="fill-primary/20 text-primary h-3.5 w-3.5" />
             Draft with AI
           </FxButton>
 

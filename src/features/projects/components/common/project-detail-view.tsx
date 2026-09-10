@@ -5,12 +5,11 @@ import {
   FxTabsTriggerUnderline,
 } from '@/components/shared/fx-tabs'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
-import { DeliverablesCard } from '@/features/projects/components/deliverables-card'
-import { LatestUpdatesCard } from '@/features/projects/components/latest-update-card'
-import { ProjectDetailHeader } from '@/features/projects/components/project-detail-header'
+import { useBreadcrumb } from '@/context/breadcrump'
+import { ProjectDetailHeader } from '@/features/projects/components/common/project-detail-header'
+import { LatestUpdatesCard } from '@/features/projects/components/updates/latest-update-card'
 import { initialsOf } from '@/lib/initials'
-import { useState } from 'react'
-import { postUpdateAction } from '../actions'
+import { useEffect, useState } from 'react'
 import type {
   ClientItem,
   CurrentUser,
@@ -19,19 +18,27 @@ import type {
   MilestoneItem,
   Project,
   ProjectAllocationItem,
+  ProjectDelivery,
   ProjectUpdate,
-} from '../types'
-import { ClientCard } from './client-card'
-import { EngagementCard } from './engagement-card'
-import { HoursBurnCard } from './hours-burn-card'
-import { HoursSummaryCards } from './hours-summary-cards'
-import { MilestonesListCard } from './milestones-list-card'
-import { ProgressCard } from './progress-card'
-import { TimeEntriesTableCard, TimeEntryItem } from './time-entries-card'
-import { UpdatesInput } from './update-input'
+} from '../../types'
+import { DeliverablesSection } from '../deliverables/deliveries-card'
+import { ClientCard } from '../meta/client-card'
+import { EngagementCard } from '../meta/engagement-card'
+import { ProjectInvoiceContext } from '../meta/new-invoice-sheet'
+import { ProgressCard } from '../meta/progress-card'
+import { MilestonesListCard } from '../milestones/milestones-list-card'
+import { HoursBurnCard } from '../time-tracking/hours-burn-card'
+import { HoursSummaryCards } from '../time-tracking/hours-summary-cards'
+import {
+  TimeEntriesTableCard,
+  TimeEntryItem,
+} from '../time-tracking/time-entries-card'
+import { UpdatesInput } from '../updates/update-input'
+import { postUpdateAction } from '../../actions'
 
 interface ProjectDetailViewProps {
   project: Project
+  invoiceProjects: ProjectInvoiceContext[]
   updates: ProjectUpdate[]
   deliverables: DeliverableItem[]
   milestones: MilestoneItem[]
@@ -41,12 +48,14 @@ interface ProjectDetailViewProps {
   user: CurrentUser | null
   hoursSummary: HoursSummaryData
   timeEntries: TimeEntryItem[]
+  deliveries: ProjectDelivery[]
+  canManageAllocations?: boolean
 }
 
 export function ProjectDetailView({
   project,
+  invoiceProjects,
   updates,
-  deliverables,
   milestones,
   allocations,
   loggedHours,
@@ -54,8 +63,17 @@ export function ProjectDetailView({
   user,
   hoursSummary,
   timeEntries,
+  deliveries,
+  canManageAllocations = false,
 }: ProjectDetailViewProps) {
   const [isPostingUpdate, setIsPostingUpdate] = useState(false)
+  const { setProjectName } = useBreadcrumb()
+
+  useEffect(() => {
+    if (project?.name) {
+      setProjectName(project.name)
+    }
+  }, [project?.name, setProjectName])
 
   const handlePostUpdate = async (body: string) => {
     if (!user || !user.id || !project.id) return
@@ -71,7 +89,10 @@ export function ProjectDetailView({
   }
   return (
     <main className="ds:p-6 min-w-full space-y-6">
-      <ProjectDetailHeader project={project} />
+      <ProjectDetailHeader
+        project={project}
+        invoiceProjects={invoiceProjects}
+      />
 
       <Tabs defaultValue="overview" className="w-full space-y-6">
         <div className="w-full scrollbar-none overflow-x-auto [&::-webkit-scrollbar]:hidden">
@@ -95,10 +116,10 @@ export function ProjectDetailView({
               Updates
             </FxTabsTriggerUnderline>
             <FxTabsTriggerUnderline
-              value="deliverables"
+              value="deliveries"
               className="cursor-pointer"
             >
-              Deliverables
+              Deliveries
             </FxTabsTriggerUnderline>
           </FxTabsListUnderline>
         </div>
@@ -113,7 +134,12 @@ export function ProjectDetailView({
                 projectId={project.id}
                 isPostingUpdate={false}
               />
-              <DeliverablesCard deliverables={deliverables} />
+              <DeliverablesSection
+                deliveries={deliveries}
+                projectId={project.id}
+                milestones={milestones}
+                isOverview={true}
+              />
             </div>
 
             {/* Right Column (Sidebar widgets) */}
@@ -122,6 +148,13 @@ export function ProjectDetailView({
               <EngagementCard
                 allocations={allocations}
                 engagementModel={project.engagement}
+                projectId={project.id}
+                canManage={canManageAllocations}
+                retainerBucketHours={project.retainerHours}
+                retainerPeriod={project.retainerPeriod}
+                retainerFee={project.retainerAmount}
+                overageMultiplier={project.retainerOverage}
+                fixedPriceFee={project.contractValue}
               />
               <HoursBurnCard
                 allocations={allocations}
@@ -135,16 +168,20 @@ export function ProjectDetailView({
         </TabsContent>
 
         {/* Other Tab Placeholders */}
-        <TabsContent value="milestones">
-          <MilestonesListCard milestones={milestones} isInOverview={false} />
+        <TabsContent value="milestones" className="2xl:mx-62.5">
+          <MilestonesListCard
+            milestones={milestones}
+            isInOverview={false}
+            projectId={project.id}
+          />
         </TabsContent>
 
-        <TabsContent value="hours" className="grid gap-5">
+        <TabsContent value="hours" className="grid gap-5 2xl:mx-62.5">
           <HoursSummaryCards summary={hoursSummary} />
           <TimeEntriesTableCard entries={timeEntries} />
         </TabsContent>
 
-        <TabsContent value="updates" className="grid gap-5">
+        <TabsContent value="updates" className="grid gap-5 2xl:mx-62.5">
           <UpdatesInput
             userInitials={initialsOf(
               user?.full_name ?? null,
@@ -161,9 +198,12 @@ export function ProjectDetailView({
           />
         </TabsContent>
 
-        {/* Tab 5: Deliverables Tab */}
-        <TabsContent value="deliverables">
-          <DeliverablesCard deliverables={deliverables} />
+        <TabsContent value="deliveries" className="2xl:mx-62.5">
+          <DeliverablesSection
+            deliveries={deliveries}
+            projectId={project.id}
+            milestones={milestones}
+          />
         </TabsContent>
       </Tabs>
     </main>
