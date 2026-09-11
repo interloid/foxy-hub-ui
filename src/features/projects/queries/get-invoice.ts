@@ -1,9 +1,6 @@
 import { toISODate } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
-import {
-  InvoiceLine,
-  ProjectInvoiceContext,
-} from '../components/meta/new-invoice-sheet'
+
 import { EngagementModel } from '../types'
 import {
   InvoiceAllocationRow,
@@ -11,7 +8,9 @@ import {
   InvoiceDraft,
   InvoiceDraftLines,
   InvoiceEntryRow,
+  InvoiceLine,
   InvoiceProjectRow,
+  ProjectInvoiceContext,
 } from '../types/invoice'
 
 export async function buildInvoiceDraft(

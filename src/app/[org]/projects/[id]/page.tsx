@@ -1,19 +1,22 @@
 import { ProjectDetailView } from '@/features/projects/components/common/project-detail-view'
-import {
-  getClientByProjectId,
-  getCurrentUser,
-  getProjectAllocations,
-  getProjectHoursSummary,
-  getRecentProjectTimeEntries,
-} from '@/features/projects/data'
+
 import {
   getProjectDeliverables,
   getProjectDeliveries,
 } from '@/features/projects/queries/get-deliverables'
 import { getProjectsForInvoicing } from '@/features/projects/queries/get-invoice'
 import { getProjectMilestones } from '@/features/projects/queries/get-milestone'
-import { getProjectById } from '@/features/projects/queries/get-projects'
-import { getMonthlyLoggedHours } from '@/features/projects/queries/get-time-entries'
+import {
+  getClientByProjectId,
+  getProjectAllocations,
+  getProjectById,
+} from '@/features/projects/queries/get-projects'
+import {
+  getCurrentUser,
+  getMonthlyLoggedHours,
+  getProjectHoursSummary,
+  getRecentProjectTimeEntries,
+} from '@/features/projects/queries/get-time-entries'
 import { getProjectUpdates } from '@/features/projects/queries/get-updates'
 import { HoursSummaryData } from '@/features/projects/types'
 import { getWorkspace, isAdminRole } from '@/lib/dal'

@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { ActionResult } from '../onboarding/types'
-import { createProjectUpdate } from './data'
 import { buildInvoiceDraft } from './queries/get-invoice'
 import { getProjectsData } from './queries/get-projects'
 import { createMilestoneSchema } from './schema'
@@ -372,4 +371,33 @@ export async function createDelivery(input: CreateDeliveryInput) {
   revalidatePath(`/projects/${input.projectId}`)
 
   return { success: true, data }
+}
+
+async function createProjectUpdate({
+  projectId,
+  authorId,
+  body,
+}: {
+  projectId: string
+  authorId: string
+  body: string
+}) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('updates')
+    .insert({
+      project_id: projectId,
+      author_id: authorId,
+      body,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating update:', error)
+    throw new Error('Failed to post project update')
+  }
+
+  return data
 }

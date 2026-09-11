@@ -26,46 +26,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import { useEffect, useMemo } from 'react'
-
-export type EngagementModel = 'full_time' | 'part_time' | 'retainer' | 'fixed'
-
-export interface InvoiceLine {
-  id: string
-  description: string
-  typeLabel: string
-  qty: string
-  rate: string
-  amount: number
-  quantityValue?: number | null
-  unitRateValue?: number | null
-}
-
-export interface ProjectInvoiceContext {
-  id: string
-  name: string
-  clientName: string
-  engagement: EngagementModel
-  calloutMessage?: string | null
-  lines: InvoiceLine[]
-}
-
-interface InvoiceFormValues {
-  projectId: string
-  notes: string
-}
-
-interface NewInvoiceSheetProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  projects: ProjectInvoiceContext[]
-  defaultProjectId?: string
-  onSubmit?: (data: {
-    projectId: string
-    notes: string
-    totalAmount: number
-  }) => void
-  isSubmitting?: boolean
-}
+import {
+  EngagementModel,
+  InvoiceFormValues,
+  NewInvoiceSheetProps,
+} from '../../types/invoice'
 
 const ENGAGEMENT_BADGE_CONFIG: Record<
   EngagementModel,

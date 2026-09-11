@@ -2,9 +2,11 @@ import { calculateMilestoneProgress } from '@/lib/progress'
 import { createClient } from '@/lib/supabase/server'
 import { QueryData } from '@supabase/supabase-js'
 import {
+  ClientItem,
   GetProjectsParams,
   GetProjectsResult,
   Project,
+  ProjectAllocationItem,
   ProjectMetrics,
 } from '../types'
 
@@ -258,5 +260,119 @@ export async function getProjectById(
     createdAt: p.created_at,
     updatedAt: p.updated_at || p.created_at,
     progressPercent: 0,
+  }
+}
+
+export async function getProjectAllocations(
+  projectId: string
+): Promise<ProjectAllocationItem[]> {
+  const supabase = await createClient()
+
+  // 1. Fetch project allocations
+  const { data: allocations, error } = await supabase
+    .from('project_allocations')
+    .select(
+      `
+      id,
+      project_id,
+      user_id,
+      hours_per_day,
+      days_per_week,
+      rate,
+      effective_from,
+      effective_to
+    `
+    )
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: true })
+    .limit(5)
+
+  if (error || !allocations) {
+    console.error('Error fetching project allocations:', error)
+    return []
+  }
+
+  // 2. Extract unique user IDs and fetch profile names
+  const userIds = Array.from(
+    new Set(
+      allocations
+        .map((a) => a.user_id)
+        .filter((id): id is string => Boolean(id))
+    )
+  )
+
+  const { data: profiles } = userIds.length
+    ? await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', userIds)
+    : { data: [] }
+
+  const profileMap = new Map(profiles?.map((p) => [p.id, p]) || [])
+
+  return allocations.map((item) => {
+    const profile = profileMap.get(item.user_id)
+    return {
+      id: item.id,
+      projectId: item.project_id,
+      userId: item.user_id,
+      userName: profile?.full_name || 'Team Member',
+      userAvatarUrl: profile?.avatar_url || null,
+      hoursPerDay: Number(item.hours_per_day),
+      daysPerWeek: item.days_per_week,
+      rate: item.rate !== null ? Number(item.rate) : null,
+      effectiveFrom: item.effective_from,
+      effectiveTo: item.effective_to,
+    }
+  })
+}
+
+export async function getClientByProjectId(
+  projectId?: string | null
+): Promise<ClientItem | null> {
+  if (!projectId) {
+    return null
+  }
+
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('projects')
+    .select(
+      `
+      client:clients!inner (
+        id,
+        org_id,
+        name,
+        contact_name,
+        contact_email
+      )
+    `
+    )
+    .eq('id', projectId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('Error fetching client by project ID:', {
+      message: error.message,
+      details: error.details,
+      code: error.code,
+    })
+    return null
+  }
+
+  // Handle nested object or array payload returned from Supabase join
+  const rawClient = Array.isArray(data?.client) ? data.client[0] : data?.client
+
+  if (!rawClient) {
+    return null
+  }
+
+  return {
+    id: rawClient.id,
+    orgId: rawClient.org_id,
+    name: rawClient.name,
+    contactName: rawClient.contact_name,
+    contactEmail: rawClient.contact_email,
   }
 }

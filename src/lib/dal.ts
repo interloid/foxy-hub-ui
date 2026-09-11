@@ -1,5 +1,6 @@
 import { cache } from 'react'
 import { initialsOf } from './initials'
+import { isAdminRole } from './role'
 import { createClient } from './supabase/server'
 
 export type SessionUser = {
@@ -40,11 +41,7 @@ export type DashboardMetricsDTO = {
   currency: string
 }
 
-const ADMIN_ROLES: readonly string[] = ['owner', 'admin']
-
-export function isAdminRole(role: string | null | undefined): boolean {
-  return role != null && ADMIN_ROLES.includes(role.toLowerCase())
-}
+export { isAdminRole }
 
 const OPEN_PROJECT_STATUSES = [
   'draft',

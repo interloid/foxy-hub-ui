@@ -19,7 +19,6 @@ interface DashboardHeadersProps {
 
 export function DashboardHeaders({
   userName,
-  orgName = 'Interloid Studio',
   role,
   onDraftUpdateClick,
   onLogTimeClick,

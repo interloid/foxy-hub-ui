@@ -1,6 +1,3 @@
-import { InvoiceLine } from '../components/meta/new-invoice-sheet'
-import { EngagementModel } from '../types'
-
 export interface InvoiceDraftLines {
   lines: InvoiceLine[]
   entryIds: string[]
@@ -49,4 +46,44 @@ export interface InvoiceBuildContext {
   roundingMinutes: number
   periodStart?: string | null
   periodEnd?: string | null
+}
+
+export type EngagementModel = 'full_time' | 'part_time' | 'retainer' | 'fixed'
+
+export interface InvoiceLine {
+  id: string
+  description: string
+  typeLabel: string
+  qty: string
+  rate: string
+  amount: number
+  quantityValue?: number | null
+  unitRateValue?: number | null
+}
+
+export interface ProjectInvoiceContext {
+  id: string
+  name: string
+  clientName: string
+  engagement: EngagementModel
+  calloutMessage?: string | null
+  lines: InvoiceLine[]
+}
+
+export interface InvoiceFormValues {
+  projectId: string
+  notes: string
+}
+
+export interface NewInvoiceSheetProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  projects: ProjectInvoiceContext[]
+  defaultProjectId?: string
+  onSubmit?: (data: {
+    projectId: string
+    notes: string
+    totalAmount: number
+  }) => void
+  isSubmitting?: boolean
 }

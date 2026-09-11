@@ -63,7 +63,6 @@ export function ProjectTable({
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  // 1. Derive current page directly from URL search params (no useState needed for page)
   const urlPageParam = searchParams.get('page')
   const page = urlPageParam ? parseInt(urlPageParam, 10) : initialPage
 
@@ -72,14 +71,13 @@ export function ProjectTable({
 
   const isInitialMount = useRef(true)
 
-  // Helper to push URL state updates
   const updatePageUrl = (newPage: number) => {
     const params = new URLSearchParams(searchParams.toString())
     params.set('page', newPage.toString())
     router.push(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
-  // 2. Fetch data automatically whenever `page`, `orgSlug`, or `pageSize` changes
+  // Fetch page data client-side when page changes
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false

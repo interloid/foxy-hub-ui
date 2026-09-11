@@ -19,17 +19,15 @@ import type {
 import { DeliverablesSection } from '../deliverables/deliveries-card'
 import { ClientCard } from '../meta/client-card'
 import { EngagementCard } from '../meta/engagement-card'
-import { ProjectInvoiceContext } from '../meta/new-invoice-sheet'
 import { ProgressCard } from '../meta/progress-card'
 import { MilestonesListCard } from '../milestones/milestones-list-card'
 import { HoursBurnCard } from '../time-tracking/hours-burn-card'
 import { HoursSummaryCards } from '../time-tracking/hours-summary-cards'
-import {
-  TimeEntriesTableCard,
-  TimeEntryItem,
-} from '../time-tracking/time-entries-card'
+import { TimeEntriesTableCard } from '../time-tracking/time-entries-card'
 import { ProjectUpdatesSection } from '../updates/project-updates-section'
 import { ProjectBreadcrumbSetter } from './project-breadcrump-setter'
+import { TimeEntryItem } from '../../types/time-entries'
+import { ProjectInvoiceContext } from '../../types/invoice'
 
 type QueryResult<T> = {
   data: T

@@ -1,7 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { ProjectUpdate } from '../types'
-import { createProjectUpdate } from '../data'
-import { revalidatePath } from 'next/cache'
 
 export async function getProjectUpdates(
   projectId: string

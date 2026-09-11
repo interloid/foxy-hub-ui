@@ -4,8 +4,8 @@ import {
   getOrganizationCapacity,
   getProjects,
   getTeammateCapacity,
-  getTeamMembersForOrg,
-} from '@/features/dashboard/actions'
+  getTeamMembers,
+} from '@/features/dashboard/queries'
 import { toISODate } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
@@ -111,7 +111,7 @@ export async function GET(req: NextRequest) {
 
     // 5. Fetch Team Member Options
     if (type === 'team-members') {
-      const teamMembers = await getTeamMembersForOrg(orgSlug)
+      const teamMembers = await getTeamMembers(orgSlug)
       return NextResponse.json(Array.isArray(teamMembers) ? teamMembers : [])
     }
 

@@ -11,10 +11,8 @@ import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { createInvoiceAction } from '../../actions'
 import { PROJECT_STATUS_CONFIG } from '../../constants'
 import type { Project, ProjectStatus } from '../../types'
-import {
-  NewInvoiceSheet,
-  ProjectInvoiceContext,
-} from '../meta/new-invoice-sheet'
+import { NewInvoiceSheet } from '../meta/new-invoice-sheet'
+import { ProjectInvoiceContext } from '../../types/invoice'
 
 interface ProjectDetailHeaderProps {
   project: Project

@@ -1,3 +1,5 @@
+import { TimeEntryStatus } from './types/time-entries'
+
 export type ProjectStatus =
   | 'pending'
   | 'in-progress'
@@ -12,8 +14,6 @@ export type EngagementModel = 'full_time' | 'part_time' | 'fixed' | 'retainer'
 export type RetainerPeriod = 'weekly' | 'monthly'
 
 export type DeliveryStatus = 'pending' | 'submitted' | 'approved' | 'rejected'
-
-export type TimeEntryStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
 
 export type MilestoneStatus = 'pending' | 'in_progress' | 'completed'
 export type MilestoneCounts = { completed: number; total: number }

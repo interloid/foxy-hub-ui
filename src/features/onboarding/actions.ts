@@ -2,7 +2,7 @@
 
 import { siteConfig } from '@/config/site'
 import { logActivity } from '@/lib/activity'
-import { getAccount } from '@/lib/dal'
+import { getAccount, isAdminRole } from '@/lib/dal'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
@@ -157,11 +157,7 @@ export async function inviteTeam(
     .eq('user_id', user.id)
     .maybeSingle()
 
-  if (
-    membershipError ||
-    !membership ||
-    !['owner', 'admin'].includes(membership.role.toLowerCase())
-  ) {
+  if (membershipError || !membership || !isAdminRole(membership.role)) {
     return {
       ok: false,
       error:

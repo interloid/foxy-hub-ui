@@ -21,6 +21,13 @@ const serverEnvSchema = z.object({
     .enum(['development', 'preview', 'production'])
     .optional()
     .or(z.literal('')),
+
+  UPSTASH_REDIS_REST_URL: z
+    .string()
+    .min(1, 'UPSTASH_REDIS_REST_URL is required'),
+  UPSTASH_REDIS_REST_TOKEN: z
+    .string()
+    .min(1, 'UPSTASH_REDIS_REST_TOKEN is required'),
 })
 
 export const serverEnv = serverEnvSchema.parse({
@@ -33,6 +40,8 @@ export const serverEnv = serverEnvSchema.parse({
   SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
   VERCEL_ENV: process.env.VERCEL_ENV,
   NODE_ENV: process.env.NODE_ENV,
+  UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+  UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
 })
 
 export const isDemoModeEnabled = (): boolean => {

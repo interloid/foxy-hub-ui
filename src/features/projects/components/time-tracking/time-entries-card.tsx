@@ -10,24 +10,10 @@ import {
   FxTableScroll,
 } from '@/components/shared/fx-table'
 import { AlertCircle } from 'lucide-react'
-import { TimeEntryStatus } from '../../types'
-
-export interface TimeEntryItem {
-  id: string
-  workDate: string
-  authorName: string
-  authorInitials: string
-  avatarColorClass?: string
-  milestoneTitle?: string | null
-  description: string
-  durationMinutes: number
-  status: TimeEntryStatus
-}
-
-interface TimeEntriesTableCardProps {
-  entries?: TimeEntryItem[] | null
-  isError?: boolean
-}
+import {
+  TimeEntriesTableCardProps,
+  TimeEntryStatus,
+} from '../../types/time-entries'
 
 const STATUS_BADGE_CONFIG: Record<
   TimeEntryStatus,

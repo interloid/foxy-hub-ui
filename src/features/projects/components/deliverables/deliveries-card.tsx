@@ -12,6 +12,7 @@ import {
 } from '@/components/shared/fx-table'
 import { TableRow } from '@/components/ui/table'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { isAdminRole } from '@/lib/role'
 import { format } from 'date-fns'
 import { AlertCircle, Eye } from 'lucide-react'
 import { useState } from 'react'
@@ -45,8 +46,7 @@ export function DeliverablesSection({
   const { handleViewFile, handleDownloadFile } = useFileActions('deliverables')
   const { orgId, userRole, orgSlug } = useWorkspace()
 
-  const isAuthorized = userRole === 'admin' || userRole === 'owner'
-
+  const isAuthorized = isAdminRole(userRole)
   const handleViewDelivery = (delivery: ProjectDelivery) => {
     setSelectedDelivery(delivery)
     setIsSheetOpen(true)
