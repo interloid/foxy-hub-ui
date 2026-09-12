@@ -1,6 +1,7 @@
 'use client'
 
 import { FxButton } from '@/components/shared/fx-button'
+import { isAdminRole } from '@/lib/role'
 import { Clock, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { UserRole } from '../../types'
@@ -82,13 +83,12 @@ export function DashboardHeaders({
 
       {/* Sheets */}
       <LogTimeSheet open={isLogTimeOpen} onOpenChange={setIsLogTimeOpen} />
-      {role === 'admin' ||
-        (role === 'owner' && (
-          <NewProjectSheet
-            open={isNewProjectOpen}
-            onOpenChange={setIsNewProjectOpen}
-          />
-        ))}
+      {isAdminRole(role) && (
+        <NewProjectSheet
+          open={isNewProjectOpen}
+          onOpenChange={setIsNewProjectOpen}
+        />
+      )}
     </>
   )
 }

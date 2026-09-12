@@ -3,8 +3,10 @@
 import { isDemoModeEnabled, serverEnv } from '@/config/env.server'
 import { siteConfig } from '@/config/site'
 import { decodePassword } from '@/lib/password-encoding'
+import { rateLimit } from '@/lib/rate-limit'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import {
   changePasswordSchema,
@@ -13,8 +15,6 @@ import {
   setPasswordSchema,
   signInSchema,
 } from './schemas'
-import { headers } from 'next/headers'
-import { rateLimit } from '@/lib/rate-limit'
 
 export type AuthResult =
   | { ok: true; redirectTo?: string; role?: string }
@@ -60,10 +60,11 @@ export async function signInWithPassword(
     .from('memberships')
     .select('organizations(slug)')
     .eq('user_id', userId)
+    .order('created_at', { ascending: false })
     .limit(1)
+    .maybeSingle()
 
-  const orgSlug = membership?.[0].organizations?.slug
-
+  const orgSlug = (membership?.organizations as { slug: string } | null)?.slug
   if (membershipError || !orgSlug) {
     return { ok: true, redirectTo: '/onboard' }
   }
@@ -164,7 +165,7 @@ export async function setPassword(
   if (membershipError) {
     return { ok: false, error: membershipError.message }
   }
-  return { ok: true, role: membership?.[0].role ?? undefined }
+  return { ok: true, role: membership?.[0]?.role ?? undefined }
 }
 
 export async function changePassword(

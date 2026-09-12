@@ -12,7 +12,6 @@ import {
   Popover,
   PopoverTrigger,
 } from '@/components/shared/fx-menu'
-import { TeamMemberOption } from '@/features/dashboard/actions'
 import { toISODate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import { Calendar as CalendarIcon, ChevronDown, X } from 'lucide-react'
@@ -25,6 +24,7 @@ import {
 } from 'react-hook-form'
 import type { AllocationRowIssues } from './team-allocation-section'
 import { AllocationFormValues, NewProjectFormValues } from './types'
+import { TeamMemberOption } from '@/features/dashboard/types'
 
 interface TeamAllocationRowProps {
   index: number

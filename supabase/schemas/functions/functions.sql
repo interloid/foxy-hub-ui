@@ -678,18 +678,37 @@ declare
   v_remaining_minutes integer;
   v_remaining_hours numeric;
   v_new_entry_id uuid;
+  v_is_admin boolean;
 begin
   -- 1. Authorization check: caller must be an active member of the organization
   if not public.has_org_role(p_org_id, array['owner', 'admin', 'member']::public.user_role[]) then
     raise exception 'Not authorized to log time for this organization' using errcode = '42501';
   end if;
 
-  -- 2. Acquire a transaction-level advisory lock to serialize concurrent requests for the same user, date, and org
+  -- 2. Determine if the caller holds elevated privileges (owner or admin)
+  v_is_admin := public.has_org_role(p_org_id, array['owner', 'admin']::public.user_role[]);
+
+  -- 3. Enforce user boundary: regular members can only log time for themselves
+  if not v_is_admin and p_user_id <> auth.uid() then
+    raise exception 'Regular members can only log time for themselves' using errcode = '42501';
+  end if;
+
+  -- 4. Verify that the target project belongs to the specified organization
+  if not exists (
+    select 1 
+    from public.projects 
+    where id = p_project_id 
+      and org_id = p_org_id
+  ) then
+    raise exception 'Project does not belong to this organization' using errcode = '22023';
+  end if;
+
+  -- 5. Acquire a transaction-level advisory lock to serialize concurrent requests for the same user, date, and org
   perform pg_advisory_xact_lock(
     hashtext(p_user_id::text || p_work_date::text || p_org_id::text)
   );
 
-  -- 3. Get organization's daily capacity
+  -- 6. Get organization's daily capacity
   select coalesce(daily_capacity_hours, 8)
   into v_daily_capacity_hours
   from public.organizations
@@ -697,7 +716,7 @@ begin
 
   v_daily_capacity_minutes := floor(v_daily_capacity_hours * 60);
 
-  -- 4. Calculate existing logged minutes for the given day & organization
+  -- 7. Calculate existing logged minutes for the given day & organization
   select coalesce(sum(te.duration_minutes), 0)
   into v_already_logged_minutes
   from public.time_entries te
@@ -706,7 +725,7 @@ begin
     and te.work_date = p_work_date
     and p.org_id = p_org_id;
 
-  -- 5. Check if total exceeds daily capacity
+  -- 8. Check if total exceeds daily capacity
   if (v_already_logged_minutes + p_duration_minutes) > v_daily_capacity_minutes then
     v_remaining_minutes := greatest(0, v_daily_capacity_minutes - v_already_logged_minutes);
     v_remaining_hours := round((v_remaining_minutes::numeric / 60.0), 1);
@@ -717,7 +736,7 @@ begin
     );
   end if;
 
-  -- 6. Atomic insert
+  -- 9. Atomic insert
   insert into public.time_entries (
     user_id,
     project_id,
@@ -746,3 +765,25 @@ $$;
 
 -- Grant execution permission to authenticated users
 grant execute on function public.create_time_entry_with_capacity_check(uuid, uuid, uuid, date, integer, text, uuid) to authenticated;
+
+create or replace function public.check_email_exists(p_email text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  -- Reject malformed inputs immediately
+  if p_email is null or length(p_email) < 3 or position('@' in p_email) = 0 then
+    raise exception 'Invalid email format' using errcode = '22023';
+  end if;
+
+  return exists (
+    select 1 
+    from auth.users 
+    where lower(email) = lower(trim(p_email))
+  );
+end;
+$$;
+
+grant execute on function public.check_email_exists(text) to service_role, authenticated, anon;

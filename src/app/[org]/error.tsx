@@ -20,13 +20,8 @@ export default function WorkspaceError({
 }) {
   const router = useRouter()
 
-  // Match known Next.js server error digest codes or fallback properties
-  const isNotFound =
-    error.digest === 'NEXT_NOT_FOUND' ||
-    error.message.toLowerCase().includes('not_found')
-  const isUnauthorized =
-    error.digest === 'NEXT_UNAUTHORIZED' ||
-    error.message.toLowerCase().includes('unauthorized')
+  const isNotFound = error.digest === 'NOT_FOUND'
+  const isUnauthorized = error.digest === 'UNAUTHORIZED'
 
   const title = isNotFound
     ? 'Workspace Not Found'

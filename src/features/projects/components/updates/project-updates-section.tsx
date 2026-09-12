@@ -30,7 +30,7 @@ export function ProjectUpdatesSection({
 
     try {
       setIsPostingUpdate(true)
-      await postUpdateAction(orgSlug, projectId, body)
+      await postUpdateAction(projectId, body, orgSlug)
       toast.success('Project update posted successfully')
     } catch (error) {
       console.error('Failed to post project update:', error)

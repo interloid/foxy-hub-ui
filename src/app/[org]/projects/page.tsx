@@ -8,6 +8,9 @@ interface ProjectsPageProps {
   params: Promise<{
     org: string
   }>
+  searchParams: Promise<{
+    page?: string
+  }>
 }
 
 export async function generateMetadata({
@@ -21,20 +24,26 @@ export async function generateMetadata({
   }
 }
 
-async function ProjectsContent({ org }: { org: string }) {
-  const { projects, metrics, page, pageSize, totalCount, totalPages } =
-    await getProjectsData({
-      orgSlug: org,
-      page: 1,
-      pageSize: 5,
-    })
+async function ProjectsContent({ org, page }: { org: string; page: number }) {
+  const {
+    projects,
+    metrics,
+    page: currentPage,
+    pageSize,
+    totalCount,
+    totalPages,
+  } = await getProjectsData({
+    orgSlug: org,
+    page,
+    pageSize: 5,
+  })
 
   return (
     <ProjectsOverview
       initialProjects={projects}
       metrics={metrics}
       orgSlug={org}
-      page={page}
+      page={currentPage}
       pageSize={pageSize}
       totalCount={totalCount}
       totalPages={totalPages}
@@ -42,12 +51,19 @@ async function ProjectsContent({ org }: { org: string }) {
   )
 }
 
-export default async function ProjectsPage({ params }: ProjectsPageProps) {
+export default async function ProjectsPage({
+  params,
+  searchParams,
+}: ProjectsPageProps) {
   const { org } = await params
+  const resolvedSearchParams = await searchParams
+  const page = resolvedSearchParams.page
+    ? parseInt(resolvedSearchParams.page, 10)
+    : 1
 
   return (
     <Suspense fallback={<ProjectsLoadingSkeleton />}>
-      <ProjectsContent org={org} />
+      <ProjectsContent org={org} page={page} />
     </Suspense>
   )
 }

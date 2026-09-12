@@ -11,6 +11,7 @@ import {
   FxSheetTitle,
   Sheet,
 } from '@/components/shared/fx-sheet'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { format } from 'date-fns'
 import {
   AlertCircle,
@@ -75,12 +76,12 @@ export function DeliverableFileSheet({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { orgSlug } = useWorkspace()
 
   if (!delivery) return null
 
   const isPending = delivery.status === 'pending'
   const isApproved = delivery.status === 'approved'
-
   // Extract file name from path
   const getFileName = (path: string) => {
     return path.split('/').pop() || path
@@ -161,10 +162,10 @@ export function DeliverableFileSheet({
 
     try {
       await uploadDeliveryAssets(
-        delivery.orgId,
         delivery.projectId,
         delivery.id,
-        selectedFiles
+        selectedFiles,
+        orgSlug
       )
       setSelectedFiles([])
       onSuccessUpload?.()

@@ -65,20 +65,16 @@ export async function checkEmailAvailable(
 
   try {
     const admin = createAdminClient()
-    const { data, error } = await admin.auth.admin.listUsers()
+    const { data: emailExists, error } = await admin.rpc('check_email_exists', {
+      p_email: parsed.data.email,
+    })
 
     if (error) {
       console.error(error.message)
       return { ok: false, error: 'Could not check that email. Try again.' }
     }
-    const emailLower = parsed.data.email.toLowerCase()
-    const existingUser = data.users.find(
-      (user) => user.email?.toLowerCase() === emailLower
-    )
 
-    // If data exists, email is taken (!data returns false).
-    // If data is null, email is available (!data returns true).
-    return { ok: true, data: !existingUser }
+    return { ok: true, data: !emailExists }
   } catch (err) {
     console.error((err as Error).message)
     return { ok: false, error: 'Could not check that email. Try again.' }

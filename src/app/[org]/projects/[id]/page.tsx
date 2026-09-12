@@ -4,7 +4,10 @@ import {
   getProjectDeliverables,
   getProjectDeliveries,
 } from '@/features/projects/queries/get-deliverables'
-import { getProjectsForInvoicing } from '@/features/projects/queries/get-invoice'
+import {
+  getProjectsForInvoicing,
+  hasInvoiceForProject,
+} from '@/features/projects/queries/get-invoice'
 import { getProjectMilestones } from '@/features/projects/queries/get-milestone'
 import {
   getClientByProjectId,
@@ -92,6 +95,7 @@ export default async function ProjectDetailPage({
     getRecentProjectTimeEntries(id),
     getProjectDeliveries(id),
   ])
+  const hasInvoice = await hasInvoiceForProject(id, project.engagement)
 
   // Helper to handle results, log errors to Sentry, and return state
   function processResult<T>(
@@ -165,6 +169,7 @@ export default async function ProjectDetailPage({
       timeEntries={timeEntries}
       canManageAllocations={canManageAllocations}
       deliveries={deliveries}
+      hasExistingInvoice={hasInvoice}
     />
   )
 }

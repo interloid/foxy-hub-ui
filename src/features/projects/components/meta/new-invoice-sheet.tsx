@@ -58,6 +58,7 @@ export function NewInvoiceSheet({
   defaultProjectId,
   onSubmit,
   isSubmitting = false,
+  hasExistingInvoice = false,
 }: NewInvoiceSheetProps) {
   const { control, handleSubmit, watch, setValue, getValues } =
     useForm<InvoiceFormValues>({
@@ -115,7 +116,7 @@ export function NewInvoiceSheet({
         </FxSheetHeader>
 
         {/* Body */}
-        <FxSheetBody className="space-y-6">
+        <FxSheetBody className="flex flex-col justify-between space-y-6">
           <form
             id="new-invoice-form"
             onSubmit={handleSubmit(handleFormSubmit)}
@@ -279,6 +280,13 @@ export function NewInvoiceSheet({
               />
             </div>
           </form>
+          <div className="text-muted-foreground text-center text-xs">
+            {hasExistingInvoice && (
+              <span className="text-primary text-center font-medium">
+                An invoice has already been created for this billing period.
+              </span>
+            )}
+          </div>
         </FxSheetBody>
 
         {/* Footer */}
@@ -305,7 +313,11 @@ export function NewInvoiceSheet({
               type="submit"
               form="new-invoice-form"
               size="sm"
-              disabled={isSubmitting || !currentProject?.lines.length}
+              disabled={
+                isSubmitting ||
+                !currentProject?.lines.length ||
+                hasExistingInvoice
+              }
               className="bg-primary text-brand-white h-9 px-4 text-[13px] font-semibold"
             >
               <Send className="mr-1.5 h-3.5 w-3.5" />

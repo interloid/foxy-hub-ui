@@ -42,15 +42,17 @@ export function ClientCard({ client, isError = false }: ClientCardProps) {
     return (
       <section
         aria-labelledby="client-card-heading"
-        className="bg-card border-border rounded-xl border p-5 shadow-xs"
+        className="bg-card border-border rounded-xl border shadow-xs"
       >
-        <h3
-          id="client-card-heading"
-          className="text-foreground text-[14px] font-semibold"
-        >
-          Client
-        </h3>
-        <p className="text-muted-foreground mt-3 text-xs italic">
+        <header>
+          <h3
+            id="client-card-heading"
+            className="text-foreground border-border/60 border-b px-5 py-4 text-[14px] font-semibold"
+          >
+            Client
+          </h3>
+        </header>
+        <p className="text-muted-foreground px-5 py-4 text-center text-sm">
           Internal project (no client assigned)
         </p>
       </section>
@@ -62,18 +64,20 @@ export function ClientCard({ client, isError = false }: ClientCardProps) {
   return (
     <section
       aria-labelledby="client-card-heading"
-      className="bg-card border-border rounded-xl border p-5 shadow-xs"
+      className="bg-card border-border rounded-xl border shadow-xs"
     >
       {/* Header */}
-      <h3
-        id="client-card-heading"
-        className="text-foreground text-[14px] font-semibold"
-      >
-        Client
-      </h3>
+      <header>
+        <h3
+          id="client-card-heading"
+          className="text-foreground border-border/60 border-b px-5 py-4 text-[14px] font-semibold"
+        >
+          Client
+        </h3>
+      </header>
 
       {/* Content */}
-      <div className="mt-3.5 flex items-center gap-3">
+      <div className="flex items-center gap-3 p-5">
         {/* Avatar Circle */}
         <div className="bg-info text-brand-white flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold shadow-xs">
           {initials}

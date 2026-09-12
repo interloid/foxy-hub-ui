@@ -3,6 +3,7 @@
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { isAdminRole } from '@/lib/role'
 import { cn } from '@/lib/utils'
 import { AlertCircle } from 'lucide-react'
 import { useState } from 'react'
@@ -79,19 +80,17 @@ export function MilestonesListCard({
           >
             Milestones
           </h3>
-          {!isInOverview &&
-            !isError &&
-            (userRole === 'admin' || userRole === 'owner') && (
-              <div>
-                <FxButton
-                  variant="default"
-                  size="default"
-                  onClick={() => setIsCreateSheetOpen(true)}
-                >
-                  Create Milestone
-                </FxButton>
-              </div>
-            )}
+          {!isInOverview && !isError && isAdminRole(userRole) && (
+            <div>
+              <FxButton
+                variant="default"
+                size="default"
+                onClick={() => setIsCreateSheetOpen(true)}
+              >
+                Create Milestone
+              </FxButton>
+            </div>
+          )}
         </header>
 
         {/* List Content */}
@@ -180,7 +179,7 @@ export function MilestonesListCard({
               )
             })
           ) : (
-            <p className="text-muted-foreground py-4 text-xs italic">
+            <p className="text-muted-foreground px-5 py-4 text-center text-sm">
               No milestones configured for this project.
             </p>
           )}

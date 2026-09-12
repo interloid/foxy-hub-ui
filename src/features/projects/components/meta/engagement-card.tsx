@@ -134,7 +134,7 @@ export function EngagementCard({
                         </div>
                       </div>
 
-                      <div className="flex shrink-0 items-center gap-2">
+                      <div className="compact:flex-row compact:items-center flex shrink-0 flex-col items-end gap-2">
                         {/* Hourly Rate */}
                         {alloc.rate !== null && alloc.rate !== undefined && (
                           <span className="text-subtle-foreground text-xs font-bold">

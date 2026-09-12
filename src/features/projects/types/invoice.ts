@@ -86,4 +86,5 @@ export interface NewInvoiceSheetProps {
     totalAmount: number
   }) => void
   isSubmitting?: boolean
+  hasExistingInvoice?: boolean
 }

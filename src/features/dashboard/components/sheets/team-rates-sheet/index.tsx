@@ -15,11 +15,9 @@ import {
   FxSheetTitle,
   Sheet,
 } from '@/components/shared/fx-sheet'
-import {
-  TeamMemberOption,
-  updateMemberRatesAction,
-} from '@/features/dashboard/actions'
+import { updateMemberRatesAction } from '@/features/dashboard/actions'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { TeamMemberOption } from '@/features/dashboard/types'
 
 interface MemberRateRow {
   userId: string
@@ -54,8 +52,10 @@ function splitMemberLabel(label: string): { name: string; role: string } {
   return { name: (name ?? label).trim(), role: (role ?? '').trim() }
 }
 
-function toRate(value: number | undefined): number | null {
-  return value === undefined || Number.isNaN(value) ? null : value
+function toRate(value: number | undefined | null): number | null {
+  return value === undefined || value === null || Number.isNaN(value)
+    ? null
+    : value
 }
 
 export function TeamRatesSheet({ open, onOpenChange }: TeamRatesSheetProps) {
@@ -237,7 +237,10 @@ export function TeamRatesSheet({ open, onOpenChange }: TeamRatesSheetProps) {
                         placeholder="—"
                         className="h-8 px-2 font-mono text-[12px]"
                         {...register(`members.${index}.defaultRate`, {
-                          valueAsNumber: true,
+                          setValueAs: (val) =>
+                            val === '' || val === null || val === undefined
+                              ? undefined
+                              : parseFloat(val),
                         })}
                       />
                     </div>
@@ -257,7 +260,10 @@ export function TeamRatesSheet({ open, onOpenChange }: TeamRatesSheetProps) {
                         placeholder="—"
                         className="h-8 px-2 font-mono text-[12px]"
                         {...register(`members.${index}.costRate`, {
-                          valueAsNumber: true,
+                          setValueAs: (val) =>
+                            val === '' || val === null || val === undefined
+                              ? undefined
+                              : parseFloat(val),
                         })}
                       />
                     </div>

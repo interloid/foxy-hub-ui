@@ -203,7 +203,19 @@ export async function createMilestone(input: CreateMilestoneInput) {
 
   const supabase = await createClient()
 
-  // 2. Insert record into Supabase "milestones" table
+  // 2. Verify that the target project belongs to the current workspace
+  const { data: project, error: projErr } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('id', input.projectId)
+    .eq('org_id', workspace.id)
+    .single()
+
+  if (projErr || !project) {
+    throw new Error('Project not found or unauthorized')
+  }
+
+  // 3. Insert record into Supabase "milestones" table
   const { data: newMilestone, error } = await supabase
     .from('milestones')
     .insert({
@@ -240,7 +252,7 @@ export async function submitDeliveryForApproval(
     .select('id, project:projects!inner(id, org_id)')
     .eq('id', deliveryId)
     .eq('project_id', projectId)
-    .eq('projects.org_id', workspace.id)
+    .eq('project.org_id', workspace.id)
     .maybeSingle()
 
   if (fetchErr || !delivery) {
@@ -299,17 +311,31 @@ export async function fetchProjectsAction(
 }
 
 export async function uploadDeliveryAssets(
-  orgId: string,
   projectId: string,
   deliveryId: string,
   files: File[],
-  bucketName = 'deliverables'
+  orgSlug: string
 ) {
+  const workspace = await getWorkspace(orgSlug)
+  if (!workspace) throw new Error('Unauthorized')
+
   const supabase = await createClient()
+  const bucketName = 'deliverables'
+
+  const { data: project, error: projErr } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('id', projectId)
+    .eq('org_id', workspace.id)
+    .single()
+
+  if (projErr || !project) {
+    throw new Error('Project not found or unauthorized')
+  }
 
   for (const file of files) {
     // Path structure matches RLS expectations: {org_id}/{project_id}/{filename}
-    const filePath = `${orgId}/${projectId}/${Date.now()}-${file.name}`
+    const filePath = `${workspace.id}/${projectId}/${Date.now()}-${file.name}`
 
     const { error: storageError } = await supabase.storage
       .from(bucketName)
@@ -327,6 +353,7 @@ export async function uploadDeliveryAssets(
 
     if (dbError) throw dbError
   }
+  return { ok: true }
 }
 
 export async function createDelivery(input: CreateDeliveryInput) {
@@ -334,6 +361,7 @@ export async function createDelivery(input: CreateDeliveryInput) {
   if (!workspace) {
     throw new Error('Unauthorized')
   }
+
   const supabase = await createClient()
 
   // 1. Get authenticated user ID
@@ -346,12 +374,24 @@ export async function createDelivery(input: CreateDeliveryInput) {
     throw new Error('Unauthorized')
   }
 
-  // 2. Insert into public.deliveries
+  // 2. Verify that the target project belongs to the current workspace
+  const { data: project, error: projErr } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('id', input.projectId)
+    .eq('org_id', workspace.id)
+    .single()
+
+  if (projErr || !project) {
+    throw new Error('Project not found or unauthorized')
+  }
+
+  // 3. Insert into public.deliveries using securely derived workspace ID
   const { data, error } = await supabase
     .from('deliveries')
     .insert({
       project_id: input.projectId,
-      org_id: input.orgId,
+      org_id: workspace.id,
       author_id: user.id,
       title: input.title.trim(),
       description: input.description?.trim() || null,
@@ -367,9 +407,8 @@ export async function createDelivery(input: CreateDeliveryInput) {
     throw new Error('Failed to create delivery.')
   }
 
-  // 3. Revalidate cache
-  revalidatePath(`/projects/${input.projectId}`)
-
+  // 4. Revalidate cache
+  revalidatePath(`/${workspace.slug}/projects/${input.projectId}`)
   return { success: true, data }
 }
 

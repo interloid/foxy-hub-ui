@@ -1,6 +1,8 @@
 import { getWorkspace, isAdminRole } from '@/lib/dal'
 import { toISODate } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
+
+import { getLoggedMinutesForDate } from '@/lib/time-tracking'
 import {
   CapacityAndLoggedData,
   ClientOption,
@@ -8,8 +10,7 @@ import {
   ProjectOption,
   TeammateAllocationCheck,
   TeamMemberOption,
-} from './actions'
-import { getLoggedMinutesForDate } from '@/lib/time-tracking'
+} from './types'
 
 export async function getClientsForOrg(
   orgSlug: string | null

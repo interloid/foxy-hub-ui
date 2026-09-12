@@ -11,19 +11,21 @@ import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { createInvoiceAction } from '../../actions'
 import { PROJECT_STATUS_CONFIG } from '../../constants'
 import type { Project, ProjectStatus } from '../../types'
-import { NewInvoiceSheet } from '../meta/new-invoice-sheet'
 import { ProjectInvoiceContext } from '../../types/invoice'
+import { NewInvoiceSheet } from '../meta/new-invoice-sheet'
 
 interface ProjectDetailHeaderProps {
   project: Project
   invoiceProjects?: ProjectInvoiceContext[]
   isInvoiceError?: boolean
+  hasExistingInvoice?: boolean
 }
 
 export function ProjectDetailHeader({
   project,
   invoiceProjects = [],
   isInvoiceError = false,
+  hasExistingInvoice,
 }: ProjectDetailHeaderProps) {
   const [isInvoiceSheetOpen, setIsInvoiceSheetOpen] = useState(false)
   const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false)
@@ -43,6 +45,7 @@ export function ProjectDetailHeader({
   const config =
     PROJECT_STATUS_CONFIG[project.status as ProjectStatus] ||
     PROJECT_STATUS_CONFIG.draft
+  // Determine if an invoice already exists for this project
 
   const handleGenerateInvoice = async (data: {
     projectId: string
@@ -104,7 +107,7 @@ export function ProjectDetailHeader({
             <div className="flex min-w-0 items-center gap-2">
               <div
                 aria-hidden="true"
-                className="bg-primary text-primary-foreground flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-bold select-none"
+                className="bg-primary compact:flex! text-primary-foreground hidden h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-bold select-none"
               >
                 {clientInitials}
               </div>
@@ -114,17 +117,17 @@ export function ProjectDetailHeader({
             </div>
 
             {/* Contract / Budget */}
-            <div className="text-muted-foreground compact:flex-row flex min-w-0 flex-col items-center gap-1 text-center md:items-center md:justify-center">
+            <div className="text-muted-foreground compact:flex-row flex min-w-0 flex-col items-center justify-start gap-1 text-center md:items-center md:justify-center">
               <span>Contract</span>
               <span>{formattedValue}</span>
             </div>
 
             {/* Milestones Counter */}
-            <div className="text-muted-foreground compact:justify-start compact:flex-row flex min-w-0 flex-col items-start justify-around gap-1 text-right md:items-center md:justify-start">
+            <div className="text-muted-foreground compact:items-center compact:justify-start compact:flex-row flex min-w-0 flex-col items-start justify-around gap-1 text-right md:items-center md:justify-start">
+              <span>Milestones</span>
               <span>
                 {project.milestones?.completed}/{project.milestones?.total}
               </span>
-              <span>milestones</span>
             </div>
           </div>
         </div>
@@ -163,6 +166,7 @@ export function ProjectDetailHeader({
         projects={invoiceProjects}
         onSubmit={handleGenerateInvoice}
         isSubmitting={isSubmittingInvoice}
+        hasExistingInvoice={hasExistingInvoice}
       />
     </>
   )

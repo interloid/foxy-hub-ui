@@ -432,3 +432,39 @@ function withUnratedNotice(
 
   return calloutMessage ? `${notice} ${calloutMessage}` : notice
 }
+
+export async function hasInvoiceForProject(
+  projectId: string,
+  engagement: string
+): Promise<boolean> {
+  const supabase = await createClient()
+
+  if (engagement === 'fixed') {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('id')
+      .eq('project_id', projectId)
+      .limit(1)
+
+    if (error) throw error
+    return (data?.length ?? 0) > 0
+  }
+
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth()
+
+  const startOfMonth = new Date(year, month, 1).toISOString().split('T')[0]
+  const endOfMonth = new Date(year, month + 1, 0).toISOString().split('T')[0]
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('id')
+    .eq('project_id', projectId)
+    .lte('period_start', endOfMonth)
+    .gte('period_end', startOfMonth)
+    .limit(1)
+
+  if (error) throw error
+  return (data?.length ?? 0) > 0
+}

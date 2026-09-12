@@ -23,12 +23,13 @@ import {
   Sheet,
 } from '@/components/shared/fx-sheet'
 import { FxTextarea } from '@/components/shared/fx-textarea'
+import { createTimeEntry } from '@/features/dashboard/actions'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import {
-  createTimeEntry,
+  CapacityAndLoggedData,
   MilestoneOption,
   ProjectOption,
-} from '@/features/dashboard/actions'
-import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+} from '@/features/dashboard/types'
 import { toISODate } from '@/lib/date'
 import {
   Calendar as CalendarIcon,
@@ -116,8 +117,10 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     fetch(`/api/dashboard/sheet-data?${query.toString()}`, {
       signal: controller.signal,
     })
-      .then((res) => res.json())
-      .then((data) => {
+      .then((res: Response) =>
+        res.ok ? res.json() : ({} as CapacityAndLoggedData)
+      )
+      .then((data: CapacityAndLoggedData) => {
         setDailyCapacityHours(data.dailyCapacityHours ?? 8)
         setAlreadyLoggedMinutes(data.alreadyLoggedMinutes ?? 0)
       })
@@ -127,13 +130,13 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
 
     return () => controller.abort()
   }, [open, selectedDate, orgSlug])
-  const controller = new AbortController()
 
   // Fetch Milestones when project changes
   const handleProjectSelect = (project: ProjectOption) => {
     setSelectedProject(project)
     setSelectedMilestone(null)
 
+    const controller = new AbortController()
     const query = new URLSearchParams({
       type: 'milestones',
       orgSlug,
@@ -143,9 +146,11 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     fetch(`/api/dashboard/sheet-data?${query.toString()}`, {
       signal: controller.signal,
     })
-      .then((res) => res.json())
-      .then((msList) => setMilestones(msList))
-      .catch(console.error)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((msList) => setMilestones(Array.isArray(msList) ? msList : []))
+      .catch((err) => {
+        if (err.name !== 'AbortError') console.error(err)
+      })
   }
 
   const handleLogTime = () => {
@@ -362,10 +367,6 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
               placeholder='What did you work on? e.g. "M2 auth: RLS policies for memberships"'
               className="text-[13px]"
             />
-            {/* <p className="text-muted-foreground mt-1.5 text-[11.5px]">
-              Required — &quot;development&quot; is not a receipt. Be specific
-              so approvers and clients can read the work.
-            </p> */}
           </div>
         </FxSheetBody>
 

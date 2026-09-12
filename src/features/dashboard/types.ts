@@ -69,3 +69,40 @@ export interface DashboardData {
   capacityOverCount: number
   planInfo: StudioPlanInfo
 }
+
+export interface ClientOption {
+  id: string
+  name: string
+}
+
+export interface TeamMemberOption {
+  id: string
+  name: string
+  role: string
+  /** `memberships.default_rate` — seeds an allocation's bill rate. Null until someone sets it. */
+  defaultRate: number | null
+  /** `memberships.cost_rate` — internal. Carried for margin, never shown to a client. */
+  costRate: number | null
+}
+
+export interface TeammateAllocationCheck {
+  userId: string
+  existingHoursPerDay: number
+  maxDailyCapacity: number
+  maxDaysPerWk: number
+}
+
+export interface CapacityAndLoggedData {
+  dailyCapacityHours: number
+  alreadyLoggedMinutes: number
+}
+
+export interface ProjectOption {
+  id: string
+  name: string
+}
+
+export interface MilestoneOption {
+  id: string
+  title: string
+}

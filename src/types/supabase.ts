@@ -889,6 +889,7 @@ export type Database = {
     }
     Functions: {
       approve_time_entry: { Args: { entry_id: string }; Returns: undefined }
+      check_email_exists: { Args: { p_email: string }; Returns: boolean }
       create_invoice_with_entries: {
         Args: { entry_ids?: string[]; invoice_data: Json }
         Returns: string

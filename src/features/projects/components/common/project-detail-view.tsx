@@ -16,6 +16,8 @@ import type {
   ProjectDelivery,
   ProjectUpdate,
 } from '../../types'
+import { ProjectInvoiceContext } from '../../types/invoice'
+import { TimeEntryItem } from '../../types/time-entries'
 import { DeliverablesSection } from '../deliverables/deliveries-card'
 import { ClientCard } from '../meta/client-card'
 import { EngagementCard } from '../meta/engagement-card'
@@ -26,8 +28,6 @@ import { HoursSummaryCards } from '../time-tracking/hours-summary-cards'
 import { TimeEntriesTableCard } from '../time-tracking/time-entries-card'
 import { ProjectUpdatesSection } from '../updates/project-updates-section'
 import { ProjectBreadcrumbSetter } from './project-breadcrump-setter'
-import { TimeEntryItem } from '../../types/time-entries'
-import { ProjectInvoiceContext } from '../../types/invoice'
 
 type QueryResult<T> = {
   data: T
@@ -48,6 +48,7 @@ interface ProjectDetailViewProps {
   timeEntries: QueryResult<TimeEntryItem[]>
   deliveries: QueryResult<ProjectDelivery[]>
   canManageAllocations?: boolean
+  hasExistingInvoice?: boolean
 }
 
 export function ProjectDetailView({
@@ -63,6 +64,7 @@ export function ProjectDetailView({
   timeEntries,
   deliveries,
   canManageAllocations = false,
+  hasExistingInvoice,
 }: ProjectDetailViewProps) {
   return (
     <main className="ds:p-6 min-w-full space-y-6">
@@ -72,6 +74,7 @@ export function ProjectDetailView({
         project={project}
         invoiceProjects={invoiceProjects.data}
         isInvoiceError={invoiceProjects.isError}
+        hasExistingInvoice={hasExistingInvoice}
       />
 
       <Tabs defaultValue="overview" className="w-full space-y-6">
@@ -158,7 +161,7 @@ export function ProjectDetailView({
         </TabsContent>
 
         {/* Other Tab Content */}
-        <TabsContent value="milestones" className="2xl:mx-62.5">
+        <TabsContent value="milestones">
           <MilestonesListCard
             milestones={milestones.data}
             isError={milestones.isError}
@@ -167,7 +170,7 @@ export function ProjectDetailView({
           />
         </TabsContent>
 
-        <TabsContent value="hours" className="grid gap-5 2xl:mx-62.5">
+        <TabsContent value="hours" className="grid gap-5">
           <HoursSummaryCards
             summary={hoursSummary.data}
             isError={hoursSummary.isError}
@@ -178,7 +181,7 @@ export function ProjectDetailView({
           />
         </TabsContent>
 
-        <TabsContent value="updates" className="2xl:mx-62.5">
+        <TabsContent value="updates">
           <ProjectUpdatesSection
             projectId={project.id}
             updates={updates.data}
@@ -187,7 +190,7 @@ export function ProjectDetailView({
           />
         </TabsContent>
 
-        <TabsContent value="deliveries" className="2xl:mx-62.5">
+        <TabsContent value="deliveries">
           <DeliverablesSection
             deliveries={deliveries.data}
             isError={deliveries.isError}

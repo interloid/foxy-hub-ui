@@ -12,11 +12,10 @@ import {
   FxTableRow,
 } from '@/components/shared/fx-table'
 import { TableBody } from '@/components/ui/table'
-import { TableRowSkeleton } from '@/skeleton/table-row'
+import { ProjectsLoadingSkeleton } from '@/skeleton/projects-overview'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
-import { fetchProjectsAction } from '../../actions'
+import { useTransition } from 'react'
 import type { Project, ProjectStatus } from '../../types'
 
 interface ProjectTableProps {
@@ -62,61 +61,27 @@ export function ProjectTable({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
 
   const urlPageParam = searchParams.get('page')
   const page = urlPageParam ? parseInt(urlPageParam, 10) : initialPage
 
-  const [projects, setProjects] = useState<Project[]>(initialProjects)
-  const [isLoading, setIsLoading] = useState<boolean>(false)
-
-  const isInitialMount = useRef(true)
-
   const updatePageUrl = (newPage: number) => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('page', newPage.toString())
-    router.push(`${pathname}?${params.toString()}`, { scroll: false })
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('page', newPage.toString())
+      router.push(`${pathname}?${params.toString()}`, { scroll: false })
+    })
   }
 
-  // Fetch page data client-side when page changes
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false
-      return
-    }
-
-    let isCurrent = true
-
-    async function fetchPageData() {
-      setIsLoading(true)
-      try {
-        const result = await fetchProjectsAction(orgSlug, page, pageSize)
-        if (isCurrent && result) {
-          setProjects(result.projects ?? [])
-        }
-      } catch (err) {
-        console.error('Failed to fetch projects:', err)
-      } finally {
-        if (isCurrent) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    fetchPageData()
-
-    return () => {
-      isCurrent = false
-    }
-  }, [page, orgSlug, pageSize])
-
   const handleNextPage = () => {
-    if (page < totalPages && !isLoading) {
+    if (page < totalPages && !isPending) {
       updatePageUrl(page + 1)
     }
   }
 
   const handlePrevPage = () => {
-    if (page > 1 && !isLoading) {
+    if (page > 1 && !isPending) {
       updatePageUrl(page - 1)
     }
   }
@@ -129,7 +94,7 @@ export function ProjectTable({
       <header className="ds:items-between ds:justify-between flex flex-col gap-4 md:flex-row md:justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-            <h1 className="text-foreground ds:text-2xl min-w-0 text-[22px] font-bold tracking-tight">
+            <h1 className="text-foreground ds:text-2xl min-w-0 text-[22px]! font-medium tracking-tight">
               All Projects
             </h1>
           </div>
@@ -137,35 +102,40 @@ export function ProjectTable({
       </header>
 
       <section aria-labelledby="all-projects-table-heading">
-        <FxCard className="border-border shadow-card overflow-hidden p-0 2xl:mx-20">
+        <FxCard className="border-border shadow-card overflow-hidden p-0">
           <div className="min-h-162.5 w-full overflow-x-auto">
             <FxTable className="w-full min-w-197.5 table-fixed">
               <FxTableHeader>
-                <FxTableRow className="bg-secondary/30">
-                  <FxTableHead className="w-62.5">Project</FxTableHead>
-                  <FxTableHead className="w-35">Status</FxTableHead>
-                  <FxTableHead className="w-35">Engagement</FxTableHead>
-                  <FxTableHead className="w-35">Progress</FxTableHead>
-                  <FxTableHead className="w-30 text-right">Value</FxTableHead>
+                <FxTableRow className="bg-secondary/30 hover:bg-secondary/30 justify-center">
+                  <FxTableHead className="w-57.5 text-center">
+                    Project
+                  </FxTableHead>
+                  <FxTableHead className="w-35 text-center">Client</FxTableHead>
+                  <FxTableHead className="w-35 text-center">Status</FxTableHead>
+                  <FxTableHead className="w-35 text-center">
+                    Engagement
+                  </FxTableHead>
+                  <FxTableHead className="w-35 text-center">
+                    Progress
+                  </FxTableHead>
+                  <FxTableHead className="w-35 text-center">Value</FxTableHead>
                 </FxTableRow>
               </FxTableHeader>
 
               <TableBody className="divide-border divide-y text-xs">
-                {isLoading ? (
-                  Array.from({ length: pageSize }).map((_, index) => (
-                    <TableRowSkeleton key={`row-skeleton-${index}`} />
-                  ))
-                ) : projects.length === 0 ? (
+                {isPending ? (
+                  <ProjectsLoadingSkeleton variant="rows" count={pageSize} />
+                ) : initialProjects.length === 0 ? (
                   <FxTableRow>
                     <FxTableCell
-                      colSpan={5}
+                      colSpan={6}
                       className="text-muted-foreground py-8 text-center"
                     >
                       No projects found.
                     </FxTableCell>
                   </FxTableRow>
                 ) : (
-                  projects.map((project) => {
+                  initialProjects.map((project) => {
                     const statusConfig = statusBadgeMap[project.status] ?? {
                       label: project.status,
                       variant: 'secondary',
@@ -185,9 +155,9 @@ export function ProjectTable({
                         key={project.id}
                         className="hover:bg-muted/40 duration-fast group h-16.25 transition-colors"
                       >
-                        <FxTableCell>
-                          <article className="flex flex-col overflow-hidden">
-                            <h3 className="group-hover:text-primary text-foreground duration-fast truncate text-sm leading-snug font-semibold transition-colors">
+                        <FxTableCell className="text-center align-middle">
+                          <article className="mx-auto flex w-fit flex-col items-start overflow-hidden">
+                            <h3 className="group-hover:text-primary text-foreground duration-fast truncate text-left text-sm leading-snug font-semibold transition-colors">
                               <Link
                                 href={
                                   orgSlug
@@ -198,13 +168,15 @@ export function ProjectTable({
                                 {project.name}
                               </Link>
                             </h3>
-                            <p className="text-2xs text-muted-foreground mt-0.5 truncate">
-                              {project.clientName}
-                            </p>
                           </article>
                         </FxTableCell>
+                        <FxTableCell className="text-center align-middle">
+                          <p className="text-muted-foreground text-sm font-medium whitespace-nowrap">
+                            {project.clientName}
+                          </p>
+                        </FxTableCell>
 
-                        <FxTableCell className="align-middle">
+                        <FxTableCell className="text-center align-middle">
                           <FxBadge
                             variant={statusConfig.variant}
                             className="whitespace-nowrap capitalize"
@@ -213,18 +185,18 @@ export function ProjectTable({
                           </FxBadge>
                         </FxTableCell>
 
-                        <FxTableCell className="align-middle">
+                        <FxTableCell className="text-center align-middle">
                           <span className="text-muted-foreground text-[12.5px] font-medium whitespace-nowrap">
                             {engagementLabelMap[project.engagement] ??
                               project.engagement}
                           </span>
                         </FxTableCell>
 
-                        <FxTableCell className="align-middle">
-                          <div className="flex items-center gap-3">
+                        <FxTableCell className="text-center align-middle">
+                          <div className="mx-auto flex w-40 items-center justify-center gap-3">
                             <FxProgress
                               value={project.progressPercent}
-                              className="h-2 flex-1"
+                              className="h-2 w-24 shrink-0"
                             />
                             <span className="text-2xs text-muted-foreground w-8 text-right font-mono font-medium whitespace-nowrap">
                               {project.progressPercent}%
@@ -234,7 +206,7 @@ export function ProjectTable({
 
                         <FxTableCell
                           numeric
-                          className="text-foreground align-middle font-bold whitespace-nowrap"
+                          className="text-foreground text-center font-bold whitespace-nowrap"
                         >
                           {numericValue > 0 ? formattedValue : '—'}
                         </FxTableCell>
@@ -256,7 +228,7 @@ export function ProjectTable({
                 <FxButton
                   variant="outline"
                   size="sm"
-                  disabled={page <= 1 || isLoading}
+                  disabled={page <= 1 || isPending}
                   onClick={handlePrevPage}
                 >
                   Previous
@@ -267,7 +239,7 @@ export function ProjectTable({
                 <FxButton
                   variant="outline"
                   size="sm"
-                  disabled={page >= totalPages || isLoading}
+                  disabled={page >= totalPages || isPending}
                   onClick={handleNextPage}
                 >
                   Next

@@ -27,11 +27,7 @@ import {
   Sheet,
 } from '@/components/shared/fx-sheet'
 import { FxTextarea } from '@/components/shared/fx-textarea'
-import {
-  ClientOption,
-  createProject,
-  TeamMemberOption,
-} from '@/features/dashboard/actions'
+import { createProject } from '@/features/dashboard/actions'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Calendar as CalendarIcon, ChevronDown } from 'lucide-react'
 import {
@@ -57,10 +53,17 @@ import {
   TeamAllocationSection,
 } from './team-allocation-section'
 import { NewProjectFormValues } from './types'
+import { ClientOption, TeamMemberOption } from '@/features/dashboard/types'
 
 interface NewProjectSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+interface TeammateCapacityResponse {
+  maxDailyCapacity?: number
+  maxDaysPerWk?: number
+  existingHoursPerDay?: number
 }
 
 export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
@@ -157,15 +160,19 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
         const res = await fetch(`/api/dashboard/sheet-data?${query}`)
         if (!res.ok) return
 
-        const data = await res.json()
-        setMaxCapacity(data.maxDailyCapacity)
-        if (data.maxDaysPerWk) {
+        const data: TeammateCapacityResponse = await res.json()
+        if (data?.maxDailyCapacity !== undefined) {
+          setMaxCapacity(data.maxDailyCapacity)
+        }
+        if (data?.maxDaysPerWk) {
           setOrgMaxDaysPerWk(data.maxDaysPerWk)
         }
-        setExistingHoursMap((prev) => ({
-          ...prev,
-          [userId]: data.existingHoursPerDay,
-        }))
+        if (data?.existingHoursPerDay !== undefined) {
+          setExistingHoursMap((prev) => ({
+            ...prev,
+            [userId]: data.existingHoursPerDay ?? 0,
+          }))
+        }
       } catch (err) {
         console.error('Failed to check teammate capacity', err)
       }
@@ -296,7 +303,11 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
         setTeamMembers(Array.isArray(members) ? members : [])
         setIsLoadingTeam(false)
 
-        if (members.length > 0 && !hasSeededRef.current) {
+        if (
+          Array.isArray(members) &&
+          members.length > 0 &&
+          !hasSeededRef.current
+        ) {
           hasSeededRef.current = true
           const first = members[0]
 

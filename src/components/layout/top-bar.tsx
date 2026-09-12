@@ -12,7 +12,12 @@ import {
 import { cn } from '@/lib/utils'
 import { Fragment } from 'react/jsx-runtime'
 import { FxTooltipContent, FxTooltipTrigger } from '../shared/fx-tooltip'
-import { Tooltip, TooltipProvider } from '../ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../ui/tooltip'
 import { AccountMenu } from './account-menu'
 import { NAV_ICONS } from './nav-icons'
 
@@ -58,9 +63,32 @@ export function TopBar({
 
             return (
               <Fragment key={item.label + index}>
-                <BreadcrumbItem>
+                <BreadcrumbItem className="max-w-40 truncate">
                   {isLast || !item.href ? (
-                    <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                    index === 1 ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <BreadcrumbPage className="block truncate">
+                            {item.label}
+                          </BreadcrumbPage>
+                        </TooltipTrigger>
+                        <TooltipContent>{item.label}</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                    )
+                  ) : index === 1 ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <BreadcrumbLink
+                          href={item.href}
+                          className="block truncate"
+                        >
+                          {item.label}
+                        </BreadcrumbLink>
+                      </TooltipTrigger>
+                      <TooltipContent>{item.label}</TooltipContent>
+                    </Tooltip>
                   ) : (
                     <BreadcrumbLink href={item.href}>
                       {item.label}

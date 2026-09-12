@@ -1,3 +1,4 @@
+import { isAdminRole } from '@/lib/role'
 import { DashboardData } from '../../types'
 import { ActiveProjects } from '../widgets/active-projects'
 import { PendingApprovals } from '../widgets/pending-approvals'
@@ -13,8 +14,6 @@ interface DashboardOverviewProps {
 }
 
 export function DashboardOverview({ data }: DashboardOverviewProps) {
-  const isAdmin = data.role === 'owner' || data.role === 'admin'
-
   return (
     <div className="animate-fx-fade space-y-6 md:p-3 lg:p-0">
       <DashboardHeaders
@@ -35,7 +34,7 @@ export function DashboardOverview({ data }: DashboardOverviewProps) {
         {/* Sidebar Column (40%) */}
         <div className="space-y-6 lg:col-span-2">
           <RecentActivity activities={data.activities} />
-          {isAdmin ? (
+          {isAdminRole(data.role) ? (
             <TeamCapacityCard
               capacities={data.capacities}
               overCount={data.capacityOverCount}
@@ -46,8 +45,11 @@ export function DashboardOverview({ data }: DashboardOverviewProps) {
               overCount={data.capacityOverCount}
             />
           )}
-          {isAdmin && (
-            <StudioPlanCard planInfo={data.planInfo} isAdmin={isAdmin} />
+          {isAdminRole(data.role) && (
+            <StudioPlanCard
+              planInfo={data.planInfo}
+              isAdmin={isAdminRole(data.role)}
+            />
           )}
         </div>
       </div>
