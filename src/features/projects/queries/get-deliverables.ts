@@ -1,3 +1,4 @@
+'use server'
 import { createClient } from '@/lib/supabase/server'
 import {
   DeliverableItem,
@@ -164,5 +165,59 @@ export async function getProjectDeliveries(
     page,
     pageSize,
     totalPages: Math.ceil(totalCount / pageSize),
+  }
+}
+
+export async function getDeliveryById(
+  deliveryId: string,
+  projectId: string
+): Promise<ProjectDelivery | { ok: boolean; message?: string }> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('deliveries')
+    .select(
+      `
+      id,
+      title,
+      description,
+      status,
+      due_date,
+      created_at,
+      approved_at,
+      org_id,
+      project_id,
+      milestone:milestones(title),
+      assets:delivery_assets(id, file_path)
+    `,
+      { count: 'exact' }
+    )
+    .eq('project_id', projectId)
+    .eq('id', deliveryId)
+    .single()
+
+  if (error || !data) {
+    console.error('Error fetching project deliverables:', error)
+    return { ok: false, message: error.message }
+  }
+
+  const milestoneObj = Array.isArray(data.milestone)
+    ? data.milestone[0]
+    : data.milestone
+  return {
+    id: data.id,
+    title: data.title,
+    description: data.description,
+    status: data.status,
+    dueDate: data.due_date,
+    createdAt: data.created_at,
+    orgId: data.org_id,
+    projectId: data.project_id,
+    approvedAt: data.approved_at,
+    milestoneTitle: milestoneObj?.title || null,
+    assets: (data.assets || []).map((asset) => ({
+      id: asset.id,
+      filePath: asset.file_path,
+    })),
   }
 }

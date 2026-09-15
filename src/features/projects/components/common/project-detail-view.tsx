@@ -121,6 +121,7 @@ export function ProjectDetailView({
                 isPostingUpdate={false}
               />
               <DeliverablesSection
+                key={JSON.stringify(deliveries)}
                 deliveries={latestDeliveries.data.deliveries}
                 isError={latestDeliveries.isError}
                 projectId={project.id}

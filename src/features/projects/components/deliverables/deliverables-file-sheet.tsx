@@ -30,6 +30,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { ChangeEvent, DragEvent, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { uploadDeliveryAssets } from '../../actions'
 import type { ProjectDelivery } from '../../types'
 
@@ -185,14 +186,22 @@ export function DeliverableFileSheet({
     setErrorMessage(null)
 
     try {
-      await uploadDeliveryAssets(
+      const result = await uploadDeliveryAssets(
         delivery.projectId,
         delivery.id,
         selectedFiles,
         orgSlug
       )
-      setSelectedFiles([])
-      onSuccessUpload?.()
+      if (result.ok) {
+        setSelectedFiles([])
+        toast.success(
+          `Image${selectedFiles.length > 1 ? 's' : ''} uploaded successfully`
+        )
+
+        onSuccessUpload?.()
+      } else {
+        setErrorMessage('Failed to upload files.')
+      }
     } catch (err) {
       console.error('Failed to upload assets:', err)
       setErrorMessage('Failed to upload files. Please try again.')
@@ -211,9 +220,7 @@ export function DeliverableFileSheet({
           </FxSheetDescription>
         </FxSheetHeader>
 
-        {/* Scrollable Body */}
         <FxSheetBody className="space-y-6">
-          {/* Details Metadata */}
           <div className="space-y-3.5 text-xs">
             <div className="border-border flex items-center justify-between border-b pb-3">
               <span className="text-muted-foreground font-medium">Status</span>
@@ -268,7 +275,6 @@ export function DeliverableFileSheet({
             )}
           </div>
 
-          {/* Attached Assets Section */}
           <div className="space-y-3">
             <h4 className="text-foreground text-xs font-semibold tracking-wider uppercase">
               Attached Assets ({delivery.assets?.length || 0})

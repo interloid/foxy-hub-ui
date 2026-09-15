@@ -151,5 +151,9 @@ function generateBreadcrumbs(
     return [{ label: 'Profile' }]
   }
 
+  if (pathname.endsWith('/time')) {
+    return [{ label: 'Time' }]
+  }
+
   return [{ label: 'Home', href: `/${orgSlug}` }]
 }

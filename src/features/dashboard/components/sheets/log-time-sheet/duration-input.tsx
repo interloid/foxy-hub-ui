@@ -14,7 +14,7 @@ interface DurationInputProps {
   onErrorChange?: (hasError: boolean) => void
 }
 
-function formatMinutesToLabel(totalMinutes: number): string {
+export function formatMinutesToLabel(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60)
   const mins = totalMinutes % 60
 

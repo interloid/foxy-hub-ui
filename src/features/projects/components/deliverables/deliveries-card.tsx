@@ -20,6 +20,7 @@ import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { submitDeliveryForApproval } from '../../actions'
 import { useFileActions } from '../../hooks/use-file-actions'
+import { getDeliveryById } from '../../queries/get-deliverables'
 import { ProjectDelivery, ProjectMilestone } from '../../types'
 import { CreateDeliverySheet } from './create-deliverables-sheet'
 import { DeliverableFileSheet } from './deliverables-file-sheet'
@@ -39,7 +40,7 @@ interface DeliverablesSectionProps {
 export function DeliverablesSection({
   projectId,
   milestones,
-  deliveries,
+  deliveries: initialDeliveries,
   isOverview = false,
   isError = false,
   page = 1,
@@ -47,6 +48,8 @@ export function DeliverablesSection({
   totalCount = 0,
   totalPages = 1,
 }: DeliverablesSectionProps) {
+  const [deliveriesList, setDeliveriesList] =
+    useState<ProjectDelivery[]>(initialDeliveries)
   const [selectedDelivery, setSelectedDelivery] =
     useState<ProjectDelivery | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -66,6 +69,26 @@ export function DeliverablesSection({
       params.set('deliveriesPage', newPage.toString())
       router.push(`${pathname}?${params.toString()}`, { scroll: false })
     })
+  }
+
+  const handleSuccessUpload = async () => {
+    if (!selectedDelivery) return
+
+    try {
+      const updated = await getDeliveryById(selectedDelivery.id, projectId)
+
+      // Check if response returned the delivery object (not an error object)
+      if (updated && 'id' in updated) {
+        setSelectedDelivery(updated)
+        setDeliveriesList((prevList) =>
+          prevList.map((item) =>
+            item.id === updated.id ? { ...item, assets: updated.assets } : item
+          )
+        )
+      }
+    } catch (err) {
+      console.error('Failed to refetch delivery assets:', err)
+    }
   }
 
   const handleNextPage = () => {
@@ -175,7 +198,7 @@ export function DeliverablesSection({
                   </div>
                 </FxTableCell>
               </FxTableRow>
-            ) : deliveries.length === 0 ? (
+            ) : deliveriesList.length === 0 ? (
               <FxTableRow>
                 <FxTableCell
                   colSpan={isOverview ? 6 : 7}
@@ -185,7 +208,7 @@ export function DeliverablesSection({
                 </FxTableCell>
               </FxTableRow>
             ) : (
-              deliveries.map((delivery) => (
+              deliveriesList.map((delivery) => (
                 <FxTableRow
                   key={delivery.id}
                   onClick={() => handleViewDelivery(delivery)}
@@ -287,6 +310,7 @@ export function DeliverablesSection({
         onSubmitForApproval={handleSubmitForApproval}
         onViewFile={handleViewFile}
         onDownloadFile={handleDownloadFile}
+        onSuccessUpload={handleSuccessUpload}
       />
     </>
   )
