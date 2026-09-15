@@ -1,5 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
-import { DeliverableItem, ProjectDelivery } from '../types'
+import {
+  DeliverableItem,
+  GetProjectDeliveriesResult,
+  ProjectDelivery,
+} from '../types'
 
 export async function getProjectDeliverables(
   projectId: string
@@ -85,11 +89,25 @@ export async function getProjectDeliverables(
 }
 
 export async function getProjectDeliveries(
-  projectId: string
-): Promise<ProjectDelivery[]> {
+  projectId: string,
+  page = 1,
+  pageSize = 5
+): Promise<GetProjectDeliveriesResult> {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  const emptyResult: GetProjectDeliveriesResult = {
+    deliveries: [],
+    totalCount: 0,
+    page,
+    pageSize,
+    totalPages: 0,
+  }
+
+  // Calculate range offset for pagination
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+
+  const { data, count, error } = await supabase
     .from('deliveries')
     .select(
       `
@@ -104,16 +122,20 @@ export async function getProjectDeliveries(
       project_id,
       milestone:milestones(title),
       assets:delivery_assets(id, file_path)
-    `
+    `,
+      { count: 'exact' }
     )
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
+    .range(from, to)
 
-  if (error) {
+  if (error || !data) {
     console.error('Error fetching project deliverables:', error)
-    return []
+    return emptyResult
   }
-  return (data || []).map((item) => {
+
+  const totalCount = count ?? 0
+  const deliveries: ProjectDelivery[] = data.map((item) => {
     const milestoneObj = Array.isArray(item.milestone)
       ? item.milestone[0]
       : item.milestone
@@ -135,4 +157,12 @@ export async function getProjectDeliveries(
       })),
     }
   })
+
+  return {
+    deliveries,
+    totalCount,
+    page,
+    pageSize,
+    totalPages: Math.ceil(totalCount / pageSize),
+  }
 }

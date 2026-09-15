@@ -154,16 +154,27 @@ export function SignInForm({ initialError }: { initialError?: string }) {
           <div className="bg-border h-px flex-1" />
         </div>
 
-        <FxButton
-          type="button"
-          variant="outline"
-          className="bg-card text-md h-11 w-full rounded-lg px-4"
-          disabled={pending}
-          onClick={() => run(signInAsDemo)}
-        >
-          <NAV_ICONS.zap className="text-primary size-4.25" strokeWidth={1.7} />
-          {SIGN_IN.demo.label}
-        </FxButton>
+        <div className="contents md:flex md:w-full md:gap-3">
+          <FxButton
+            type="button"
+            variant="outline"
+            className="bg-card text-md h-11 w-full rounded-lg px-4 md:min-w-0 md:flex-1"
+            disabled={pending}
+            onClick={() => run(signInAsDemo)}
+          >
+            Log in as admin
+          </FxButton>
+
+          <FxButton
+            type="button"
+            variant="outline"
+            className="bg-card text-md h-11 w-full rounded-lg px-4 md:min-w-0 md:flex-1"
+            disabled={pending}
+            onClick={() => run(signInAsDemo)}
+          >
+            Log in as client
+          </FxButton>
+        </div>
       </form>
 
       <p className="text-subtle-foreground mt-6 text-sm">{SIGN_IN.demo.note}</p>

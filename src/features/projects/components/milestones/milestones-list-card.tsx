@@ -60,6 +60,9 @@ export function MilestonesListCard({
   isError = false,
 }: MilestonesListCardProps) {
   const safeMilestones = milestones ?? []
+  const displayedMilestones = isInOverview
+    ? safeMilestones.slice(-5).reverse()
+    : safeMilestones
   const { userRole, orgId = '' } = useWorkspace()
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false)
 
@@ -105,8 +108,8 @@ export function MilestonesListCard({
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>Failed to load milestones.</span>
             </div>
-          ) : safeMilestones.length > 0 ? (
-            safeMilestones.map((item) => {
+          ) : displayedMilestones.length > 0 ? (
+            displayedMilestones.map((item) => {
               const config = STATUS_CONFIG[item.status] || STATUS_CONFIG.pending
               const loggedHoursStr = formatHours(item.loggedMinutes)
 

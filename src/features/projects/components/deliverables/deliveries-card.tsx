@@ -12,9 +12,11 @@ import {
 import { TableRow } from '@/components/ui/table'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { isAdminRole } from '@/lib/role'
+import { DeliverablesLoadingSkeleton } from '@/skeleton/deliverables'
 import { format } from 'date-fns'
 import { AlertCircle, Eye } from 'lucide-react'
-import { useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { submitDeliveryForApproval } from '../../actions'
 import { useFileActions } from '../../hooks/use-file-actions'
@@ -28,6 +30,10 @@ interface DeliverablesSectionProps {
   deliveries: ProjectDelivery[]
   isOverview?: boolean
   isError?: boolean
+  page?: number
+  pageSize?: number
+  totalCount?: number
+  totalPages?: number
 }
 
 export function DeliverablesSection({
@@ -36,6 +42,10 @@ export function DeliverablesSection({
   deliveries,
   isOverview = false,
   isError = false,
+  page = 1,
+  pageSize = 5,
+  totalCount = 0,
+  totalPages = 1,
 }: DeliverablesSectionProps) {
   const [selectedDelivery, setSelectedDelivery] =
     useState<ProjectDelivery | null>(null)
@@ -44,6 +54,34 @@ export function DeliverablesSection({
 
   const { handleViewFile, handleDownloadFile } = useFileActions('deliverables')
   const { orgId, userRole, orgSlug } = useWorkspace()
+
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
+
+  const updatePageUrl = (newPage: number) => {
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('deliveriesPage', newPage.toString())
+      router.push(`${pathname}?${params.toString()}`, { scroll: false })
+    })
+  }
+
+  const handleNextPage = () => {
+    if (page < totalPages && !isPending) {
+      updatePageUrl(page + 1)
+    }
+  }
+
+  const handlePrevPage = () => {
+    if (page > 1 && !isPending) {
+      updatePageUrl(page - 1)
+    }
+  }
+
+  const startItem = totalCount === 0 ? 0 : (page - 1) * pageSize + 1
+  const endItem = Math.min(page * pageSize, totalCount)
 
   const isAuthorized = isAdminRole(userRole)
   const handleViewDelivery = (delivery: ProjectDelivery) => {
@@ -77,7 +115,7 @@ export function DeliverablesSection({
     <>
       <div className="bg-card border-border overflow-hidden rounded-xl border shadow-xs">
         {/* Header */}
-        <div className="border-border flex items-center justify-between border-b px-5 py-4">
+        <div className="border-border compact:px-5 flex items-center justify-between border-b px-3 py-4">
           <h3 className="text-foreground text-[14px] font-semibold">
             Deliverables on this project
           </h3>
@@ -118,7 +156,12 @@ export function DeliverablesSection({
           </FxTableHeader>
 
           <tbody>
-            {isError ? (
+            {isPending ? (
+              <DeliverablesLoadingSkeleton
+                count={pageSize}
+                isOverview={isOverview}
+              />
+            ) : isError ? (
               <FxTableRow>
                 <FxTableCell
                   colSpan={isOverview ? 6 : 7}
@@ -203,6 +246,37 @@ export function DeliverablesSection({
             )}
           </tbody>
         </FxTable>
+
+        {/* Pagination (Deliveries tab only) */}
+        {!isOverview && totalCount > 0 && (
+          <div className="border-border flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-muted-foreground text-center text-xs font-medium sm:text-left">
+              Showing {startItem} to {endItem} of {totalCount} deliverables
+            </span>
+
+            <div className="flex items-center justify-between gap-2 sm:justify-end">
+              <FxButton
+                variant="outline"
+                size="sm"
+                disabled={page <= 1 || isPending}
+                onClick={handlePrevPage}
+              >
+                Previous
+              </FxButton>
+              <span className="text-foreground px-2 text-xs font-semibold whitespace-nowrap">
+                Page {page} of {totalPages || 1}
+              </span>
+              <FxButton
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages || isPending}
+                onClick={handleNextPage}
+              >
+                Next
+              </FxButton>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Deliverable File Sheet */}

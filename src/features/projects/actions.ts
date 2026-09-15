@@ -232,6 +232,7 @@ export async function createMilestone(input: CreateMilestoneInput) {
     throw new Error(error.message || 'Failed to create milestone')
   }
 
+  revalidatePath(`/${input.orgSlug}/projects/${input.projectId}`)
   return newMilestone
 }
 

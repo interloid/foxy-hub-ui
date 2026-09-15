@@ -207,3 +207,11 @@ export interface GetProjectsResult {
   pageSize: number
   totalPages: number
 }
+
+export interface GetProjectDeliveriesResult {
+  deliveries: ProjectDelivery[]
+  totalCount: number
+  page: number
+  pageSize: number
+  totalPages: number
+}

@@ -26,10 +26,16 @@ import { getWorkspace, isAdminRole } from '@/lib/dal'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
+const DELIVERIES_PAGE_SIZE = 5
+const OVERVIEW_DELIVERIES_LIMIT = 5
+
 interface ProjectDetailPageProps {
   params: Promise<{
     org: string
     id: string
+  }>
+  searchParams: Promise<{
+    deliveriesPage?: string
   }>
 }
 
@@ -53,8 +59,13 @@ export async function generateMetadata({
 
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: ProjectDetailPageProps) {
   const { org, id } = await params
+  const resolvedSearchParams = await searchParams
+  const deliveriesPage = resolvedSearchParams.deliveriesPage
+    ? parseInt(resolvedSearchParams.deliveriesPage, 10)
+    : 1
 
   const project = await getProjectById(org, id)
   const DEFAULT_HOURS_SUMMARY: HoursSummaryData = {
@@ -82,6 +93,7 @@ export default async function ProjectDetailPage({
     hoursSummaryResult,
     timeEntriesResult,
     deliveriesResult,
+    latestDeliveriesResult,
   ] = await Promise.allSettled([
     getProjectsForInvoicing(org),
     getProjectUpdates(id),
@@ -93,7 +105,8 @@ export default async function ProjectDetailPage({
     getCurrentUser(),
     getProjectHoursSummary(id),
     getRecentProjectTimeEntries(id),
-    getProjectDeliveries(id),
+    getProjectDeliveries(id, deliveriesPage, DELIVERIES_PAGE_SIZE),
+    getProjectDeliveries(id, 1, OVERVIEW_DELIVERIES_LIMIT),
   ])
   const hasInvoice = await hasInvoiceForProject(
     id,
@@ -156,7 +169,23 @@ export default async function ProjectDetailPage({
     'getRecentProjectTimeEntries',
     []
   )
-  const deliveries = processResult(deliveriesResult, 'getProjectDeliveries', [])
+  const emptyDeliveriesResult = {
+    deliveries: [],
+    totalCount: 0,
+    page: deliveriesPage,
+    pageSize: DELIVERIES_PAGE_SIZE,
+    totalPages: 0,
+  }
+  const deliveries = processResult(
+    deliveriesResult,
+    'getProjectDeliveries',
+    emptyDeliveriesResult
+  )
+  const latestDeliveries = processResult(
+    latestDeliveriesResult,
+    'getProjectDeliveries (latest)',
+    { ...emptyDeliveriesResult, page: 1, pageSize: OVERVIEW_DELIVERIES_LIMIT }
+  )
 
   return (
     <ProjectDetailView
@@ -173,6 +202,7 @@ export default async function ProjectDetailPage({
       timeEntries={timeEntries}
       canManageAllocations={canManageAllocations}
       deliveries={deliveries}
+      latestDeliveries={latestDeliveries}
       hasExistingInvoice={hasInvoice}
     />
   )

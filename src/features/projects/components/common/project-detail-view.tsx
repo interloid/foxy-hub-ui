@@ -9,11 +9,11 @@ import type {
   ClientItem,
   CurrentUser,
   DeliverableItem,
+  GetProjectDeliveriesResult,
   HoursSummaryData,
   MilestoneItem,
   Project,
   ProjectAllocationItem,
-  ProjectDelivery,
   ProjectUpdate,
 } from '../../types'
 import { ProjectInvoiceContext } from '../../types/invoice'
@@ -46,7 +46,8 @@ interface ProjectDetailViewProps {
   user: QueryResult<CurrentUser | null>
   hoursSummary: QueryResult<HoursSummaryData>
   timeEntries: QueryResult<TimeEntryItem[]>
-  deliveries: QueryResult<ProjectDelivery[]>
+  deliveries: QueryResult<GetProjectDeliveriesResult>
+  latestDeliveries: QueryResult<GetProjectDeliveriesResult>
   canManageAllocations?: boolean
   hasExistingInvoice?: boolean
 }
@@ -63,6 +64,7 @@ export function ProjectDetailView({
   hoursSummary,
   timeEntries,
   deliveries,
+  latestDeliveries,
   canManageAllocations = false,
   hasExistingInvoice,
 }: ProjectDetailViewProps) {
@@ -119,8 +121,8 @@ export function ProjectDetailView({
                 isPostingUpdate={false}
               />
               <DeliverablesSection
-                deliveries={deliveries.data}
-                isError={deliveries.isError}
+                deliveries={latestDeliveries.data.deliveries}
+                isError={latestDeliveries.isError}
                 projectId={project.id}
                 milestones={milestones.data}
                 isOverview={true}
@@ -192,10 +194,14 @@ export function ProjectDetailView({
 
         <TabsContent value="deliveries">
           <DeliverablesSection
-            deliveries={deliveries.data}
+            deliveries={deliveries.data.deliveries}
             isError={deliveries.isError}
             projectId={project.id}
             milestones={milestones.data}
+            page={deliveries.data.page}
+            pageSize={deliveries.data.pageSize}
+            totalCount={deliveries.data.totalCount}
+            totalPages={deliveries.data.totalPages}
           />
         </TabsContent>
       </Tabs>
