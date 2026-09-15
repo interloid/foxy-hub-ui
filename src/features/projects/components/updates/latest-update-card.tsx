@@ -105,8 +105,11 @@ function formatRelativeTime(dateString: string): string {
   const now = new Date()
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
 
+  if (diffInSeconds < 60) {
+    return 'Less than a minute'
+  }
   if (diffInSeconds < 3600) {
-    const mins = Math.max(1, Math.floor(diffInSeconds / 60))
+    const mins = Math.floor(diffInSeconds / 60)
     return `${mins}m ago`
   }
   if (diffInSeconds < 86400) {

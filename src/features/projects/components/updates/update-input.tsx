@@ -3,7 +3,6 @@
 import { FxButton } from '@/components/shared/fx-button'
 import { FxTextarea } from '@/components/shared/fx-textarea'
 import { Sparkles } from 'lucide-react'
-import Form from 'next/form'
 import Image from 'next/image'
 import { KeyboardEvent, useState } from 'react'
 import { toast } from 'sonner'
@@ -21,29 +20,38 @@ export function UpdatesInput({
   userAvatarUrl,
   onSubmit,
   onDraftWithAi,
-  isSubmitting = false,
+  isSubmitting: externalIsSubmitting = false,
 }: CreateUpdateInputProps) {
   const [updateText, setUpdateText] = useState('')
+  const [isPosting, setIsPosting] = useState(false)
 
   const isInputEmpty = !updateText.trim()
+  const isSubmitting = externalIsSubmitting || isPosting
 
-  const handleAction = async () => {
-    if (isInputEmpty || isSubmitting) return
+  const handleSubmission = async (textToSubmit: string) => {
+    if (!textToSubmit || isSubmitting) return
 
+    setIsPosting(true)
     try {
-      await onSubmit?.(updateText.trim())
+      await onSubmit?.(textToSubmit)
       setUpdateText('')
-      toast.success('Update posted successfully!')
     } catch {
       toast.error('Failed to post update. Please try again.')
+    } finally {
+      setIsPosting(false)
     }
+  }
+
+  const handleSubmitEvent = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    await handleSubmission(updateText.trim())
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault()
       if (!isInputEmpty && !isSubmitting) {
-        handleAction()
+        handleSubmission(updateText.trim())
       }
     }
   }
@@ -53,7 +61,6 @@ export function UpdatesInput({
       aria-labelledby="post-update-heading"
       className="bg-card border-border overflow-hidden rounded-xl border shadow-xs"
     >
-      {/* Semantic Section Header */}
       <header className="border-border border-b px-5 py-4">
         <h2
           id="post-update-heading"
@@ -63,10 +70,9 @@ export function UpdatesInput({
         </h2>
       </header>
 
-      {/* Main Form Body */}
-      <Form action={handleAction} className="p-6">
+      {/* Replaced Next.js <Form action> with standard <form onSubmit> */}
+      <form onSubmit={handleSubmitEvent} className="p-3 md:p-4 lg:p-6">
         <div className="flex items-start gap-3">
-          {/* User Avatar / Initials Badge */}
           {userAvatarUrl ? (
             <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full">
               <Image
@@ -83,7 +89,6 @@ export function UpdatesInput({
             </div>
           )}
 
-          {/* Update Textarea */}
           <div className="flex-1">
             <FxTextarea
               name="update"
@@ -93,12 +98,11 @@ export function UpdatesInput({
               placeholder="Post an update for the client..."
               disabled={isSubmitting}
               rows={3}
-              className="bg-muted/40 border-border/60 text-foreground placeholder:text-muted-foreground w-full rounded-lg text-sm transition-colors focus-visible:bg-transparent"
+              className="bg-muted/40 border-border/60 text-foreground placeholder:text-muted-foreground w-full rounded-lg text-sm break-all transition-colors focus-visible:bg-transparent"
             />
           </div>
         </div>
 
-        {/* Semantic Action Controls Container */}
         <footer className="mt-3 flex items-center justify-end gap-2">
           <FxButton
             type="button"
@@ -116,13 +120,13 @@ export function UpdatesInput({
             type="submit"
             size="sm"
             disabled={isInputEmpty || isSubmitting}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 h-auto justify-center px-3 py-3 text-center text-[13px] font-semibold whitespace-normal sm:h-9 sm:whitespace-nowrap"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 h-auto justify-center px-3 py-2 text-center text-[13px] font-semibold whitespace-normal sm:h-9 sm:whitespace-nowrap"
             variant="default"
           >
             {isSubmitting ? 'Posting...' : 'Post'}
           </FxButton>
         </footer>
-      </Form>
+      </form>
     </section>
   )
 }

@@ -42,6 +42,11 @@ import { toast } from 'sonner'
 import { createDelivery } from '../../actions'
 import { CreateDeliveryFormValues, createDeliverySchema } from '../../schema'
 import { ProjectMilestone } from '../../types'
+import {
+  FxTooltip,
+  FxTooltipContent,
+  FxTooltipTrigger,
+} from '@/components/shared/fx-tooltip'
 
 interface CreateDeliverySheetProps {
   open: boolean
@@ -201,17 +206,19 @@ export function CreateDeliverySheet({
                   </FxButton>
                 </DropdownMenuTrigger>
                 <FxDropdownMenuContent align="start" className="w-60">
-                  <FxDropdownMenuItem
-                    onClick={() => handleMilestoneSelect(null)}
-                    className="hover:bg-primary focus:bg-primary data-highlighted:bg-primary flex items-center text-[13px]"
-                  >
-                    No Milestone
-                  </FxDropdownMenuItem>
+                  {milestones.length <= 0 && (
+                    <div
+                      onClick={() => handleMilestoneSelect(null)}
+                      className="text-muted-foreground px-2 py-1.5 text-[12px]"
+                    >
+                      No Milestone
+                    </div>
+                  )}
                   {milestones.map((ms) => (
                     <FxDropdownMenuItem
                       key={ms.id}
                       onClick={() => handleMilestoneSelect(ms)}
-                      className="hover:bg-primary focus:bg-primary data-highlighted:bg-primary flex items-center justify-between text-[13px]"
+                      className="hover:bg-primary! hover:text-brand-white! focus:bg-muted text-[13px]"
                     >
                       <span className="truncate">{ms.title}</span>
                     </FxDropdownMenuItem>
@@ -256,7 +263,16 @@ export function CreateDeliverySheet({
                           >
                             {formattedDueDate}
                           </span>
-                          <CalendarIcon className="text-muted-foreground size-4 shrink-0" />
+                          <FxTooltip>
+                            <FxTooltipTrigger asChild>
+                              <span className="inline-flex cursor-pointer items-center">
+                                <CalendarIcon className="text-muted-foreground size-4 shrink-0" />
+                              </span>
+                            </FxTooltipTrigger>
+                            <FxTooltipContent side="bottom">
+                              Calendar
+                            </FxTooltipContent>
+                          </FxTooltip>
                         </FxButton>
                       </PopoverTrigger>
                       <FxPopoverContent className="w-auto p-0" align="start">

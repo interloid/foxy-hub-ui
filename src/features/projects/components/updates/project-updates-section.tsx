@@ -26,12 +26,15 @@ export function ProjectUpdatesSection({
   const { orgSlug } = useWorkspace()
 
   const handlePostUpdate = async (body: string) => {
-    if (!user?.id || !projectId) return
+    if (!user?.id || !projectId) {
+      console.warn('Blocked by guard clause: Missing user ID or project ID')
+      return
+    }
 
     try {
       setIsPostingUpdate(true)
       await postUpdateAction(projectId, body, orgSlug)
-      toast.success('Project update posted successfully')
+      toast.success('Update added successfully!')
     } catch (error) {
       console.error('Failed to post project update:', error)
       toast.error('Failed to post project update')

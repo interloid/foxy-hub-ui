@@ -473,6 +473,7 @@ declare
   v_sort       smallint := 0;
   v_org_id     uuid;
   v_project_id uuid;
+  v_engagement public.engagement_model;
   v_period     date;
   v_year       text;
   v_seq        int;
@@ -488,17 +489,20 @@ begin
     raise exception 'Not authorized to create invoices for this organization' using errcode = '42501';
   end if;
 
-  -- 2. The project must belong to the org the caller is billing under. Without this a caller
-  --    who administers org A could raise an invoice against org B's project by passing its id.
-  if not exists (
-    select 1 from public.projects p
-    where p.id = v_project_id and p.org_id = v_org_id
-  ) then
+  -- 2. The project must belong to the org the caller is billing under, and its engagement model
+  --    decides which double-billing guard applies below. Read from the table rather than trusted
+  --    from the payload, since without the org check a caller who administers org A could raise
+  --    an invoice against org B's project by passing its id.
+  select p.engagement into v_engagement
+    from public.projects p
+   where p.id = v_project_id and p.org_id = v_org_id;
+
+  if v_engagement is null then
     raise exception 'Project does not belong to this organization' using errcode = '42501';
   end if;
 
-  -- 3. Period guard for the flat engagements. `invoices_project_period_key` enforces this too,
-  --    but reaching it surfaces a unique-violation; this raises something a user can read.
+  -- 3. Period guard for retainers. `invoices_project_period_key` enforces this too, but reaching
+  --    it surfaces a unique-violation; this raises something a user can read.
   if v_period is not null and exists (
     select 1 from public.invoices i
     where i.project_id = v_project_id and i.period_start = v_period
@@ -507,7 +511,17 @@ begin
       using errcode = '23505';
   end if;
 
-  -- 4. Invoice number: INV-<year>-<seq>, sequential per org per year. Derived inside the
+  -- 4. Fixed-price guard. A fixed engagement bills one flat fee with no period to key off of, so
+  --    `invoices_project_period_key` — which only constrains rows that carry a period — never
+  --    catches a repeat invoice here the way it does for a retainer. This is that engagement's
+  --    equivalent: once any invoice exists for the project, no more may be raised.
+  if v_engagement = 'fixed' and exists (
+    select 1 from public.invoices i where i.project_id = v_project_id
+  ) then
+    raise exception 'This fixed-price project has already been invoiced' using errcode = '23505';
+  end if;
+
+  -- 5. Invoice number: INV-<year>-<seq>, sequential per org per year. Derived inside the
   --    transaction so two concurrent generations cannot read the same max; if they interleave
   --    anyway, `invoice_number`'s unique constraint rejects the loser rather than duplicating.
   v_year := to_char(now(), 'YYYY');
@@ -520,7 +534,7 @@ begin
 
   v_number := 'INV-' || v_year || '-' || lpad(v_seq::text, 3, '0');
 
-  -- 5. Insert the invoice.
+  -- 6. Insert the invoice.
   insert into public.invoices (
     invoice_number,
     org_id,
@@ -549,7 +563,7 @@ begin
   )
   returning id into v_invoice_id;
 
-  -- 6. Freeze the lines.
+  -- 7. Freeze the lines.
   --
   -- Written in the same transaction as the invoice for the same reason the hours are: an
   -- invoice whose lines failed to save is a total with nothing behind it, and no later run
@@ -580,7 +594,7 @@ begin
     end loop;
   end if;
 
-  -- 7. Claim the hours. The where clause re-states every precondition rather than trusting the
+  -- 8. Claim the hours. The where clause re-states every precondition rather than trusting the
   --    caller's list: right project, approved, and STILL unbilled. `invoice_id is null` is the
   --    one that matters — it makes the claim idempotent under a concurrent generation, because
   --    the second transaction finds nothing left to take.

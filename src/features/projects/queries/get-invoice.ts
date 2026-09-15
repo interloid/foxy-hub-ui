@@ -435,7 +435,8 @@ function withUnratedNotice(
 
 export async function hasInvoiceForProject(
   projectId: string,
-  engagement: string
+  engagement: string,
+  retainerPeriod?: string | null
 ): Promise<boolean> {
   const supabase = await createClient()
 
@@ -445,24 +446,23 @@ export async function hasInvoiceForProject(
       .select('id')
       .eq('project_id', projectId)
       .limit(1)
-
     if (error) throw error
     return (data?.length ?? 0) > 0
   }
 
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth()
+  if (engagement !== 'retainer') {
+    return false
+  }
 
-  const startOfMonth = new Date(year, month, 1).toISOString().split('T')[0]
-  const endOfMonth = new Date(year, month + 1, 0).toISOString().split('T')[0]
+  const period = lastCompletePeriod(
+    retainerPeriod === 'weekly' ? 'weekly' : 'monthly'
+  )
 
   const { data, error } = await supabase
     .from('invoices')
     .select('id')
     .eq('project_id', projectId)
-    .lte('period_start', endOfMonth)
-    .gte('period_end', startOfMonth)
+    .eq('period_start', period.start)
     .limit(1)
 
   if (error) throw error

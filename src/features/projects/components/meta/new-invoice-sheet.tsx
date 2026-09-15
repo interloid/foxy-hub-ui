@@ -320,8 +320,17 @@ export function NewInvoiceSheet({
               }
               className="bg-primary text-brand-white h-9 px-4 text-[13px] font-semibold"
             >
-              <Send className="mr-1.5 h-3.5 w-3.5" />
-              Generate invoice
+              {isSubmitting ? (
+                <>
+                  <span className="mr-1.5 h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Generating invoice...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-1.5 h-3.5 w-3.5" />
+                  Generate invoice
+                </>
+              )}
             </FxButton>
           </div>
         </FxSheetFooter>

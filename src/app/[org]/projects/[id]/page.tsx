@@ -95,7 +95,11 @@ export default async function ProjectDetailPage({
     getRecentProjectTimeEntries(id),
     getProjectDeliveries(id),
   ])
-  const hasInvoice = await hasInvoiceForProject(id, project.engagement)
+  const hasInvoice = await hasInvoiceForProject(
+    id,
+    project.engagement,
+    project.retainerPeriod
+  )
 
   // Helper to handle results, log errors to Sentry, and return state
   function processResult<T>(

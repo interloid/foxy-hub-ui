@@ -2,6 +2,7 @@
 
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
+import { FxInput } from '@/components/shared/fx-field'
 import {
   FxSheetBody,
   FxSheetContent,
@@ -52,6 +53,7 @@ const ALLOWED_EXTENSIONS = [
 const MIN_FILE_SIZE = 1024 // 1 KB
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 MB
 const MAX_FILE_COUNT = 3 // Limited to 3 files
+const MAX_TOTAL_FILES = 5
 
 interface DeliverableFileSheetProps {
   delivery: ProjectDelivery | null
@@ -76,6 +78,8 @@ export function DeliverableFileSheet({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [downloadingPath, setDownloadingPath] = useState<string | null>(null)
   const { orgSlug } = useWorkspace()
 
   if (!delivery) return null
@@ -87,14 +91,21 @@ export function DeliverableFileSheet({
     return path.split('/').pop() || path
   }
 
+  const existingAssetsCount = delivery.assets?.length || 0
+
+  const remainingSlots =
+    MAX_TOTAL_FILES - existingAssetsCount - selectedFiles.length
   const validateAndAddFiles = (files: FileList | File[]) => {
     setErrorMessage(null)
     const incomingFiles = Array.from(files)
 
     // Check Max File Limit (Max 3 files)
-    if (selectedFiles.length + incomingFiles.length > MAX_FILE_COUNT) {
+    const totalAfterAddition =
+      existingAssetsCount + selectedFiles.length + incomingFiles.length
+
+    if (totalAfterAddition > MAX_TOTAL_FILES) {
       setErrorMessage(
-        `Maximum limit reached. You can only attach up to ${MAX_FILE_COUNT} files.`
+        `Maximum limit reached. You can only have up to ${MAX_TOTAL_FILES} total files per deliverable (${existingAssetsCount} existing, ${selectedFiles.length} selected).`
       )
       return
     }
@@ -131,6 +142,19 @@ export function DeliverableFileSheet({
     }
 
     setSelectedFiles((prev) => [...prev, ...validFiles])
+  }
+
+  const handleDownloadClick = async (path: string) => {
+    if (downloadingPath) return
+
+    setDownloadingPath(path)
+    try {
+      await onDownloadFile?.(path)
+    } catch (error) {
+      console.error('Failed to download file:', error)
+    } finally {
+      setDownloadingPath(null)
+    }
   }
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -176,7 +200,6 @@ export function DeliverableFileSheet({
       setIsUploading(false)
     }
   }
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FxSheetContent>
@@ -264,6 +287,7 @@ export function DeliverableFileSheet({
                       : (asset as { file_path: string }).file_path
 
                   const fileName = getFileName(path)
+                  const isThisFileDownloading = downloadingPath === path
                   return (
                     <div
                       key={asset.id}
@@ -285,7 +309,7 @@ export function DeliverableFileSheet({
                           variant="secondary"
                           size="sm"
                           onClick={() => onViewFile?.(path)}
-                          className="border-border-strong text-foreground hover:bg-muted h-7 bg-transparent text-xs font-medium"
+                          className="border-border-strong text-muted-foreground hover:bg-muted h-7 text-xs font-medium"
                         >
                           <Eye className="text-muted-foreground mr-1 hidden size-3 md:block" />
                           View
@@ -295,11 +319,21 @@ export function DeliverableFileSheet({
                           type="button"
                           variant="secondary"
                           size="sm"
-                          onClick={() => onDownloadFile?.(path)}
-                          className="border-border-strong text-foreground hover:bg-muted h-7 bg-transparent text-xs font-medium"
+                          disabled={isThisFileDownloading}
+                          onClick={() => handleDownloadClick(path)}
+                          className="border-border-strong text-muted-foreground hover:bg-muted h-7 text-xs font-medium"
                         >
-                          <Download className="text-muted-foreground mr-1 hidden size-3 md:block" />
-                          Download
+                          {isThisFileDownloading ? (
+                            <>
+                              <Loader2 className="text-muted-foreground mr-1 size-3 animate-spin md:block" />
+                              Downloading...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="text-muted-foreground mr-1 hidden size-3 md:block" />
+                              Download
+                            </>
+                          )}
                         </FxButton>
                       </div>
                     </div>
@@ -317,34 +351,43 @@ export function DeliverableFileSheet({
               </h4>
 
               {/* Dropzone Input */}
-              {selectedFiles.length < MAX_FILE_COUNT && (
-                <div
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-border bg-muted/40 hover:border-muted-foreground/50 hover:bg-muted/70 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-5 text-center transition-colors"
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.jpg,.jpeg,.png,.webp,.svg,.zip"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <div className="bg-muted text-muted-foreground rounded-full p-2">
-                    <Upload className="size-4" />
-                  </div>
-                  <div>
-                    <p className="text-foreground text-xs font-medium">
-                      Click to attach or drag & drop files
-                    </p>
-                    <p className="text-muted-foreground mt-0.5 text-[11px]">
-                      PDF, Office, Images, ZIP • 1 KB to 5 MB • Up to 3 files
-                    </p>
-                  </div>
+              <div
+                onDragOver={(e) => {
+                  if (remainingSlots > 0) e.preventDefault()
+                }}
+                onDrop={(e) => {
+                  if (remainingSlots > 0) handleDrop(e)
+                }}
+                onClick={() => {
+                  if (remainingSlots > 0) fileInputRef.current?.click()
+                }}
+                className={`border-border rounded-lg border border-dashed p-5 text-center transition-colors ${
+                  remainingSlots > 0
+                    ? 'bg-muted/40 hover:border-muted-foreground/50 hover:bg-muted/70 cursor-pointer'
+                    : 'bg-muted/20 cursor-not-allowed opacity-60'
+                }`}
+              >
+                <FxInput
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  disabled={remainingSlots <= 0}
+                  accept={ALLOWED_EXTENSIONS.map((ext) => `.${ext}`).join(',')}
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <div className="text-muted-foreground flex justify-center rounded-full p-2 text-center">
+                  <Upload className="size-4" />
                 </div>
-              )}
+                <div>
+                  <p className="text-foreground text-xs font-medium">
+                    Click to attach or drag & drop files
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 text-[11px]">
+                    PDF, Office, Images, ZIP • 1 KB to 5 MB • Up to 3 files
+                  </p>
+                </div>
+              </div>
 
               {/* Validation Error Message */}
               {errorMessage && (
@@ -363,7 +406,6 @@ export function DeliverableFileSheet({
                       {MAX_FILE_COUNT})
                     </span>
 
-                    {/* Upload Button */}
                     <FxButton
                       type="button"
                       size="sm"
@@ -405,7 +447,7 @@ export function DeliverableFileSheet({
                         onClick={() => removeSelectedFile(idx)}
                         className="text-muted-foreground hover:text-destructive rounded p-1 disabled:opacity-50"
                       >
-                        <Trash2 className="size-3.5" />
+                        <Trash2 className="text-destructive size-3.5" />
                       </button>
                     </div>
                   ))}
@@ -421,10 +463,29 @@ export function DeliverableFileSheet({
             <FxButton
               type="button"
               variant="default"
-              onClick={() => onSubmitForApproval?.(delivery.id)}
+              disabled={isSubmitting}
+              onClick={async () => {
+                setIsSubmitting(true)
+                try {
+                  await onSubmitForApproval?.(delivery.id)
+                } catch (error) {
+                  console.error('Failed to submit for approval:', error)
+                } finally {
+                  setIsSubmitting(false)
+                }
+              }}
             >
-              <CheckCircle2 className="mr-2 size-4" />
-              Submit for Approval
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="mr-2 size-4" />
+                  Submit for Approval
+                </>
+              )}
             </FxButton>
           ) : (
             <FxButton

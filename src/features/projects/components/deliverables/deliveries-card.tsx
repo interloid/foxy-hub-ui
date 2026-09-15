@@ -8,7 +8,6 @@ import {
   FxTableHead,
   FxTableHeader,
   FxTableRow,
-  FxTableScroll,
 } from '@/components/shared/fx-table'
 import { TableRow } from '@/components/ui/table'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
@@ -103,109 +102,107 @@ export function DeliverablesSection({
         </div>
 
         {/* FX Table */}
-        <FxTableScroll>
-          <FxTable>
-            <FxTableHeader className="bg-card">
-              <TableRow className="border-border text-[11px]">
-                <FxTableHead>Date</FxTableHead>
-                <FxTableHead>Title</FxTableHead>
-                <FxTableHead>Description</FxTableHead>
-                <FxTableHead>Milestone</FxTableHead>
-                <FxTableHead>Due Date</FxTableHead>
-                <FxTableHead>Status</FxTableHead>
-                {!isOverview && (
-                  <FxTableHead className="text-right">Action</FxTableHead>
-                )}
-              </TableRow>
-            </FxTableHeader>
-
-            <tbody>
-              {isError ? (
-                <FxTableRow>
-                  <FxTableCell
-                    colSpan={isOverview ? 6 : 7}
-                    className="px-5 py-8 text-center"
-                  >
-                    <div className="text-destructive flex items-center justify-center gap-2 text-xs font-medium">
-                      <AlertCircle className="h-4 w-4 shrink-0" />
-                      <span>
-                        Failed to load deliverables. Please refresh to try
-                        again.
-                      </span>
-                    </div>
-                  </FxTableCell>
-                </FxTableRow>
-              ) : deliveries.length === 0 ? (
-                <FxTableRow>
-                  <FxTableCell
-                    colSpan={isOverview ? 6 : 7}
-                    className="text-muted-foreground px-5 py-8 text-center text-sm"
-                  >
-                    No deliverables recorded for this project yet.
-                  </FxTableCell>
-                </FxTableRow>
-              ) : (
-                deliveries.map((delivery) => (
-                  <FxTableRow
-                    key={delivery.id}
-                    onClick={() => handleViewDelivery(delivery)}
-                    className="cursor-pointer"
-                  >
-                    <FxTableCell className="text-muted-foreground text-[12.5px] whitespace-nowrap">
-                      {formatDate(delivery.createdAt)}
-                    </FxTableCell>
-
-                    <FxTableCell
-                      className="text-foreground max-w-45 truncate text-[12.5px] font-semibold"
-                      title={delivery.title}
-                    >
-                      {delivery.title}
-                    </FxTableCell>
-
-                    <FxTableCell
-                      className="text-muted-foreground max-w-60 truncate text-[12.5px]"
-                      title={delivery.description || undefined}
-                    >
-                      {delivery.description || '—'}
-                    </FxTableCell>
-
-                    <FxTableCell
-                      className="text-muted-foreground max-w-40 truncate text-[12.5px]"
-                      title={delivery.milestoneTitle || undefined}
-                    >
-                      {delivery.milestoneTitle || '—'}
-                    </FxTableCell>
-
-                    <FxTableCell className="text-muted-foreground text-[12.5px] whitespace-nowrap">
-                      {delivery.dueDate ? formatDate(delivery.dueDate) : '—'}
-                    </FxTableCell>
-
-                    <FxTableCell>
-                      <TableStatusPill status={delivery.status} />
-                    </FxTableCell>
-
-                    {!isOverview && (
-                      <FxTableCell className="text-right">
-                        <FxButton
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleViewDelivery(delivery)
-                          }}
-                        >
-                          <Eye className="text-muted-foreground mr-1 size-3" />
-                          View
-                        </FxButton>
-                      </FxTableCell>
-                    )}
-                  </FxTableRow>
-                ))
+        <FxTable>
+          <FxTableHeader className="bg-card">
+            <TableRow className="border-border text-[11px]">
+              <FxTableHead className="text-center">Date</FxTableHead>
+              <FxTableHead className="text-center">Title</FxTableHead>
+              <FxTableHead className="text-center">Description</FxTableHead>
+              <FxTableHead className="text-center">Milestone</FxTableHead>
+              <FxTableHead className="text-center">Due Date</FxTableHead>
+              <FxTableHead className="text-center">Status</FxTableHead>
+              {!isOverview && (
+                <FxTableHead className="text-center">Action</FxTableHead>
               )}
-            </tbody>
-          </FxTable>
-        </FxTableScroll>
+            </TableRow>
+          </FxTableHeader>
+
+          <tbody>
+            {isError ? (
+              <FxTableRow>
+                <FxTableCell
+                  colSpan={isOverview ? 6 : 7}
+                  className="px-5 py-8 text-center"
+                >
+                  <div className="text-destructive flex items-center justify-center gap-2 text-xs font-medium">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>
+                      Failed to load deliverables. Please refresh to try again.
+                    </span>
+                  </div>
+                </FxTableCell>
+              </FxTableRow>
+            ) : deliveries.length === 0 ? (
+              <FxTableRow>
+                <FxTableCell
+                  colSpan={isOverview ? 6 : 7}
+                  className="text-muted-foreground px-5 py-8 text-center text-sm"
+                >
+                  No deliverables recorded for this project yet.
+                </FxTableCell>
+              </FxTableRow>
+            ) : (
+              deliveries.map((delivery) => (
+                <FxTableRow
+                  key={delivery.id}
+                  onClick={() => handleViewDelivery(delivery)}
+                  className="cursor-pointer"
+                >
+                  <FxTableCell className="text-muted-foreground text-center text-[12.5px] whitespace-nowrap">
+                    {formatDate(delivery.createdAt)}
+                  </FxTableCell>
+
+                  <FxTableCell
+                    className="text-foreground max-w-45 truncate text-center text-[12.5px] font-semibold"
+                    title={delivery.title}
+                  >
+                    {delivery.title}
+                  </FxTableCell>
+
+                  <FxTableCell
+                    className="text-muted-foreground max-w-60 truncate text-center text-[12.5px]"
+                    title={delivery.description || undefined}
+                  >
+                    {delivery.description || '—'}
+                  </FxTableCell>
+
+                  <FxTableCell
+                    className="text-muted-foreground max-w-40 truncate text-center text-[12.5px]"
+                    title={delivery.milestoneTitle || undefined}
+                  >
+                    {delivery.milestoneTitle || '—'}
+                  </FxTableCell>
+
+                  <FxTableCell className="text-muted-foreground text-center text-[12.5px] whitespace-nowrap">
+                    {delivery.dueDate ? formatDate(delivery.dueDate) : '—'}
+                  </FxTableCell>
+
+                  <FxTableCell className="text-center">
+                    <TableStatusPill status={delivery.status} />
+                  </FxTableCell>
+
+                  {!isOverview && (
+                    <FxTableCell className="text-center">
+                      <FxButton
+                        type="button"
+                        variant="secondary"
+                        className="text-muted-foreground"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleViewDelivery(delivery)
+                        }}
+                      >
+                        <Eye className="text-muted-foreground mr-1 size-3" />
+                        View
+                      </FxButton>
+                    </FxTableCell>
+                  )}
+                </FxTableRow>
+              ))
+            )}
+          </tbody>
+        </FxTable>
       </div>
 
       {/* Deliverable File Sheet */}
