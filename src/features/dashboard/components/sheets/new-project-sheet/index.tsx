@@ -27,26 +27,43 @@ import {
   Sheet,
 } from '@/components/shared/fx-sheet'
 import { FxTextarea } from '@/components/shared/fx-textarea'
-import {
-  ClientOption,
-  createProject,
-  TeamMemberOption,
-} from '@/features/dashboard/actions'
+import { createProject } from '@/features/dashboard/actions'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Calendar as CalendarIcon, ChevronDown } from 'lucide-react'
-import { useCallback, useEffect, useState, useTransition } from 'react'
+import {
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { computePricingInsight } from '@/features/dashboard/pricing'
+import { newProjectFormSchema } from '@/features/dashboard/schema'
 import { toISODate } from '@/lib/date'
 import { EngagementModelSelector } from './engagement-model-selector'
+import { PricingHint } from './pricing-hint'
 import { StartFromSelector } from './start-from-selector'
-import { TeamAllocationSection } from './team-allocation-section'
+import {
+  ModelFitSuggestion,
+  TeamAllocationSection,
+} from './team-allocation-section'
 import { NewProjectFormValues } from './types'
+import { ClientOption, TeamMemberOption } from '@/features/dashboard/types'
 
 interface NewProjectSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+interface TeammateCapacityResponse {
+  maxDailyCapacity?: number
+  maxDaysPerWk?: number
+  existingHoursPerDay?: number
 }
 
 export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
@@ -60,6 +77,8 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     handleSubmit,
     formState: { errors },
   } = useForm<NewProjectFormValues>({
+    resolver: zodResolver(newProjectFormSchema),
+    mode: 'onBlur',
     defaultValues: {
       projectName: '',
       selectedStartFrom: 'Blank project',
@@ -68,6 +87,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
       selectedEngagement: 'full_time',
       budget: '',
       fixedPrice: '',
+      estimatedHours: '',
       retainerBucketHours: '',
       retainerBillingPeriod: 'Monthly',
       retainerAmount: '',
@@ -94,6 +114,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
   const selectedEngagement = watch('selectedEngagement')
   const budget = watch('budget')
   const fixedPrice = watch('fixedPrice')
+  const estimatedHours = watch('estimatedHours')
   const retainerBucketHours = watch('retainerBucketHours')
   const retainerBillingPeriod = watch('retainerBillingPeriod')
   const retainerAmount = watch('retainerAmount')
@@ -120,7 +141,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     .join('|')
 
   // Block negative symbol and scientific notation in numeric input fields
-  const preventNegativeInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const preventNegativeInput = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === '-' || e.key === 'e' || e.key === 'E') {
       e.preventDefault()
     }
@@ -139,15 +160,19 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
         const res = await fetch(`/api/dashboard/sheet-data?${query}`)
         if (!res.ok) return
 
-        const data = await res.json()
-        setMaxCapacity(data.maxDailyCapacity)
-        if (data.maxDaysPerWk) {
+        const data: TeammateCapacityResponse = await res.json()
+        if (data?.maxDailyCapacity !== undefined) {
+          setMaxCapacity(data.maxDailyCapacity)
+        }
+        if (data?.maxDaysPerWk) {
           setOrgMaxDaysPerWk(data.maxDaysPerWk)
         }
-        setExistingHoursMap((prev) => ({
-          ...prev,
-          [userId]: data.existingHoursPerDay,
-        }))
+        if (data?.existingHoursPerDay !== undefined) {
+          setExistingHoursMap((prev) => ({
+            ...prev,
+            [userId]: data.existingHoursPerDay ?? 0,
+          }))
+        }
       } catch (err) {
         console.error('Failed to check teammate capacity', err)
       }
@@ -190,11 +215,11 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
           clientId: selectedClient || null,
           dueDate: targetDate ? toISODate(targetDate) : null,
           engagement: mappedEngagement,
-
-          // Map budget & fixed price into contractValue for rawParams validation
           budget: parsedContractValue,
-
-          // Map retainer params cleanly as Numbers or Null
+          estimatedHours:
+            isFixed && estimatedHours && estimatedHours.trim() !== ''
+              ? parseFloat(estimatedHours)
+              : null,
           retainerBucketHours:
             selectedEngagement === 'retainer' && retainerBucketHours
               ? parseFloat(retainerBucketHours)
@@ -243,9 +268,13 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     }
   }, [open, allocationKey, checkCapacityForUser])
 
-  // Fetch initial clients and team members in parallel
+  const hasSeededRef = useRef(false)
+
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      hasSeededRef.current = false
+      return
+    }
 
     const controller = new AbortController()
 
@@ -265,17 +294,23 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
           ),
         ])
 
-        const clients = await clientsRes.json()
-        const members = await membersRes.json()
+        const clients = clientsRes.ok ? await clientsRes.json() : []
+        const members = membersRes.ok ? await membersRes.json() : []
 
-        setClientOptions(clients)
+        setClientOptions(Array.isArray(clients) ? clients : [])
         setIsLoadingClients(false)
 
-        setTeamMembers(members)
+        setTeamMembers(Array.isArray(members) ? members : [])
         setIsLoadingTeam(false)
 
-        if (members.length > 0 && fields.length === 0) {
+        if (
+          Array.isArray(members) &&
+          members.length > 0 &&
+          !hasSeededRef.current
+        ) {
+          hasSeededRef.current = true
           const first = members[0]
+
           setValue('allocations', [
             {
               userId: first.id,
@@ -283,7 +318,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
               preset: '8h',
               hoursPerDay: 8,
               daysPerWk: 5,
-              rate: 120,
+              rate: first.defaultRate ?? undefined,
               effectiveFrom: todayStr,
             },
           ])
@@ -298,7 +333,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     fetchData()
 
     return () => controller.abort()
-  }, [open, checkCapacityForUser, fields.length, setValue, todayStr, orgSlug])
+  }, [open, checkCapacityForUser, setValue, todayStr, orgSlug])
 
   const selectedClientObj = clientOptions.find((c) => c.id === selectedClient)
 
@@ -323,7 +358,70 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     }
   }
 
+  const pricingInsight = computePricingInsight({
+    engagement: selectedEngagement,
+    budget,
+    fixedPrice,
+    estimatedHours,
+    retainerBucketHours,
+    retainerAmount,
+    retainerPeriod: retainerBillingPeriod,
+    allocations: (allocations ?? []).map((row) => ({
+      userId: row.userId,
+      hoursPerDay: Number(row.hoursPerDay),
+      daysPerWk: Number(row.daysPerWk),
+      rate: row.rate,
+      effectiveFrom: row.effectiveFrom,
+    })),
+    memberCosts: new Map(teamMembers.map((m) => [m.id, m.costRate])),
+    targetDate,
+  })
+
   const isOverCommitted = Boolean(overCommittedDetails)
+
+  const modelFit: ModelFitSuggestion | null = (() => {
+    const staffed = (allocations ?? []).filter(
+      (row) => row.userId && Number(row.hoursPerDay) > 0
+    )
+
+    if (staffed.length === 0) return null
+
+    const isFullTime =
+      selectedEngagement === 'full_time' || selectedEngagement === 'full-time'
+    const isPartTime =
+      selectedEngagement === 'part_time' || selectedEngagement === 'part-time'
+
+    if (
+      isFullTime &&
+      staffed.every((r) => Number(r.hoursPerDay) < maxCapacity)
+    ) {
+      const hours = staffed.map((r) => Number(r.hoursPerDay))
+      const shown = Math.max(...hours)
+
+      return {
+        suggested: 'part_time',
+        suggestedLabel: 'part-time',
+        currentLabel: 'full-time',
+        reason: `Nobody is booked for a full day — the largest allocation is ${shown} h/day of ${maxCapacity}h.`,
+      }
+    }
+
+    if (
+      isPartTime &&
+      staffed.every((r) => Number(r.hoursPerDay) >= maxCapacity)
+    ) {
+      const shown = Math.min(...staffed.map((r) => Number(r.hoursPerDay)))
+
+      return {
+        suggested: 'full_time',
+        suggestedLabel: 'full-time',
+        currentLabel: 'part-time',
+        reason: `Everyone is booked for a full day — the smallest allocation is ${shown} h/day of ${maxCapacity}h.`,
+      }
+    }
+
+    return null
+  })()
   const isSubmitDisabled =
     !projectName.trim() || (isOverCommitted && !overrideReason?.trim())
 
@@ -339,6 +437,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     const defaultMember = teamMembers[0] || {
       id: '',
       name: 'Select teammate',
+      defaultRate: null,
     }
     append({
       userId: defaultMember.id,
@@ -346,7 +445,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
       preset: '8h',
       hoursPerDay: 8,
       daysPerWk: 5,
-      rate: 100,
+      rate: defaultMember.defaultRate ?? undefined,
       effectiveFrom: todayStr,
     })
     if (defaultMember.id) {
@@ -364,7 +463,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
           </FxSheetDescription>
         </FxSheetHeader>
 
-        <FxSheetBody className="space-y-5">
+        <FxSheetBody className="space-y-2">
           {/* Project Name */}
           <div className="w-full">
             <FxField data-invalid={Boolean(errors.projectName) || undefined}>
@@ -485,7 +584,10 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
             selectedEngagement === 'full-time' ||
             selectedEngagement === 'part_time' ||
             selectedEngagement === 'part-time') && (
-            <div className="w-full">
+            <FxField
+              className="w-full"
+              data-invalid={Boolean(errors.budget) || undefined}
+            >
               <FxLabel
                 htmlFor="contractvalue"
                 className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
@@ -498,15 +600,27 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                 min={1}
                 placeholder="24000"
                 className="font-mono text-[13px]"
+                aria-invalid={Boolean(errors.budget) || undefined}
                 onKeyDown={preventNegativeInput}
                 {...register('budget')}
               />
-            </div>
+              <PricingHint
+                insight={pricingInsight}
+                hasValue={Boolean(budget?.trim())}
+                onUseSuggestion={(amount) =>
+                  setValue('budget', String(amount), { shouldValidate: true })
+                }
+              />
+              <FxFieldError errors={[errors.budget]} />
+            </FxField>
           )}
 
           {(selectedEngagement === 'fixed-price' ||
             selectedEngagement === 'fixed') && (
-            <div className="w-full space-y-1.5">
+            <FxField
+              className="w-full gap-1.5"
+              data-invalid={Boolean(errors.fixedPrice) || undefined}
+            >
               <FxLabel
                 htmlFor="fixedprice"
                 className="text-muted-foreground block text-[13px] font-medium"
@@ -519,6 +633,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                 min={1}
                 placeholder="9600"
                 className="font-mono text-[13px]"
+                aria-invalid={Boolean(errors.fixedPrice) || undefined}
                 onKeyDown={preventNegativeInput}
                 {...register('fixedPrice')}
               />
@@ -526,13 +641,59 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                 Hours are tracked for capacity but billed at zero — the fee is
                 fixed.
               </p>
-            </div>
+              <PricingHint
+                insight={pricingInsight}
+                hasValue={Boolean(fixedPrice?.trim())}
+                onUseSuggestion={(amount) =>
+                  setValue('fixedPrice', String(amount), {
+                    shouldValidate: true,
+                  })
+                }
+              />
+              <FxFieldError errors={[errors.fixedPrice]} />
+            </FxField>
+          )}
+
+          {(selectedEngagement === 'fixed-price' ||
+            selectedEngagement === 'fixed') && (
+            <FxField
+              className="w-full gap-1.5"
+              data-invalid={Boolean(errors.estimatedHours) || undefined}
+            >
+              <FxLabel
+                htmlFor="estimatedhours"
+                className="text-muted-foreground block text-[13px] font-medium"
+              >
+                Estimated hours (optional)
+              </FxLabel>
+              <FxInput
+                type="number"
+                step="0.25"
+                id="estimatedhours"
+                min={1}
+                placeholder="80"
+                className="font-mono text-[13px]"
+                aria-invalid={Boolean(errors.estimatedHours) || undefined}
+                onKeyDown={preventNegativeInput}
+                {...register('estimatedHours')}
+              />
+              <p className="text-muted-foreground text-[12px]">
+                How big you think the job is. Fixed work is scoped in hours, not
+                dates — this is what actual hours get measured against.
+              </p>
+              <FxFieldError errors={[errors.estimatedHours]} />
+            </FxField>
           )}
 
           {selectedEngagement === 'retainer' && (
-            <div className="space-y-3">
+            <div className="space-y-1">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="w-full">
+                <FxField
+                  className="w-full"
+                  data-invalid={
+                    Boolean(errors.retainerBucketHours) || undefined
+                  }
+                >
                   <FxLabel
                     htmlFor="bucket"
                     className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
@@ -545,11 +706,15 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                     min={1}
                     placeholder="80"
                     className="font-mono text-[13px]"
+                    aria-invalid={
+                      Boolean(errors.retainerBucketHours) || undefined
+                    }
                     onKeyDown={preventNegativeInput}
                     {...register('retainerBucketHours')}
                   />
-                </div>
-                <div className="w-full">
+                  <FxFieldError errors={[errors.retainerBucketHours]} />
+                </FxField>
+                <div className="flex w-full flex-col gap-2">
                   <FxLabel
                     htmlFor="billingperiod"
                     className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
@@ -590,7 +755,10 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="w-full">
+                <FxField
+                  className="w-full"
+                  data-invalid={Boolean(errors.retainerAmount) || undefined}
+                >
                   <FxLabel
                     htmlFor="retaineramount"
                     className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
@@ -603,11 +771,18 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                     min={1}
                     placeholder="6000"
                     className="font-mono text-[13px]"
+                    aria-invalid={Boolean(errors.retainerAmount) || undefined}
                     onKeyDown={preventNegativeInput}
                     {...register('retainerAmount')}
                   />
-                </div>
-                <div className="w-full">
+                  <FxFieldError errors={[errors.retainerAmount]} />
+                </FxField>
+                <FxField
+                  className="w-full"
+                  data-invalid={
+                    Boolean(errors.retainerOverageRate) || undefined
+                  }
+                >
                   <FxLabel
                     htmlFor="overagerate"
                     className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
@@ -621,11 +796,25 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                     min={0}
                     placeholder="1.25"
                     className="font-mono text-[13px]"
+                    aria-invalid={
+                      Boolean(errors.retainerOverageRate) || undefined
+                    }
                     onKeyDown={preventNegativeInput}
                     {...register('retainerOverageRate')}
                   />
-                </div>
+                  <FxFieldError errors={[errors.retainerOverageRate]} />
+                </FxField>
               </div>
+
+              <PricingHint
+                insight={pricingInsight}
+                hasValue={Boolean(retainerAmount?.trim())}
+                onUseSuggestion={(amount) =>
+                  setValue('retainerAmount', String(amount), {
+                    shouldValidate: true,
+                  })
+                }
+              />
             </div>
           )}
 
@@ -639,6 +828,11 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
             orgMaxDaysPerWk={orgMaxDaysPerWk}
             isOverCommitted={isOverCommitted}
             overCommittedDetails={overCommittedDetails}
+            modelFit={modelFit}
+            onSwitchEngagement={(engagement) =>
+              setValue('selectedEngagement', engagement)
+            }
+            errors={errors}
             control={control}
             register={register}
             setValue={setValue}
@@ -684,7 +878,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
             <FxButton
               variant="default"
               disabled={isSubmitDisabled || isPending}
-              onClick={handleCreateProject}
+              onClick={handleSubmit(handleCreateProject)}
               className="bg-primary text-primary-foreground hover:bg-primary/90 text-[12.5px] font-semibold disabled:opacity-50"
             >
               {isPending ? 'Creating...' : '+ Create project'}

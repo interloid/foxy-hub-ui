@@ -23,12 +23,13 @@ import {
   Sheet,
 } from '@/components/shared/fx-sheet'
 import { FxTextarea } from '@/components/shared/fx-textarea'
+import { createTimeEntry } from '@/features/dashboard/actions'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import {
-  createTimeEntry,
+  CapacityAndLoggedData,
   MilestoneOption,
   ProjectOption,
-} from '@/features/dashboard/actions'
-import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+} from '@/features/dashboard/types'
 import { toISODate } from '@/lib/date'
 import {
   Calendar as CalendarIcon,
@@ -85,12 +86,15 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     if (!open) return
 
     const controller = new AbortController()
-
-    fetch(`/api/dashboard/sheet-data?type=projects&orgSlug=${orgSlug}`, {
+    const query = new URLSearchParams({
+      type: 'projects',
+      orgSlug,
+    })
+    fetch(`/api/dashboard/sheet-data?${query.toString()}`, {
       signal: controller.signal,
     })
-      .then((res) => res.json())
-      .then((data) => setProjects(data))
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setProjects(Array.isArray(data) ? data : []))
       .catch((err) => {
         if (err.name !== 'AbortError') console.error(err)
       })
@@ -98,19 +102,25 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     return () => controller.abort()
   }, [open, orgSlug])
 
-  // Fetch Daily Capacity when date changes (with AbortController to prevent race conditions)
   useEffect(() => {
     if (!open || !selectedDate) return
 
     const controller = new AbortController()
     const dateStr = toISODate(selectedDate)
 
-    fetch(
-      `/api/dashboard/sheet-data?type=capacity&orgSlug=${orgSlug}&dateStr=${dateStr}`,
-      { signal: controller.signal }
-    )
-      .then((res) => res.json())
-      .then((data) => {
+    const query = new URLSearchParams({
+      type: 'capacity',
+      orgSlug,
+      dateStr,
+    })
+
+    fetch(`/api/dashboard/sheet-data?${query.toString()}`, {
+      signal: controller.signal,
+    })
+      .then((res: Response) =>
+        res.ok ? res.json() : ({} as CapacityAndLoggedData)
+      )
+      .then((data: CapacityAndLoggedData) => {
         setDailyCapacityHours(data.dailyCapacityHours ?? 8)
         setAlreadyLoggedMinutes(data.alreadyLoggedMinutes ?? 0)
       })
@@ -126,12 +136,21 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     setSelectedProject(project)
     setSelectedMilestone(null)
 
-    fetch(
-      `/api/dashboard/sheet-data?type=milestones&orgSlug=${orgSlug}&projectId=${project.id}`
-    )
-      .then((res) => res.json())
-      .then((msList) => setMilestones(msList))
-      .catch(console.error)
+    const controller = new AbortController()
+    const query = new URLSearchParams({
+      type: 'milestones',
+      orgSlug,
+      projectId: project.id,
+    })
+
+    fetch(`/api/dashboard/sheet-data?${query.toString()}`, {
+      signal: controller.signal,
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((msList) => setMilestones(Array.isArray(msList) ? msList : []))
+      .catch((err) => {
+        if (err.name !== 'AbortError') console.error(err)
+      })
   }
 
   const handleLogTime = () => {
@@ -348,10 +367,6 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
               placeholder='What did you work on? e.g. "M2 auth: RLS policies for memberships"'
               className="text-[13px]"
             />
-            {/* <p className="text-muted-foreground mt-1.5 text-[11.5px]">
-              Required — &quot;development&quot; is not a receipt. Be specific
-              so approvers and clients can read the work.
-            </p> */}
           </div>
         </FxSheetBody>
 

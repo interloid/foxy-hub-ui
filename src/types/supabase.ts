@@ -134,9 +134,12 @@ export type Database = {
       deliveries: {
         Row: {
           approved_at: string | null
+          author_id: string | null
           created_at: string
           description: string | null
           due_date: string | null
+          file_size: string | null
+          file_type: string | null
           id: string
           milestone_id: string | null
           org_id: string
@@ -146,9 +149,12 @@ export type Database = {
         }
         Insert: {
           approved_at?: string | null
+          author_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
+          file_size?: string | null
+          file_type?: string | null
           id?: string
           milestone_id?: string | null
           org_id: string
@@ -158,9 +164,12 @@ export type Database = {
         }
         Update: {
           approved_at?: string | null
+          author_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
+          file_size?: string | null
+          file_type?: string | null
           id?: string
           milestone_id?: string | null
           org_id?: string
@@ -169,6 +178,13 @@ export type Database = {
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'deliveries_author_id_fkey'
+            columns: ['author_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'deliveries_milestone_id_fkey'
             columns: ['milestone_id']
@@ -275,6 +291,47 @@ export type Database = {
           },
         ]
       }
+      invoice_lines: {
+        Row: {
+          amount: number
+          description: string
+          id: string
+          invoice_id: string
+          quantity: number | null
+          sort_order: number
+          type_label: string
+          unit_rate: number | null
+        }
+        Insert: {
+          amount: number
+          description: string
+          id?: string
+          invoice_id: string
+          quantity?: number | null
+          sort_order?: number
+          type_label: string
+          unit_rate?: number | null
+        }
+        Update: {
+          amount?: number
+          description?: string
+          id?: string
+          invoice_id?: string
+          quantity?: number | null
+          sort_order?: number
+          type_label?: string
+          unit_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'invoice_lines_invoice_id_fkey'
+            columns: ['invoice_id']
+            isOneToOne: false
+            referencedRelation: 'invoices'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       invoices: {
         Row: {
           amount: number
@@ -288,6 +345,8 @@ export type Database = {
           org_id: string
           paid_at: string | null
           payment_intent: string | null
+          period_end: string | null
+          period_start: string | null
           project_id: string
           status: Database['public']['Enums']['invoice_status']
           subtotal: number
@@ -305,6 +364,8 @@ export type Database = {
           org_id: string
           paid_at?: string | null
           payment_intent?: string | null
+          period_end?: string | null
+          period_start?: string | null
           project_id: string
           status?: Database['public']['Enums']['invoice_status']
           subtotal?: number
@@ -322,6 +383,8 @@ export type Database = {
           org_id?: string
           paid_at?: string | null
           payment_intent?: string | null
+          period_end?: string | null
+          period_start?: string | null
           project_id?: string
           status?: Database['public']['Enums']['invoice_status']
           subtotal?: number
@@ -346,21 +409,27 @@ export type Database = {
       }
       memberships: {
         Row: {
+          cost_rate: number | null
           created_at: string
+          default_rate: number | null
           id: string
           org_id: string
           role: Database['public']['Enums']['user_role']
           user_id: string
         }
         Insert: {
+          cost_rate?: number | null
           created_at?: string
+          default_rate?: number | null
           id?: string
           org_id: string
           role: Database['public']['Enums']['user_role']
           user_id: string
         }
         Update: {
+          cost_rate?: number | null
           created_at?: string
+          default_rate?: number | null
           id?: string
           org_id?: string
           role?: Database['public']['Enums']['user_role']
@@ -420,6 +489,7 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          payment_terms_days: number
           rounding_minutes: number
           slug: string
           user_id: string | null
@@ -433,6 +503,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          payment_terms_days?: number
           rounding_minutes?: number
           slug: string
           user_id?: string | null
@@ -446,6 +517,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          payment_terms_days?: number
           rounding_minutes?: number
           slug?: string
           user_id?: string | null
@@ -509,6 +581,7 @@ export type Database = {
       }
       project_allocations: {
         Row: {
+          cost_rate: number | null
           created_at: string
           days_per_week: number
           effective_from: string
@@ -520,6 +593,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cost_rate?: number | null
           created_at?: string
           days_per_week?: number
           effective_from: string
@@ -531,6 +605,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cost_rate?: number | null
           created_at?: string
           days_per_week?: number
           effective_from?: string
@@ -560,6 +635,7 @@ export type Database = {
           description: string | null
           due_date: string | null
           engagement: Database['public']['Enums']['engagement_model']
+          estimated_hours: number | null
           id: string
           name: string
           org_id: string
@@ -581,6 +657,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           engagement?: Database['public']['Enums']['engagement_model']
+          estimated_hours?: number | null
           id?: string
           name: string
           org_id: string
@@ -603,6 +680,7 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           engagement?: Database['public']['Enums']['engagement_model']
+          estimated_hours?: number | null
           id?: string
           name?: string
           org_id?: string
@@ -718,6 +796,7 @@ export type Database = {
           description: string
           duration_minutes: number
           id: string
+          invoice_id: string | null
           milestone_id: string | null
           project_id: string
           status: Database['public']['Enums']['time_entry_status']
@@ -729,6 +808,7 @@ export type Database = {
           description: string
           duration_minutes: number
           id?: string
+          invoice_id?: string | null
           milestone_id?: string | null
           project_id: string
           status?: Database['public']['Enums']['time_entry_status']
@@ -740,6 +820,7 @@ export type Database = {
           description?: string
           duration_minutes?: number
           id?: string
+          invoice_id?: string | null
           milestone_id?: string | null
           project_id?: string
           status?: Database['public']['Enums']['time_entry_status']
@@ -747,6 +828,13 @@ export type Database = {
           work_date?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'time_entries_invoice_id_fkey'
+            columns: ['invoice_id']
+            isOneToOne: false
+            referencedRelation: 'invoices'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'time_entries_milestone_id_fkey'
             columns: ['milestone_id']
@@ -801,9 +889,26 @@ export type Database = {
     }
     Functions: {
       approve_time_entry: { Args: { entry_id: string }; Returns: undefined }
+      check_email_exists: { Args: { p_email: string }; Returns: boolean }
+      create_invoice_with_entries: {
+        Args: { entry_ids?: string[]; invoice_data: Json }
+        Returns: string
+      }
       create_project_with_allocations: {
         Args: { allocations_data?: Json; project_data: Json }
         Returns: string
+      }
+      create_time_entry_with_capacity_check: {
+        Args: {
+          p_description: string
+          p_duration_minutes: number
+          p_milestone_id: string
+          p_org_id: string
+          p_project_id: string
+          p_user_id: string
+          p_work_date: string
+        }
+        Returns: Json
       }
       current_user_orgs: { Args: never; Returns: string[] }
       has_org_role: {
@@ -815,6 +920,15 @@ export type Database = {
       }
       is_org_member: { Args: { target_org_id: string }; Returns: boolean }
       is_slug_available: { Args: { candidate: string }; Returns: boolean }
+      set_member_rates: {
+        Args: {
+          new_cost_rate?: number
+          new_default_rate?: number
+          target_org_id: string
+          target_user_id: string
+        }
+        Returns: undefined
+      }
       submit_time_entry: { Args: { entry_id: string }; Returns: undefined }
       update_delivery_status: {
         Args: {

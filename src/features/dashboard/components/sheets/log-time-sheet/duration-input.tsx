@@ -3,7 +3,7 @@
 import { FxButton } from '@/components/shared/fx-button'
 import { FxInput, FxLabel } from '@/components/shared/fx-field'
 import { parseDurationToMinutes } from '@/lib/duration'
-import * as React from 'react'
+import { useEffect, useMemo } from 'react'
 
 interface DurationInputProps {
   value?: string
@@ -31,10 +31,7 @@ export function DurationInput({
   className,
   onErrorChange,
 }: DurationInputProps) {
-  const parsedMinutes = React.useMemo(
-    () => parseDurationToMinutes(value),
-    [value]
-  )
+  const parsedMinutes = useMemo(() => parseDurationToMinutes(value), [value])
 
   const maxAllowedMinutes = dailyCapacityHours * 60
   const remainingMinutes = Math.max(0, maxAllowedMinutes - alreadyLoggedMinutes)
@@ -48,7 +45,7 @@ export function DurationInput({
   const isInvalid = isSyntaxInvalid || isExceedingCapacity
 
   // Notify parent of error state changes
-  React.useEffect(() => {
+  useEffect(() => {
     onErrorChange?.(isInvalid)
   }, [isInvalid, onErrorChange])
 

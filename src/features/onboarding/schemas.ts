@@ -68,7 +68,7 @@ export const wizardSchema = accountStepSchema
         ctx.addIssue({
           code: 'custom',
           message: 'You cannot invite your own account email.',
-          path: ['invites', index, 'email'], // <-- Points directly to the input field
+          path: ['invites', index, 'email'],
         })
       }
     })

@@ -2,8 +2,11 @@
 
 import { isDemoModeEnabled, serverEnv } from '@/config/env.server'
 import { siteConfig } from '@/config/site'
+import { decodePassword } from '@/lib/password-encoding'
+import { rateLimit } from '@/lib/rate-limit'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import {
   changePasswordSchema,
@@ -12,7 +15,6 @@ import {
   setPasswordSchema,
   signInSchema,
 } from './schemas'
-import { decodePassword } from '@/lib/password-encoding'
 
 export type AuthResult =
   | { ok: true; redirectTo?: string; role?: string }
@@ -26,6 +28,22 @@ export async function signInWithPassword(
   const parsed = signInSchema.safeParse({ email, password })
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) }
   const { email: address, password: secret } = parsed.data
+
+  const headerList = await headers()
+  const rawIp = headerList.get('x-forwarded-for')
+  const ip = rawIp?.split(',')[0]?.trim() ?? 'anonymous'
+
+  const isAllowed = await rateLimit(`sign-in:${ip}:${address}`, {
+    limit: 5,
+    windowMs: 60_000,
+  })
+
+  if (!isAllowed) {
+    return {
+      ok: false,
+      error: 'Too many login attempts. Please try again in a minute.',
+    }
+  }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -42,11 +60,11 @@ export async function signInWithPassword(
     .from('memberships')
     .select('organizations(slug)')
     .eq('user_id', userId)
+    .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
-  const orgSlug = membership?.organizations?.slug
-
+  const orgSlug = (membership?.organizations as { slug: string } | null)?.slug
   if (membershipError || !orgSlug) {
     return { ok: true, redirectTo: '/onboard' }
   }
@@ -143,11 +161,11 @@ export async function setPassword(
     .from('memberships')
     .select('role')
     .eq('user_id', userId)
-    .maybeSingle()
+    .limit(1)
   if (membershipError) {
     return { ok: false, error: membershipError.message }
   }
-  return { ok: true, role: membership?.role ?? undefined }
+  return { ok: true, role: membership?.[0]?.role ?? undefined }
 }
 
 export async function changePassword(
@@ -206,39 +224,4 @@ export async function changePassword(
   }
 
   return { ok: true }
-}
-
-export async function getUserDailyCapacityAndLoggedMinutes(
-  userId: string,
-  orgSlug: string,
-  workDate: string
-) {
-  const supabase = await createClient()
-
-  // 1. Fetch organization daily capacity (default to 8h if missing)
-  const { data: orgData } = await supabase
-    .from('organizations')
-    .select('daily_capacity_hours, id')
-    .eq('slug', orgSlug)
-    .maybeSingle()
-
-  const dailyCapacityMinutes = (orgData?.daily_capacity_hours ?? 8) * 60
-
-  if (!orgData) {
-    return { dailyCapacityMinutes: 8 * 60, alreadyLoggedMinutes: 0 }
-  }
-
-  const { data: entries } = await supabase
-    .from('time_entries')
-    .select('duration_minutes, projects!inner(org_id)')
-    .eq('user_id', userId)
-    .eq('work_date', workDate)
-    .eq('projects.org_id', orgData?.id) // Optional if scoped by orgId or RLS
-
-  const alreadyLoggedMinutes = (entries ?? []).reduce(
-    (sum, entry) => sum + (entry.duration_minutes ?? 0),
-    0
-  )
-
-  return { dailyCapacityMinutes, alreadyLoggedMinutes }
 }

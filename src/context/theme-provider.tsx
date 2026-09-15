@@ -5,6 +5,7 @@ import {
   applyTheme,
   getSystemTheme,
   isTheme,
+  resolveTheme,
   THEME_STORAGE_KEY,
   type ResolvedTheme,
   type Theme,
@@ -15,6 +16,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
@@ -48,6 +50,15 @@ function subscribeSystemTheme(onStoreChange: () => void) {
   return () => mql.removeEventListener('change', onStoreChange)
 }
 
+function readStoredTheme(fallback: Theme): Theme {
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY)
+    return isTheme(stored) ? stored : fallback
+  } catch {
+    return fallback
+  }
+}
+
 export function ThemeProvider({
   children,
   defaultTheme = 'system',
@@ -57,10 +68,7 @@ export function ThemeProvider({
 }) {
   const theme = useSyncExternalStore(
     subscribeStoredTheme,
-    () => {
-      const stored = localStorage.getItem(THEME_STORAGE_KEY)
-      return isTheme(stored) ? stored : defaultTheme
-    },
+    () => readStoredTheme(defaultTheme),
     () => defaultTheme
   )
 
@@ -72,9 +80,20 @@ export function ThemeProvider({
 
   const resolvedTheme: ResolvedTheme = theme === 'system' ? systemTheme : theme
 
+  const hydratedRef = useRef(false)
+
   useEffect(() => {
+    // The hydration commit still holds the server snapshots, where `systemTheme`
+    // is always 'light'. Applying that would undo the theme the init script
+    // already painted, so re-read the live sources for this first pass.
+    if (!hydratedRef.current) {
+      hydratedRef.current = true
+      applyTheme(resolveTheme(readStoredTheme(defaultTheme)))
+      return
+    }
+
     applyTheme(resolvedTheme, true)
-  }, [resolvedTheme])
+  }, [resolvedTheme, defaultTheme])
 
   const setTheme = useCallback((next: Theme) => {
     try {
