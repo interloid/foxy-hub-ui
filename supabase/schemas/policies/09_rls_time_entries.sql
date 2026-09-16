@@ -38,8 +38,31 @@ create policy "members_insert_entries"
 -- Users can update their own drafts
 create policy "own_update_draft_entries"
   on public.time_entries for update to authenticated
-  using      (user_id = (select auth.uid()) and status = 'draft')
+  using      (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()));
+
+create policy "org_staff_update_entries"
+  on public.time_entries for update to authenticated
+  using (
+    exists (
+      select 1 from public.projects p
+      where p.id = time_entries.project_id
+        and public.has_org_role(
+          p.org_id,
+          array['owner', 'admin']::public.user_role[]
+        )
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.projects p
+      where p.id = time_entries.project_id
+        and public.has_org_role(
+          p.org_id,
+          array['owner', 'admin']::public.user_role[]
+        )
+    )
+  );
 
 -- Users can delete their own drafts
 create policy "own_delete_draft_entries"

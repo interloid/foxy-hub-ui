@@ -41,5 +41,5 @@ async function AsyncChangePasswordForm({ org }: { org: string }) {
   const account = await getAccount(org)
   if (!account) redirect('/sign-in?error=session_expired')
 
-  return <ChangePasswordForm org={org} />
+  return <ChangePasswordForm />
 }

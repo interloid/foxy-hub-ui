@@ -2,7 +2,7 @@
 
 import { siteConfig } from '@/config/site'
 import { logActivity } from '@/lib/activity'
-import { getAccount } from '@/lib/dal'
+import { getAccount, isAdminRole } from '@/lib/dal'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
@@ -64,7 +64,17 @@ export async function checkEmailAvailable(
   }
 
   try {
-    return { ok: true, data: true }
+    const admin = createAdminClient()
+    const { data: emailExists, error } = await admin.rpc('check_email_exists', {
+      p_email: parsed.data.email,
+    })
+
+    if (error) {
+      console.error(error.message)
+      return { ok: false, error: 'Could not check that email. Try again.' }
+    }
+
+    return { ok: true, data: !emailExists }
   } catch (err) {
     console.error((err as Error).message)
     return { ok: false, error: 'Could not check that email. Try again.' }
@@ -143,11 +153,7 @@ export async function inviteTeam(
     .eq('user_id', user.id)
     .maybeSingle()
 
-  if (
-    membershipError ||
-    !membership ||
-    !['owner', 'admin'].includes(membership.role.toLowerCase())
-  ) {
+  if (membershipError || !membership || !isAdminRole(membership.role)) {
     return {
       ok: false,
       error:

@@ -5,6 +5,7 @@ import { createContext, ReactNode, useContext } from 'react'
 interface WorkspaceContextType {
   orgSlug: string
   orgId?: string
+  userRole?: string | null
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(
@@ -14,10 +15,11 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(
 export function WorkspaceProvider({
   orgSlug,
   orgId,
+  userRole,
   children,
 }: WorkspaceContextType & { children: ReactNode }) {
   return (
-    <WorkspaceContext.Provider value={{ orgSlug, orgId }}>
+    <WorkspaceContext.Provider value={{ orgSlug, orgId, userRole }}>
       {children}
     </WorkspaceContext.Provider>
   )

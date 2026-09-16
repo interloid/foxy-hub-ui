@@ -1,5 +1,7 @@
+import { UserRole } from '@/features/dashboard/types'
 import { cache } from 'react'
 import { initialsOf } from './initials'
+import { isAdminRole } from './role'
 import { createClient } from './supabase/server'
 
 export type SessionUser = {
@@ -22,7 +24,7 @@ export type WorkspaceDTO = {
   id: string
   name: string
   slug: string
-  role: string
+  role: UserRole
 }
 
 export type DashboardMetricsDTO = {
@@ -40,11 +42,7 @@ export type DashboardMetricsDTO = {
   currency: string
 }
 
-const ADMIN_ROLES: readonly string[] = ['owner', 'admin']
-
-export function isAdminRole(role: string | null | undefined): boolean {
-  return role != null && ADMIN_ROLES.includes(role.toLowerCase())
-}
+export { isAdminRole }
 
 const OPEN_PROJECT_STATUSES = [
   'draft',
@@ -71,24 +69,45 @@ export const getWorkspace = cache(
     if (!session) return null
 
     const supabase = await createClient()
-    let query = supabase
+
+    if (slug) {
+      const { data, error } = await supabase
+        .from('memberships')
+        .select('role, organizations!inner(id, name, slug)')
+        .eq('user_id', session.id)
+        .eq('organizations.slug', slug)
+        .maybeSingle()
+
+      if (error || !data?.organizations) return null
+
+      const org = data.organizations
+      return {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        role: data.role as UserRole,
+      }
+    }
+
+    const { data, error } = await supabase
       .from('memberships')
       .select('role, organizations!inner(id, name, slug)')
       .eq('user_id', session.id)
+      .order('created_at', { ascending: true })
+      .limit(1)
 
-    if (slug) {
-      query = query.eq('organizations.slug', slug)
+    if (error || !data || data.length === 0 || !data[0]?.organizations) {
+      return null
     }
 
-    const { data, error } = await query.limit(1).maybeSingle()
-    if (error || !data?.organizations) return null
+    const firstMembership = data[0]
+    const org = firstMembership.organizations
 
-    const org = data.organizations
     return {
       id: org.id,
       name: org.name,
       slug: org.slug,
-      role: data.role as string,
+      role: firstMembership.role as UserRole,
     }
   }
 )

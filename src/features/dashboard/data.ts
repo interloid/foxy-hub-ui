@@ -100,7 +100,7 @@ export async function getDashboardData(
       .eq('org_id', org.id)
       .in('status', ['pending', 'submitted'])
       .order('created_at', { ascending: false })
-      .limit(4),
+      .limit(5),
 
     supabase
       .from('activity_events')

@@ -3,7 +3,7 @@
 import { FxButton } from '@/components/shared/fx-button'
 import { FxInput, FxLabel } from '@/components/shared/fx-field'
 import { parseDurationToMinutes } from '@/lib/duration'
-import * as React from 'react'
+import { useEffect, useMemo } from 'react'
 
 interface DurationInputProps {
   value?: string
@@ -14,7 +14,7 @@ interface DurationInputProps {
   onErrorChange?: (hasError: boolean) => void
 }
 
-function formatMinutesToLabel(totalMinutes: number): string {
+export function formatMinutesToLabel(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60)
   const mins = totalMinutes % 60
 
@@ -31,10 +31,7 @@ export function DurationInput({
   className,
   onErrorChange,
 }: DurationInputProps) {
-  const parsedMinutes = React.useMemo(
-    () => parseDurationToMinutes(value),
-    [value]
-  )
+  const parsedMinutes = useMemo(() => parseDurationToMinutes(value), [value])
 
   const maxAllowedMinutes = dailyCapacityHours * 60
   const remainingMinutes = Math.max(0, maxAllowedMinutes - alreadyLoggedMinutes)
@@ -48,7 +45,7 @@ export function DurationInput({
   const isInvalid = isSyntaxInvalid || isExceedingCapacity
 
   // Notify parent of error state changes
-  React.useEffect(() => {
+  useEffect(() => {
     onErrorChange?.(isInvalid)
   }, [isInvalid, onErrorChange])
 
@@ -125,7 +122,7 @@ export function DurationInput({
 
       {!isInvalid && (
         <p className="text-muted-foreground mt-1.5 text-[11.5px]">
-          Stored to the exact minute — accepts{' '}
+          Stored to the exact minute accepts{' '}
           <code className="font-mono">1.5</code>,{' '}
           <code className="font-mono">1h 30m</code>, or{' '}
           <code className="font-mono">90m</code>.

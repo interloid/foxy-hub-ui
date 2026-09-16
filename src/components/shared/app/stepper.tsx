@@ -75,7 +75,7 @@ function Stepper({
                   product ? 'text-sm' : 'font-mono text-xs',
                   done && 'bg-success text-brand-white',
                   active && 'bg-primary',
-                  !done && !active && 'bg-accent text-subtle-foreground'
+                  !done && !active && 'bg-muted text-subtle-foreground'
                 )}
               >
                 {done && !product ? (

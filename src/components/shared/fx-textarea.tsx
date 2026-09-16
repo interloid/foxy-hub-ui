@@ -24,7 +24,7 @@ function FxTextarea({
       data-slot="fx-textarea"
       className={cn(
         fxTextareaVariants[variant],
-        'resize-y', // Enables vertical drag resize handle
+        'max-h-48 resize-y', // Enables vertical drag resize handle
         className
       )}
       {...props}
