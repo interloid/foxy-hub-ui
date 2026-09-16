@@ -53,10 +53,10 @@ export function CapacityView({
     >
       {/* Header */}
       <div className="border-border/60 flex flex-wrap items-center justify-between gap-2 border-b px-6 py-4">
-        <h3 className="text-foreground text-base font-bold">
+        <h3 className="text-foreground text-base text-[14px] font-semibold">
           Team capacity — committed hours per day
         </h3>
-        <span className="text-muted-foreground text-xs">
+        <span className="text-subtle-foreground text-xs">
           Standard day {standardHoursPerDay}h · summed across all active
           allocations
         </span>
@@ -85,13 +85,13 @@ export function CapacityView({
                     {user.avatarUrl && (
                       <AvatarImage src={user.avatarUrl} alt={user.fullName} />
                     )}
-                    <AvatarFallback className="bg-orange-500 text-xs font-semibold text-white">
+                    <AvatarFallback className="bg-primary text-brand-white text-[11px] font-semibold">
                       {getInitials(user.fullName)}
                     </AvatarFallback>
                   </Avatar>
 
                   <div className="flex flex-col">
-                    <span className="text-foreground text-base font-bold">
+                    <span className="text-foreground text-base text-[13.5px] font-bold">
                       {user.fullName}
                     </span>
                     <span className="text-muted-foreground text-xs capitalize">
@@ -101,10 +101,15 @@ export function CapacityView({
                 </div>
 
                 <div className="text-right">
-                  <div className={cn('text-base font-bold', status.textColor)}>
+                  <div
+                    className={cn(
+                      'text-base text-[15px] font-bold',
+                      status.textColor
+                    )}
+                  >
                     {percentage}%
                   </div>
-                  <div className="text-muted-foreground text-xs font-medium">
+                  <div className="text-subtle-foreground text-xs font-medium">
                     {totalHours} h/day
                   </div>
                 </div>
@@ -129,7 +134,7 @@ export function CapacityView({
                     key={alloc.id}
                     variant="secondary"
                     shape="pill"
-                    className="bg-muted/80 text-muted-foreground hover:bg-muted text-xs font-normal"
+                    className="bg-muted/80 text-foreground hover:bg-muted text-xs font-normal"
                   >
                     {alloc.projectName} · {alloc.hoursPerDay}h
                   </FxBadge>

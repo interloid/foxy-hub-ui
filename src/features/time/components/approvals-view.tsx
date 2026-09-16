@@ -39,10 +39,8 @@ export function ApprovalsView({
 }: ApprovalsViewProps) {
   const [activeTarget, setActiveTarget] = useState<string | null>(null)
 
-  // Track entries that have been approved/rejected and should disappear immediately
   const [removedEntryIds, setRemovedEntryIds] = useState<Set<string>>(new Set())
 
-  // Filter out users who have no remaining active entries
   const visibleApprovals = approvals
     .map((group) => {
       const activeEntries = group.entries.filter(
@@ -63,7 +61,6 @@ export function ApprovalsView({
     )
   }
 
-  // Handle Approve All for a User Group
   const handleApproveWeek = async (userId: string, entryIds: string[]) => {
     if (entryIds.length === 0) return
 
@@ -71,7 +68,6 @@ export function ApprovalsView({
     try {
       const res = await updateTimeEntriesStatus(entryIds, 'approved')
       if (res.success) {
-        // Immediately mark all entries in this group as removed
         setRemovedEntryIds((prev) => {
           const next = new Set(prev)
           entryIds.forEach((id) => next.add(id))
@@ -93,7 +89,6 @@ export function ApprovalsView({
     try {
       const res = await updateTimeEntriesStatus(entryId, 'approved')
       if (res.success) {
-        // Immediately hide single entry
         setRemovedEntryIds((prev) => new Set(prev).add(entryId))
         await onApproveEntry?.(entryId)
       } else {
@@ -111,7 +106,6 @@ export function ApprovalsView({
     try {
       const res = await updateTimeEntriesStatus(entryId, 'rejected')
       if (res.success) {
-        // Immediately hide single entry
         setRemovedEntryIds((prev) => new Set(prev).add(entryId))
         await onRejectEntry?.(entryId)
       } else {
@@ -144,16 +138,16 @@ export function ApprovalsView({
                       alt={userGroup.fullName}
                     />
                   )}
-                  <AvatarFallback className="bg-emerald-600 text-xs font-semibold text-white dark:bg-emerald-700">
+                  <AvatarFallback className="bg-success text-brand-white text-xs font-semibold">
                     {getInitials(userGroup.fullName)}
                   </AvatarFallback>
                 </Avatar>
 
                 <div className="flex flex-col">
-                  <span className="text-foreground text-base font-semibold">
+                  <span className="text-foreground text-base text-[14px] font-semibold">
                     {userGroup.fullName}
                   </span>
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-subtle-foreground text-[12px]">
                     {userGroup.entries.length}{' '}
                     {userGroup.entries.length === 1 ? 'entry' : 'entries'} ·{' '}
                     {formatMinutesToLabel(
@@ -174,7 +168,7 @@ export function ApprovalsView({
                 onClick={() =>
                   handleApproveWeek(userGroup.userId, groupEntryIds)
                 }
-                className="bg-success text-brand-white gap-1.5 font-medium shadow-xs hover:bg-emerald-700 disabled:opacity-50"
+                className="bg-success text-brand-white gap-1.5 px-4 py-4.5 font-medium shadow-xs disabled:opacity-50"
               >
                 {isUserGroupPending ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -198,7 +192,7 @@ export function ApprovalsView({
                       key={entry.id}
                       className="hover:bg-muted/10 border-border/40"
                     >
-                      <FxTableCell className="text-muted-foreground w-25 text-center font-medium">
+                      <FxTableCell className="text-muted-foreground w-25 text-center text-sm font-medium">
                         {formatDateLabel(entry.workDate)}
                       </FxTableCell>
 
@@ -212,7 +206,7 @@ export function ApprovalsView({
 
                       <FxTableCell className="w-[40%]">
                         <span
-                          className="text-foreground/90 block truncate"
+                          className="text-foreground/90 block truncate text-sm"
                           title={entry.description}
                         >
                           {entry.description}
@@ -230,7 +224,7 @@ export function ApprovalsView({
                             size="xs"
                             disabled={activeTarget !== null}
                             onClick={() => handleApproveSingle(entry.id)}
-                            className="border-success bg-success/80 text-brand-white hover:bg-success h-8 font-semibold disabled:opacity-50"
+                            className="bg-success/20 text-success hover:bg-success h-8 border-none font-semibold disabled:opacity-50"
                           >
                             {isApproving ? (
                               <Loader2 className="mr-1 size-3.5 animate-spin" />
@@ -245,7 +239,7 @@ export function ApprovalsView({
                             size="xs"
                             disabled={activeTarget !== null}
                             onClick={() => handleRejectSingle(entry.id)}
-                            className="border-border text-foreground/80 hover:bg-accent h-8 font-medium disabled:opacity-50"
+                            className="bg-destructive/20 text-destructive h-8 border-none font-medium disabled:opacity-50"
                           >
                             {isRejecting ? (
                               <Loader2 className="mr-1 size-3.5 animate-spin" />

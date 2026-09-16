@@ -25,11 +25,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
+import { hasInvoiceForProject } from '../../queries/get-invoice'
 import {
   EngagementModel,
   InvoiceFormValues,
   NewInvoiceSheetProps,
+  ProjectInvoiceContext,
 } from '../../types/invoice'
 
 const ENGAGEMENT_BADGE_CONFIG: Record<
@@ -60,6 +62,8 @@ export function NewInvoiceSheet({
   isSubmitting = false,
   hasExistingInvoice = false,
 }: NewInvoiceSheetProps) {
+  const [hasExistingInvoices, setHasExistingInvoice] = useState(false)
+  const [isCheckingInvoice, startTransition] = useTransition()
   const { control, handleSubmit, watch, setValue, getValues } =
     useForm<InvoiceFormValues>({
       defaultValues: {
@@ -68,6 +72,29 @@ export function NewInvoiceSheet({
       },
     })
 
+  const selectedProjectId = watch('projectId')
+  const activeProjectId =
+    selectedProjectId || defaultProjectId || projects[0]?.id || ''
+
+  const currentProject =
+    projects.find((p) => p.id === activeProjectId) || projects[0]
+
+  const checkProjectInvoice = (project: ProjectInvoiceContext | undefined) => {
+    if (!project?.id) return
+
+    startTransition(async () => {
+      try {
+        const exists = await hasInvoiceForProject(
+          project.id,
+          project.engagement
+        )
+        setHasExistingInvoice(exists)
+      } catch (err) {
+        console.error('Failed to check existing invoice:', err)
+        setHasExistingInvoice(false)
+      }
+    })
+  }
   // Sync form state if defaultProjectId or projects list updates
   useEffect(() => {
     if (defaultProjectId) {
@@ -75,14 +102,7 @@ export function NewInvoiceSheet({
     } else if (projects.length > 0 && !getValues('projectId')) {
       setValue('projectId', projects[0].id)
     }
-  }, [defaultProjectId, projects, setValue, getValues])
-
-  const selectedProjectId = watch('projectId')
-  const activeProjectId =
-    selectedProjectId || defaultProjectId || projects[0]?.id || ''
-
-  const currentProject =
-    projects.find((p) => p.id === activeProjectId) || projects[0]
+  }, [defaultProjectId, projects, setValue, getValues, open])
 
   const totalAmount = useMemo(() => {
     if (!currentProject?.lines) return 0
@@ -159,7 +179,10 @@ export function NewInvoiceSheet({
                         projects.map((project) => (
                           <FxDropdownMenuItem
                             key={project.id}
-                            onClick={() => field.onChange(project.id)}
+                            onClick={() => {
+                              field.onChange(project.id)
+                              checkProjectInvoice(project)
+                            }}
                             className="hover:bg-primary! hover:text-brand-white! focus:bg-muted text-[13px]"
                           >
                             {project.name}
@@ -315,8 +338,9 @@ export function NewInvoiceSheet({
               size="sm"
               disabled={
                 isSubmitting ||
+                isCheckingInvoice ||
                 !currentProject?.lines.length ||
-                hasExistingInvoice
+                hasExistingInvoices
               }
               className="bg-primary text-brand-white h-9 px-4 text-[13px] font-semibold"
             >

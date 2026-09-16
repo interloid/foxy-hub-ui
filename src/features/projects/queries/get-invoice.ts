@@ -1,3 +1,4 @@
+'use server'
 import { toISODate } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 

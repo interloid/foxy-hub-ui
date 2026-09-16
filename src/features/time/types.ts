@@ -24,6 +24,7 @@ export interface MyTimeCardProps {
   approvals: UserPendingApprovals[]
   capacities: UserCapacityItem[]
   standardHoursPerDay: number
+  role: UserRole
   className?: string
 }
 

@@ -74,7 +74,7 @@ export function WeeklyTimeEntriesTable({
     >
       {/* Header Bar */}
       <div className="border-border/60 flex flex-col justify-between gap-3 border-b px-4 py-3 sm:flex-row sm:items-center">
-        <h3 className="text-foreground font-semibold tracking-tight">
+        <h3 className="text-foreground text-[14px] font-semibold tracking-tight">
           This week&apos;s entries
         </h3>
 
@@ -84,7 +84,7 @@ export function WeeklyTimeEntriesTable({
             disabled={draftCount === 0 || submittingId !== null}
             onClick={onSubmitAllDrafts}
             variant="default"
-            className="gap-1.5 px-3 py-4 font-medium shadow-xs disabled:opacity-50"
+            className="gap-1.5 px-3 py-4 text-[12px] font-medium shadow-xs disabled:opacity-50"
           >
             {isBatchSubmitting ? (
               <Loader2 className="size-3.5 animate-spin" />
@@ -99,7 +99,7 @@ export function WeeklyTimeEntriesTable({
       {/* Table Content */}
       <FxTable>
         <FxTableHeader>
-          <FxTableRow className="bg-muted/30">
+          <FxTableRow className="bg-muted/30 text-[11px]">
             <FxTableHead className="w-25 text-center">DATE</FxTableHead>
             <FxTableHead className="w-50 text-center">PROJECT</FxTableHead>
             <FxTableHead className="w-100 text-center">DESCRIPTION</FxTableHead>
@@ -123,26 +123,23 @@ export function WeeklyTimeEntriesTable({
               const isRowSubmitting = submittingId === entry.id
               return (
                 <FxTableRow key={entry.id}>
-                  <FxTableCell className="text-muted-foreground text-center font-medium">
+                  <FxTableCell className="text-muted-foreground text-center text-sm font-medium">
                     {formatDateLabel(entry.workDate)}
                   </FxTableCell>
 
                   <FxTableCell className="text-center">
                     <div className="flex flex-col items-center justify-center">
-                      <span className="text-foreground font-semibold">
+                      <span className="text-foreground text-[13px] font-semibold">
                         {entry.projectName}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        General
                       </span>
                     </div>
                   </FxTableCell>
 
-                  <FxTableCell className="text-foreground/90 text-center">
+                  <FxTableCell className="text-foreground/90 text-center text-sm">
                     {entry.description}
                   </FxTableCell>
 
-                  <FxTableCell className="text-center font-mono font-semibold tabular-nums">
+                  <FxTableCell className="text-center font-mono text-[13px] font-semibold tabular-nums">
                     {formatMinutesToLabel(entry.durationMinutes)}
                   </FxTableCell>
 
@@ -178,9 +175,9 @@ export function WeeklyTimeEntriesTable({
       </FxTable>
 
       {/* Card Footer Info Notice */}
-      <div className="border-border/60 bg-muted/20 text-muted-foreground flex items-center gap-2 border-t px-4 py-3 text-xs">
+      <div className="border-border/60 bg-muted/20 text-subtle-foreground flex items-center gap-2 border-t px-4 py-3 text-xs">
         <Info className="h-4 w-4 shrink-0" />
-        <span>
+        <span className="text-sm">
           Approved entries become client-visible and billable. Descriptions are
           required on every entry.
         </span>

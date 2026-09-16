@@ -1,3 +1,4 @@
+import { UserRole } from '@/features/dashboard/types'
 import { cache } from 'react'
 import { initialsOf } from './initials'
 import { isAdminRole } from './role'
@@ -23,7 +24,7 @@ export type WorkspaceDTO = {
   id: string
   name: string
   slug: string
-  role: string
+  role: UserRole
 }
 
 export type DashboardMetricsDTO = {
@@ -84,7 +85,7 @@ export const getWorkspace = cache(
         id: org.id,
         name: org.name,
         slug: org.slug,
-        role: data.role as string,
+        role: data.role as UserRole,
       }
     }
 
@@ -106,7 +107,7 @@ export const getWorkspace = cache(
       id: org.id,
       name: org.name,
       slug: org.slug,
-      role: firstMembership.role as string,
+      role: firstMembership.role as UserRole,
     }
   }
 )

@@ -31,7 +31,7 @@ export default async function TimePage({ params }: TimePageProps) {
   const { standardHoursPerDay, capacities } = capacityData
 
   return (
-    <>
+    <div className="ds:p-6 space-y-6">
       <TimeTrackingSection />
       <TimeCard
         summary={timeEntriesSummary}
@@ -39,7 +39,8 @@ export default async function TimePage({ params }: TimePageProps) {
         approvals={approvals}
         capacities={capacities}
         standardHoursPerDay={standardHoursPerDay}
+        role={workspace.role}
       />
-    </>
+    </div>
   )
 }

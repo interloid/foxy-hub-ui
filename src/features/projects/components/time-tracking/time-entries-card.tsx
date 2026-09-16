@@ -7,7 +7,6 @@ import {
   FxTableHead,
   FxTableHeader,
   FxTableRow,
-  FxTableScroll,
 } from '@/components/shared/fx-table'
 import { AlertCircle } from 'lucide-react'
 import {

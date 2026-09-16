@@ -21,6 +21,7 @@ export function TimeCard({
   approvals,
   capacities,
   standardHoursPerDay,
+  role,
   className,
 }: MyTimeCardProps) {
   const cards = [
@@ -32,17 +33,17 @@ export function TimeCard({
     {
       title: 'Approved',
       value: formatMinutesToLabel(summary.approvedMinutes),
-      colorClass: 'text-emerald-600 dark:text-emerald-500',
+      colorClass: 'text-success',
     },
     {
       title: 'Pending review',
       value: formatMinutesToLabel(summary.pendingReviewMinutes),
-      colorClass: 'text-amber-600 dark:text-amber-500',
+      colorClass: 'text-primary',
     },
     {
       title: 'Draft — not submitted',
       value: formatMinutesToLabel(summary.draftMinutes),
-      colorClass: 'text-muted-foreground',
+      colorClass: 'text-subtle  -foreground',
     },
   ]
 
@@ -157,37 +158,46 @@ export function TimeCard({
   return (
     <div className={cn('w-full space-y-4', className)}>
       <Tabs defaultValue="my-time" className="w-full">
-        <FxTabsListUnderline>
-          <FxTabsTriggerUnderline value="my-time">
+        <FxTabsListUnderline className="text-[13.5px]">
+          <FxTabsTriggerUnderline value="my-time" className="cursor-pointer">
             My time
           </FxTabsTriggerUnderline>
-          <FxTabsTriggerUnderline value="approvals">
-            Approvals
-            {summary?.pendingApprovalsCount &&
-            summary.pendingApprovalsCount > 0 ? (
-              <span className="bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary ml-1.5 inline-flex h-5 items-center justify-center rounded-full px-2 text-xs font-bold">
-                {summary.pendingApprovalsCount}
-              </span>
-            ) : null}
-          </FxTabsTriggerUnderline>
-          <FxTabsTriggerUnderline value="capacity">
-            Capacity
-          </FxTabsTriggerUnderline>
+          {(role === 'admin' || role === 'owner') && (
+            <>
+              <FxTabsTriggerUnderline
+                value="approvals"
+                className="cursor-pointer"
+              >
+                Approvals
+                {summary?.pendingApprovalsCount &&
+                summary.pendingApprovalsCount > 0 ? (
+                  <span className="bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary ml-1.5 inline-flex h-5 items-center justify-center rounded-full px-2 text-xs font-bold">
+                    {summary.pendingApprovalsCount}
+                  </span>
+                ) : null}
+              </FxTabsTriggerUnderline>
+              <FxTabsTriggerUnderline
+                value="capacity"
+                className="cursor-pointer"
+              >
+                Capacity
+              </FxTabsTriggerUnderline>
+            </>
+          )}
         </FxTabsListUnderline>
-
         <TabsContent value="my-time" className="mt-4 space-y-4 outline-none">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {cards.map((card, idx) => (
               <div
                 key={idx}
-                className="bg-card text-card-foreground border-border/60 dark:border-border/40 flex flex-col justify-between rounded-xl border p-4 shadow-xs transition-shadow hover:shadow-sm"
+                className="bg-card text-card-foreground border-border/60 dark:border-border/40 flex flex-col justify-between rounded-xl border p-5 shadow-xs transition-shadow hover:shadow-sm"
               >
-                <span className="text-muted-foreground text-xs font-medium">
+                <span className="text-subtle-foreground text-[12.5px] font-medium">
                   {card.title}
                 </span>
                 <span
                   className={cn(
-                    'mt-2 text-2xl font-bold tracking-tight',
+                    'mt-2 text-[26px] font-bold tracking-tight',
                     card.colorClass
                   )}
                 >
@@ -203,22 +213,24 @@ export function TimeCard({
             onSubmitAllDrafts={handleBatchSubmit}
           />
         </TabsContent>
-
-        <TabsContent value="approvals" className="mt-4 outline-none">
-          <ApprovalsView
-            approvals={approvals}
-            onApproveEntry={handleApproveEntry}
-            onApproveAll={handleApproveAll}
-            onRejectEntry={handleRejectEntry}
-          />
-        </TabsContent>
-
-        <TabsContent value="capacity" className="mt-4 outline-none">
-          <CapacityView
-            capacities={capacities}
-            standardHoursPerDay={standardHoursPerDay}
-          />
-        </TabsContent>
+        {(role === 'admin' || role === 'owner') && (
+          <>
+            <TabsContent value="approvals" className="mt-4 outline-none">
+              <ApprovalsView
+                approvals={approvals}
+                onApproveEntry={handleApproveEntry}
+                onApproveAll={handleApproveAll}
+                onRejectEntry={handleRejectEntry}
+              />
+            </TabsContent>
+            <TabsContent value="capacity" className="mt-4 outline-none">
+              <CapacityView
+                capacities={capacities}
+                standardHoursPerDay={standardHoursPerDay}
+              />
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   )
