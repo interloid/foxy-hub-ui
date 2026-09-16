@@ -113,12 +113,13 @@ export function ProjectDetailView({
         <TabsContent value="overview" className="mt-6">
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.5fr_1fr] xl:items-start">
             {/* Left Column (Main content) */}
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
               <LatestUpdatesCard
                 updates={updates.data}
                 isError={updates.isError}
                 projectId={project.id}
                 isPostingUpdate={false}
+                isOverview={true}
               />
               <DeliverablesSection
                 key={JSON.stringify(deliveries)}
@@ -131,7 +132,7 @@ export function ProjectDetailView({
             </div>
 
             {/* Right Column (Sidebar widgets) */}
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
               <ProgressCard
                 milestones={milestones.data}
                 isError={milestones.isError}

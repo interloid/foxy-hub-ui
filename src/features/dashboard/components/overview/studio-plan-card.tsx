@@ -59,7 +59,7 @@ export function StudioPlanCard({
               variant="outline"
               size="default"
               onClick={onManageClick}
-              className="text-foreground border-border hover:bg-accent/50 w-full text-[13px] font-medium"
+              className="text-foreground border-border hover:bg-muted/50 w-full text-[13px] font-medium"
             >
               Manage subscription
             </FxButton>

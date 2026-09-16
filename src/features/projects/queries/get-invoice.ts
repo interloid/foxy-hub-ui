@@ -241,7 +241,7 @@ function buildInvoiceLines(
 
       lines.push({
         id: `overage-${project.id}`,
-        description: `Overage — beyond the ${bucketHours}h bucket`,
+        description: `Overage beyond the ${bucketHours}h bucket`,
         typeLabel: 'OVERAGE',
         qty: formatHours(overageHours),
         rate: `$${money(overageRate)}/hr`,
@@ -250,9 +250,9 @@ function buildInvoiceLines(
         unitRateValue: money(overageRate),
       })
 
-      calloutMessage = `Bucket ${formatHours(consumedHours)} of ${bucketHours}h used — ${formatHours(overageHours)} billed at ×${multiplier} overage.`
+      calloutMessage = `Bucket ${formatHours(consumedHours)} of ${bucketHours}h used ${formatHours(overageHours)} billed at ×${multiplier} overage.`
     } else {
-      calloutMessage = `Bucket ${formatHours(consumedHours)} of ${bucketHours}h used — retainer bills in full even if under-consumed.`
+      calloutMessage = `Bucket ${formatHours(consumedHours)} of ${bucketHours}h used retainer bills in full even if under-consumed.`
     }
   } else if (project.engagement === 'fixed') {
     const fixedFee = Number(project.contract_value) || 0
@@ -416,6 +416,7 @@ export async function getProjectsForInvoicing(
       id: project.id,
       name: project.name,
       clientName,
+      retainerPeriod: project.retainer_period,
       engagement: project.engagement as EngagementModel,
       calloutMessage: withUnratedNotice(calloutMessage, unratedNames),
       lines,
@@ -429,7 +430,7 @@ function withUnratedNotice(
 ): string | null {
   if (unratedNames.length === 0) return calloutMessage
 
-  const notice = `No rate in effect for ${unratedNames.join(', ')} — their hours are excluded.`
+  const notice = `No rate in effect for ${unratedNames.join(', ')} their hours are excluded.`
 
   return calloutMessage ? `${notice} ${calloutMessage}` : notice
 }

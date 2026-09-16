@@ -35,7 +35,7 @@ async function ProjectsContent({ org, page }: { org: string; page: number }) {
   } = await getProjectsData({
     orgSlug: org,
     page,
-    pageSize: 5,
+    pageSize: 10,
   })
 
   return (

@@ -67,6 +67,7 @@ export interface ProjectInvoiceContext {
   clientName: string
   engagement: EngagementModel
   calloutMessage?: string | null
+  retainerPeriod?: 'weekly' | 'monthly' | null
   lines: InvoiceLine[]
 }
 

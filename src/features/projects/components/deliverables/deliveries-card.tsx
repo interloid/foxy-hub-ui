@@ -50,6 +50,18 @@ export function DeliverablesSection({
 }: DeliverablesSectionProps) {
   const [deliveriesList, setDeliveriesList] =
     useState<ProjectDelivery[]>(initialDeliveries)
+
+  // `initialDeliveries` changes when the server refetches for a new
+  // `deliveriesPage`, but this component isn't remounted (no `key`), so
+  // `useState`'s initial value is only used once. Adjusting state during
+  // render (React's documented alternative to an effect for this exact
+  // "reset state when a prop changes" case) re-syncs it on page change.
+  const [prevPage, setPrevPage] = useState(page)
+  if (prevPage !== page) {
+    setPrevPage(page)
+    setDeliveriesList(initialDeliveries)
+  }
+
   const [selectedDelivery, setSelectedDelivery] =
     useState<ProjectDelivery | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -88,6 +100,24 @@ export function DeliverablesSection({
       }
     } catch (err) {
       console.error('Failed to refetch delivery assets:', err)
+    }
+  }
+
+  const handleDeliveryCreated = async (deliveryId: string) => {
+    try {
+      const created = await getDeliveryById(deliveryId, projectId)
+
+      // Check if response returned the delivery object (not an error object)
+      if (created && 'id' in created) {
+        // Keep this page's row count at `pageSize`: the new row is only
+        // known locally, so the server's `totalCount`/pagination haven't
+        // shifted — drop the last row rather than overflow the page.
+        setDeliveriesList((prevList) =>
+          [created, ...prevList].slice(0, pageSize)
+        )
+      }
+    } catch (err) {
+      console.error('Failed to fetch newly created delivery:', err)
     }
   }
 
@@ -157,6 +187,7 @@ export function DeliverablesSection({
                 projectId={projectId}
                 orgId={orgId ?? ''}
                 milestones={milestones}
+                onSuccess={handleDeliveryCreated}
               />
             </div>
           )}
@@ -166,12 +197,12 @@ export function DeliverablesSection({
         <FxTable>
           <FxTableHeader className="bg-card">
             <TableRow className="border-border text-[11px]">
-              <FxTableHead className="text-center">Date</FxTableHead>
-              <FxTableHead className="text-center">Title</FxTableHead>
-              <FxTableHead className="text-center">Description</FxTableHead>
-              <FxTableHead className="text-center">Milestone</FxTableHead>
-              <FxTableHead className="text-center">Due Date</FxTableHead>
-              <FxTableHead className="text-center">Status</FxTableHead>
+              <FxTableHead>Date</FxTableHead>
+              <FxTableHead>Title</FxTableHead>
+              <FxTableHead>Description</FxTableHead>
+              <FxTableHead>Milestone</FxTableHead>
+              <FxTableHead>Due Date</FxTableHead>
+              <FxTableHead>Status</FxTableHead>
               {!isOverview && (
                 <FxTableHead className="text-center">Action</FxTableHead>
               )}
@@ -214,36 +245,36 @@ export function DeliverablesSection({
                   onClick={() => handleViewDelivery(delivery)}
                   className="cursor-pointer"
                 >
-                  <FxTableCell className="text-muted-foreground text-center text-[12.5px] whitespace-nowrap">
+                  <FxTableCell className="text-muted-foreground text-[12.5px] whitespace-nowrap">
                     {formatDate(delivery.createdAt)}
                   </FxTableCell>
 
                   <FxTableCell
-                    className="text-foreground max-w-45 truncate text-center text-[12.5px] font-semibold"
+                    className="text-foreground max-w-45 truncate text-[12.5px] font-semibold"
                     title={delivery.title}
                   >
                     {delivery.title}
                   </FxTableCell>
 
                   <FxTableCell
-                    className="text-muted-foreground max-w-60 truncate text-center text-[12.5px]"
+                    className="text-muted-foreground max-w-60 truncate text-[12.5px]"
                     title={delivery.description || undefined}
                   >
                     {delivery.description || '—'}
                   </FxTableCell>
 
                   <FxTableCell
-                    className="text-muted-foreground max-w-40 truncate text-center text-[12.5px]"
+                    className="text-muted-foreground max-w-40 truncate text-[12.5px]"
                     title={delivery.milestoneTitle || undefined}
                   >
                     {delivery.milestoneTitle || '—'}
                   </FxTableCell>
 
-                  <FxTableCell className="text-muted-foreground text-center text-[12.5px] whitespace-nowrap">
+                  <FxTableCell className="text-muted-foreground text-[12.5px] whitespace-nowrap">
                     {delivery.dueDate ? formatDate(delivery.dueDate) : '—'}
                   </FxTableCell>
 
-                  <FxTableCell className="text-center">
+                  <FxTableCell>
                     <TableStatusPill status={delivery.status} />
                   </FxTableCell>
 

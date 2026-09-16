@@ -145,7 +145,7 @@ function orderOfMagnitude(
     return {
       kind: 'order-of-magnitude',
       message:
-        'This looks far below the suggested amount — check for a missing zero.',
+        'This looks far below the suggested amount check for a missing zero.',
     }
   }
 
@@ -153,7 +153,7 @@ function orderOfMagnitude(
     return {
       kind: 'order-of-magnitude',
       message:
-        'This looks far above the suggested amount — check for an extra zero.',
+        'This looks far above the suggested amount check for an extra zero.',
     }
   }
 
@@ -237,7 +237,7 @@ export function computePricingInsight(inputs: PricingInputs): PricingInsight {
       warnings.push({
         kind: 'negative-margin',
         message:
-          'This fee is below what the work costs to deliver — the project would run at a loss.',
+          'This fee is below what the work costs to deliver the project would run at a loss.',
       })
     }
 
@@ -275,7 +275,7 @@ export function computePricingInsight(inputs: PricingInputs): PricingInsight {
         warnings.push({
           kind: 'below-cost',
           message:
-            'This retainer is below what the team costs — the project would run at a loss.',
+            'This retainer is below what the team costs the project would run at a loss.',
         })
       }
     }

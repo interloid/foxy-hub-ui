@@ -146,7 +146,7 @@ export function TeamAllocationSection({
       })}
 
       <p className="text-muted-foreground text-[11.5px] leading-snug">
-        Part-time is first-class — set any hours/day. Rates snapshot onto each
+        Part-time is first-class set any hours/day. Rates snapshot onto each
         time entry; a change over time is a new dated row.
       </p>
 
@@ -159,7 +159,7 @@ export function TeamAllocationSection({
               <strong className="text-foreground font-semibold">
                 Over-commitment blocked
               </strong>{' '}
-              — this allocation pushes someone past a standard working day:
+              this allocation pushes someone past a standard working day:
               <div className="text-foreground mt-0.5 font-medium">
                 {overCommittedDetails.memberName} →{' '}
                 <span className="font-bold">
@@ -192,7 +192,7 @@ export function TeamAllocationSection({
               <strong className="text-foreground font-semibold">
                 This looks like a {modelFit.suggestedLabel} project
               </strong>{' '}
-              — you selected {modelFit.currentLabel}.
+              you selected {modelFit.currentLabel}.
               <div className="text-foreground mt-0.5 font-medium">
                 {modelFit.reason}
               </div>

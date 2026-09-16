@@ -374,7 +374,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
         <FxSheetFooter>
           <span className="text-muted-foreground text-[12px]">
             Saved as a{' '}
-            <strong className="text-foreground font-semibold">Draft</strong> —
+            <strong className="text-foreground font-semibold">Draft</strong>
             submit for approval later.
           </span>
 

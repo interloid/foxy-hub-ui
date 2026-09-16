@@ -74,11 +74,11 @@ export function TimeEntriesTableCard({
       <FxTable>
         <FxTableHeader>
           <FxTableRow className="text-[11px]">
-            <FxTableHead className="w-30 text-center">DATE</FxTableHead>
-            <FxTableHead className="w-60 text-center">TEAM</FxTableHead>
-            <FxTableHead className="w-80 text-center">MILESTONE</FxTableHead>
-            <FxTableHead className="w-120 text-center">DESCRIPTION</FxTableHead>
-            <FxTableHead className="w-40 text-center">HOURS</FxTableHead>
+            <FxTableHead className="w-30">DATE</FxTableHead>
+            <FxTableHead className="w-60">TEAM</FxTableHead>
+            <FxTableHead className="w-80">MILESTONE</FxTableHead>
+            <FxTableHead className="w-120">DESCRIPTION</FxTableHead>
+            <FxTableHead className="w-40">HOURS</FxTableHead>
             <FxTableHead className="w-40 text-center">STATUS</FxTableHead>
           </FxTableRow>
         </FxTableHeader>
@@ -98,14 +98,14 @@ export function TimeEntriesTableCard({
                 STATUS_BADGE_CONFIG[entry.status] || STATUS_BADGE_CONFIG.draft
 
               return (
-                <FxTableRow key={entry.id} className="text-center">
+                <FxTableRow key={entry.id}>
                   {/* Date */}
                   <FxTableCell className="text-muted-foreground text-[12.5px] font-normal">
                     {formatDate(entry.workDate)}
                   </FxTableCell>
 
                   {/* Team Member */}
-                  <FxTableCell className="flex items-center justify-center">
+                  <FxTableCell className="flex items-center">
                     <div className="flex items-center gap-2">
                       <div
                         aria-hidden="true"
@@ -132,12 +132,12 @@ export function TimeEntriesTableCard({
                   </FxTableCell>
 
                   {/* Hours */}
-                  <FxTableCell numeric className="text-center text-[13px]">
+                  <FxTableCell numeric className="text-left text-[13px]">
                     {formatDuration(entry.durationMinutes)}
                   </FxTableCell>
 
                   {/* Status */}
-                  <FxTableCell className="text-[11px]">
+                  <FxTableCell className="text-center text-[11px]">
                     <FxBadge variant={statusConfig.variant} size="sm" dot>
                       {statusConfig.label}
                     </FxBadge>

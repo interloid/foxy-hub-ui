@@ -69,7 +69,7 @@ export async function createInvoiceAction(
     return {
       ok: false,
       error:
-        'Nothing to invoice — there are no approved, unbilled hours for this project.',
+        'Nothing to invoice there are no approved, unbilled hours for this project.',
     }
   }
 
@@ -131,6 +131,7 @@ export async function createInvoiceAction(
 
   revalidatePath(`/${orgSlug}/projects/${projectId}`)
   revalidatePath(`/${orgSlug}`)
+  revalidatePath(`/${orgSlug}/invoices`)
 
   return { ok: true, data: { invoiceId } }
 }

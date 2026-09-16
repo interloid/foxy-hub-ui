@@ -68,7 +68,7 @@ export const ENGAGEMENT_MODELS = [
   {
     id: 'fixed',
     title: 'Fixed price',
-    subtitle: 'Set fee — hours tracked, not billed',
+    subtitle: 'Set fee hours tracked, not billed',
     colorClass: 'bg-success',
     borderClass: 'border-success',
     ringClass: 'ring-success',

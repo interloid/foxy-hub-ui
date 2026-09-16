@@ -11,15 +11,15 @@ export function getNavSections(org: string): NavSection[] {
         { label: 'Projects', icon: 'projects', href: `${prefix}/projects` },
         { label: 'Time', icon: 'time', href: `${prefix}/time` },
         { label: 'Invoices', icon: 'invoices', href: `${prefix}/invoices` },
-        { label: 'Reports', icon: 'reports', href: `${prefix}/reports` },
-        { label: 'AI updates', icon: 'ai', href: `${prefix}/ai-updates` },
+        { label: 'Reports', icon: 'reports', href: `#` },
+        { label: 'AI updates', icon: 'ai', href: `#` },
       ],
     },
     {
       label: 'Workspace',
       items: [
-        { label: 'Billing & plan', icon: 'billing', href: `${prefix}/billing` },
-        { label: 'Settings', icon: 'settings', href: `${prefix}/settings` },
+        { label: 'Billing & plan', icon: 'billing', href: `#` },
+        { label: 'Settings', icon: 'settings', href: `#` },
         { label: 'Auth & demo', icon: 'auth', href: '/sign-in' },
       ],
     },
@@ -51,7 +51,7 @@ export function getFooter(org: string, orgName?: string): FooterProps {
       org: displayOrgName,
       year: new Date().getFullYear(),
       tagline:
-        'Projects, time and invoices in one workspace — for studios that bill by the hour.',
+        'Projects, time and invoices in one workspace for studios that bill by the hour.',
     },
     groups: [
       {
@@ -76,12 +76,12 @@ export function getFooter(org: string, orgName?: string): FooterProps {
       {
         title: 'Resources',
         items: [
-          { label: 'Support', href: `${prefix}/support` },
-          { label: 'Docs', href: `${prefix}/docs` },
-          { label: 'Changelog', href: `${prefix}/changelog` },
+          { label: 'Support', href: `#` },
+          { label: 'Docs', href: `#` },
+          { label: 'Changelog', href: `#` },
           {
             label: 'Status',
-            href: 'https://status.interloid.co',
+            href: '#',
             external: true,
           },
         ],
@@ -113,7 +113,7 @@ export function getFooter(org: string, orgName?: string): FooterProps {
     status: {
       label: 'All systems operational',
       tone: 'success',
-      href: `${prefix}/status`,
+      href: `#`,
     },
     meta: { version: `v${APP_VERSION}` },
   }

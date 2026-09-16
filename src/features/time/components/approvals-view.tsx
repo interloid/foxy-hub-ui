@@ -5,6 +5,7 @@ import { FxTable, FxTableCell, FxTableRow } from '@/components/shared/fx-table'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { TableBody } from '@/components/ui/table'
 import { formatMinutesToLabel } from '@/features/dashboard/components/sheets/log-time-sheet/duration-input'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { cn } from '@/lib/utils'
 import { Check, Loader2, X } from 'lucide-react'
 import { useState } from 'react'
@@ -40,7 +41,7 @@ export function ApprovalsView({
   const [activeTarget, setActiveTarget] = useState<string | null>(null)
 
   const [removedEntryIds, setRemovedEntryIds] = useState<Set<string>>(new Set())
-
+  const { orgSlug } = useWorkspace()
   const visibleApprovals = approvals
     .map((group) => {
       const activeEntries = group.entries.filter(
@@ -66,7 +67,7 @@ export function ApprovalsView({
 
     setActiveTarget(`user-${userId}`)
     try {
-      const res = await updateTimeEntriesStatus(entryIds, 'approved')
+      const res = await updateTimeEntriesStatus(entryIds, 'approved', orgSlug)
       if (res.success) {
         setRemovedEntryIds((prev) => {
           const next = new Set(prev)
@@ -87,7 +88,7 @@ export function ApprovalsView({
   const handleApproveSingle = async (entryId: string) => {
     setActiveTarget(`entry-approve-${entryId}`)
     try {
-      const res = await updateTimeEntriesStatus(entryId, 'approved')
+      const res = await updateTimeEntriesStatus(entryId, 'approved', orgSlug)
       if (res.success) {
         setRemovedEntryIds((prev) => new Set(prev).add(entryId))
         await onApproveEntry?.(entryId)
@@ -104,7 +105,7 @@ export function ApprovalsView({
   const handleRejectSingle = async (entryId: string) => {
     setActiveTarget(`entry-reject-${entryId}`)
     try {
-      const res = await updateTimeEntriesStatus(entryId, 'rejected')
+      const res = await updateTimeEntriesStatus(entryId, 'rejected', orgSlug)
       if (res.success) {
         setRemovedEntryIds((prev) => new Set(prev).add(entryId))
         await onRejectEntry?.(entryId)
@@ -168,7 +169,7 @@ export function ApprovalsView({
                 onClick={() =>
                   handleApproveWeek(userGroup.userId, groupEntryIds)
                 }
-                className="bg-success text-brand-white gap-1.5 px-4 py-4.5 font-medium shadow-xs disabled:opacity-50"
+                className="gap-1.5 px-4 py-4.5 font-medium shadow-xs disabled:opacity-50"
               >
                 {isUserGroupPending ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -192,7 +193,7 @@ export function ApprovalsView({
                       key={entry.id}
                       className="hover:bg-muted/10 border-border/40"
                     >
-                      <FxTableCell className="text-muted-foreground w-25 text-center text-sm font-medium">
+                      <FxTableCell className="text-muted-foreground w-25 text-sm font-medium">
                         {formatDateLabel(entry.workDate)}
                       </FxTableCell>
 
@@ -213,18 +214,18 @@ export function ApprovalsView({
                         </span>
                       </FxTableCell>
 
-                      <FxTableCell className="w-25 text-right font-mono font-semibold tabular-nums">
+                      <FxTableCell className="w-25 text-left font-mono font-semibold tabular-nums">
                         {formatMinutesToLabel(entry.durationMinutes)}
                       </FxTableCell>
 
-                      <FxTableCell className="w-45 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <FxTableCell className="w-45 text-center">
+                        <div className="flex items-center justify-center gap-4">
                           <FxButton
                             variant="outline"
                             size="xs"
                             disabled={activeTarget !== null}
                             onClick={() => handleApproveSingle(entry.id)}
-                            className="bg-success/20 text-success hover:bg-success h-8 border-none font-semibold disabled:opacity-50"
+                            className="bg-success/20 text-success hover:bg-success/30 h-8 border-none font-semibold disabled:opacity-50"
                           >
                             {isApproving ? (
                               <Loader2 className="mr-1 size-3.5 animate-spin" />
@@ -239,7 +240,7 @@ export function ApprovalsView({
                             size="xs"
                             disabled={activeTarget !== null}
                             onClick={() => handleRejectSingle(entry.id)}
-                            className="bg-destructive/20 text-destructive h-8 border-none font-medium disabled:opacity-50"
+                            className="bg-destructive/20 hover:bg-destructive/30 text-destructive h-8 border-none font-medium disabled:opacity-50"
                           >
                             {isRejecting ? (
                               <Loader2 className="mr-1 size-3.5 animate-spin" />

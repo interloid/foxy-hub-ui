@@ -181,7 +181,7 @@ export function TeamRatesSheet({ open, onOpenChange }: TeamRatesSheetProps) {
           <FxSheetTitle>Team rates</FxSheetTitle>
           <FxSheetDescription>
             Standard rates for each teammate. These seed a project&apos;s
-            allocation — changing one here never re-prices a running project.
+            allocation changing one here never re-prices a running project.
           </FxSheetDescription>
         </FxSheetHeader>
 

@@ -13,7 +13,7 @@ export function TimeTrackingHeader({
           Time tracking
         </h2>
         <p className="text-muted-foreground text-[14px]">
-          Log hours against a project and milestone — {userName}, this week.
+          Log hours against a project and milestone {userName}, this week.
         </p>
       </div>
 

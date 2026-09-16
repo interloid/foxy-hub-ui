@@ -139,7 +139,7 @@ export function ProjectDetailHeader({
         >
           <FxButton
             variant="secondary"
-            className="text-card-foreground border-border hover:bg-card hover:text-accent-foreground flex h-auto justify-center gap-1.5 px-3 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:whitespace-nowrap"
+            className="text-card-foreground border-border hover:bg-card flex h-auto justify-center gap-1.5 px-3 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:whitespace-nowrap"
           >
             <Sparkles
               className="text-primary shrink-0"

@@ -13,7 +13,8 @@ export interface UpdateStatusResult {
 
 export async function updateTimeEntriesStatus(
   entryIds: string | string[],
-  targetStatus: TimeEntryStatus
+  targetStatus: TimeEntryStatus,
+  orgSlug: string
 ): Promise<UpdateStatusResult> {
   const idsToUpdate = Array.isArray(entryIds) ? entryIds : [entryIds]
 
@@ -32,27 +33,57 @@ export async function updateTimeEntriesStatus(
     return { success: false, updatedCount: 0, error: 'Unauthorized' }
   }
 
-  const { data, error } = await supabase
-    .from('time_entries')
-    .update({ status: targetStatus })
-    .in('id', idsToUpdate)
-    .select('id')
-
-  if (error) {
-    console.error('Error updating time entries status:', error)
-    return { success: false, updatedCount: 0, error: error.message }
+  // Map each status transition to its dedicated RPC function
+  const rpcMap: Partial<
+    Record<
+      TimeEntryStatus,
+      'submit_time_entry' | 'approve_time_entry' | 'reject_time_entry'
+    >
+  > = {
+    submitted: 'submit_time_entry',
+    approved: 'approve_time_entry',
+    rejected: 'reject_time_entry',
   }
 
-  revalidatePath('/dashboard')
+  const rpcName = rpcMap[targetStatus]
+  if (!rpcName) {
+    return {
+      success: false,
+      updatedCount: 0,
+      error: `Unsupported target status transition to '${targetStatus}'`,
+    }
+  }
 
+  // Execute RPC for each entry ID
+  const results = await Promise.all(
+    idsToUpdate.map((id) => supabase.rpc(rpcName, { entry_id: id }))
+  )
+
+  // Check if any RPC call failed
+  const failedResult = results.find((res) => res.error)
+  if (failedResult?.error) {
+    console.error(
+      'Error updating time entries status via RPC:',
+      failedResult.error
+    )
+    return {
+      success: false,
+      updatedCount: 0,
+      error: failedResult.error.message,
+    }
+  }
+
+  revalidatePath(`/${orgSlug}/time`)
+  revalidatePath(`/${orgSlug}/dashboard`)
   return {
     success: true,
-    updatedCount: data?.length || 0,
+    updatedCount: idsToUpdate.length,
   }
 }
 
 export async function submitAllDraftEntries(
-  entryIds: string[]
+  entryIds: string[],
+  orgSlug: string
 ): Promise<UpdateStatusResult> {
-  return updateTimeEntriesStatus(entryIds, 'submitted')
+  return updateTimeEntriesStatus(entryIds, 'submitted', orgSlug)
 }

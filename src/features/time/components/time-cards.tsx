@@ -6,6 +6,7 @@ import {
 } from '@/components/shared/fx-tabs'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { formatMinutesToLabel } from '@/features/dashboard/components/sheets/log-time-sheet/duration-input'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { cn } from '@/lib/utils'
 import { startTransition, useState } from 'react'
 import { toast } from 'sonner'
@@ -41,7 +42,7 @@ export function TimeCard({
       colorClass: 'text-primary',
     },
     {
-      title: 'Draft — not submitted',
+      title: 'Draft not submitted',
       value: formatMinutesToLabel(summary.draftMinutes),
       colorClass: 'text-subtle  -foreground',
     },
@@ -50,12 +51,12 @@ export function TimeCard({
   const [submittingTarget, setSubmittingTarget] = useState<
     string | 'all' | null
   >(null)
-
+  const { orgSlug } = useWorkspace()
   const handleSingleSubmit = (entryId: string) => {
     setSubmittingTarget(entryId)
     startTransition(async () => {
       try {
-        const res = await updateTimeEntriesStatus(entryId, 'submitted')
+        const res = await updateTimeEntriesStatus(entryId, 'submitted', orgSlug)
 
         if (res.success) {
           toast.success('Time entry submitted for approval')
@@ -81,7 +82,11 @@ export function TimeCard({
     setSubmittingTarget('all')
     startTransition(async () => {
       try {
-        const res = await updateTimeEntriesStatus(draftIds, 'submitted')
+        const res = await updateTimeEntriesStatus(
+          draftIds,
+          'submitted',
+          orgSlug
+        )
 
         if (res.success) {
           toast.success(
@@ -103,7 +108,7 @@ export function TimeCard({
 
   const handleApproveEntry = async (entryId: string) => {
     try {
-      const res = await updateTimeEntriesStatus(entryId, 'approved')
+      const res = await updateTimeEntriesStatus(entryId, 'approved', orgSlug)
 
       if (res.success) {
         toast.success('Time entry approved')
@@ -118,7 +123,7 @@ export function TimeCard({
 
   const handleRejectEntry = async (entryId: string) => {
     try {
-      const res = await updateTimeEntriesStatus(entryId, 'rejected')
+      const res = await updateTimeEntriesStatus(entryId, 'rejected', orgSlug)
 
       if (res.success) {
         toast.success('Time entry rejected')
@@ -139,7 +144,7 @@ export function TimeCard({
     if (entryIds.length === 0) return
 
     try {
-      const res = await updateTimeEntriesStatus(entryIds, 'approved')
+      const res = await updateTimeEntriesStatus(entryIds, 'approved', orgSlug)
 
       if (res.success) {
         toast.success(

@@ -54,7 +54,7 @@ export function CapacityView({
       {/* Header */}
       <div className="border-border/60 flex flex-wrap items-center justify-between gap-2 border-b px-6 py-4">
         <h3 className="text-foreground text-base text-[14px] font-semibold">
-          Team capacity — committed hours per day
+          Team capacity committed hours per day
         </h3>
         <span className="text-subtle-foreground text-xs">
           Standard day {standardHoursPerDay}h · summed across all active
@@ -149,7 +149,7 @@ export function CapacityView({
       <div className="bg-muted/30 border-border/50 text-muted-foreground flex items-center gap-2.5 border-t px-6 py-4 text-xs">
         <Info className="size-4 shrink-0" />
         <span>
-          Capacity is measured per person across every project — a part-timer on
+          Capacity is measured per person across every project a part-timer on
           two projects can still be over-committed.
         </span>
       </div>

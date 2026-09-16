@@ -122,7 +122,7 @@ export function DurationInput({
 
       {!isInvalid && (
         <p className="text-muted-foreground mt-1.5 text-[11.5px]">
-          Stored to the exact minute — accepts{' '}
+          Stored to the exact minute accepts{' '}
           <code className="font-mono">1.5</code>,{' '}
           <code className="font-mono">1h 30m</code>, or{' '}
           <code className="font-mono">90m</code>.

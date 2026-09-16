@@ -62,6 +62,36 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------
+-- Time entry: reject (submitted → rejected, org owner or admin)
+-- ---------------------------------------------------------------------
+create or replace function public.reject_time_entry(entry_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if exists (
+    select 1
+    from public.time_entries te
+    join public.projects p on te.project_id = p.id
+    where te.id     = entry_id
+      and te.status = 'submitted'
+      and public.has_org_role(
+        p.org_id,
+        array['owner', 'admin']::public.user_role[]
+      )
+  ) then
+    update public.time_entries
+       set status = 'rejected'
+     where id = entry_id;
+  else
+    raise exception 'Not authorized to reject this entry';
+  end if;
+end;
+$$;
+
+-- ---------------------------------------------------------------------
 -- Delivery: client marks status + auto-approve deliverable
 -- ---------------------------------------------------------------------
 create or replace function public.update_delivery_status(

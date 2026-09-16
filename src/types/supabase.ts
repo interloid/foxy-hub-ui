@@ -920,6 +920,7 @@ export type Database = {
       }
       is_org_member: { Args: { target_org_id: string }; Returns: boolean }
       is_slug_available: { Args: { candidate: string }; Returns: boolean }
+      reject_time_entry: { Args: { entry_id: string }; Returns: undefined }
       set_member_rates: {
         Args: {
           new_cost_rate?: number

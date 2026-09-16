@@ -15,7 +15,7 @@ const fxBadgeVariants = cva(
       },
       variant: {
         default: 'bg-primary-subtle text-primary-accent',
-        secondary: 'bg-accent text-muted-foreground',
+        secondary: 'bg-muted text-muted-foreground',
         success: 'bg-success-subtle text-success',
         warning: 'bg-warning-subtle text-warning',
         destructive: 'bg-destructive-subtle text-destructive',

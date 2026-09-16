@@ -107,17 +107,11 @@ export function ProjectTable({
             <FxTable className="w-full min-w-197.5 table-fixed">
               <FxTableHeader>
                 <FxTableRow className="bg-secondary/30 hover:bg-secondary/30 justify-center">
-                  <FxTableHead className="w-57.5 text-center">
-                    Project
-                  </FxTableHead>
-                  <FxTableHead className="w-35 text-center">Client</FxTableHead>
-                  <FxTableHead className="w-35 text-center">Status</FxTableHead>
-                  <FxTableHead className="w-35 text-center">
-                    Engagement
-                  </FxTableHead>
-                  <FxTableHead className="w-35 text-center">
-                    Progress
-                  </FxTableHead>
+                  <FxTableHead className="w-57.5">Project</FxTableHead>
+                  <FxTableHead className="w-35">Client</FxTableHead>
+                  <FxTableHead className="w-35">Status</FxTableHead>
+                  <FxTableHead className="w-35">Engagement</FxTableHead>
+                  <FxTableHead className="text w-40">Progress</FxTableHead>
                   <FxTableHead className="w-35 text-center">Value</FxTableHead>
                 </FxTableRow>
               </FxTableHeader>
@@ -155,8 +149,8 @@ export function ProjectTable({
                         key={project.id}
                         className="hover:bg-muted/40 duration-fast group h-16.25 transition-colors"
                       >
-                        <FxTableCell className="text-center align-middle">
-                          <article className="mx-auto flex w-fit flex-col items-start overflow-hidden">
+                        <FxTableCell className="align-middle">
+                          <article className="flex w-fit flex-col items-start overflow-hidden">
                             <h3 className="group-hover:text-primary text-foreground duration-fast truncate text-left text-sm leading-snug font-semibold transition-colors">
                               <Link
                                 href={
@@ -170,13 +164,13 @@ export function ProjectTable({
                             </h3>
                           </article>
                         </FxTableCell>
-                        <FxTableCell className="text-center align-middle">
+                        <FxTableCell className="align-middle">
                           <p className="text-muted-foreground text-sm font-medium whitespace-nowrap">
                             {project.clientName}
                           </p>
                         </FxTableCell>
 
-                        <FxTableCell className="text-center align-middle">
+                        <FxTableCell className="align-middle">
                           <FxBadge
                             variant={statusConfig.variant}
                             className="whitespace-nowrap capitalize"
@@ -185,18 +179,18 @@ export function ProjectTable({
                           </FxBadge>
                         </FxTableCell>
 
-                        <FxTableCell className="text-center align-middle">
+                        <FxTableCell className="align-middle">
                           <span className="text-muted-foreground text-[12.5px] font-medium whitespace-nowrap">
                             {engagementLabelMap[project.engagement] ??
                               project.engagement}
                           </span>
                         </FxTableCell>
 
-                        <FxTableCell className="text-center align-middle">
-                          <div className="mx-auto flex w-40 items-center justify-center gap-3">
+                        <FxTableCell className="align-middle">
+                          <div className="flex w-35 items-center justify-center gap-3">
                             <FxProgress
                               value={project.progressPercent}
-                              className="h-2 w-24 shrink-0"
+                              className="h-2 w-full shrink-0"
                             />
                             <span className="text-2xs text-muted-foreground w-8 text-right font-mono font-medium whitespace-nowrap">
                               {project.progressPercent}%

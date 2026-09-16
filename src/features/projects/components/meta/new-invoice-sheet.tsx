@@ -64,7 +64,7 @@ export function NewInvoiceSheet({
 }: NewInvoiceSheetProps) {
   const [hasExistingInvoices, setHasExistingInvoice] = useState(false)
   const [isCheckingInvoice, startTransition] = useTransition()
-  const { control, handleSubmit, watch, setValue, getValues } =
+  const { control, handleSubmit, setValue, getValues, watch } =
     useForm<InvoiceFormValues>({
       defaultValues: {
         projectId: defaultProjectId ?? projects[0]?.id ?? '',
@@ -72,21 +72,24 @@ export function NewInvoiceSheet({
       },
     })
 
-  const selectedProjectId = watch('projectId')
+  const watchedProjectId = watch('projectId')
   const activeProjectId =
-    selectedProjectId || defaultProjectId || projects[0]?.id || ''
+    watchedProjectId || defaultProjectId || projects[0]?.id || ''
 
   const currentProject =
     projects.find((p) => p.id === activeProjectId) || projects[0]
 
   const checkProjectInvoice = (project: ProjectInvoiceContext | undefined) => {
-    if (!project?.id) return
-
+    if (!project?.id) {
+      setHasExistingInvoice(false)
+      return
+    }
     startTransition(async () => {
       try {
         const exists = await hasInvoiceForProject(
           project.id,
-          project.engagement
+          project.engagement,
+          project.retainerPeriod
         )
         setHasExistingInvoice(exists)
       } catch (err) {
@@ -95,6 +98,10 @@ export function NewInvoiceSheet({
       }
     })
   }
+  useEffect(() => {
+    checkProjectInvoice(currentProject)
+  }, [currentProject, currentProject?.id, currentProject?.engagement])
+
   // Sync form state if defaultProjectId or projects list updates
   useEffect(() => {
     if (defaultProjectId) {
@@ -222,7 +229,7 @@ export function NewInvoiceSheet({
             {/* Invoice Lines Table */}
             <div className="space-y-3">
               <Label className="text-subtle-foreground text-[12px] font-semibold">
-                Invoice lines — from approved hours
+                Invoice lines from approved hours
               </Label>
 
               <div className="border-border bg-card overflow-hidden rounded-xl border">

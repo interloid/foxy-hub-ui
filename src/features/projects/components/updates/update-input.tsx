@@ -70,7 +70,6 @@ export function UpdatesInput({
         </h2>
       </header>
 
-      {/* Replaced Next.js <Form action> with standard <form onSubmit> */}
       <form onSubmit={handleSubmitEvent} className="p-3 md:p-4 lg:p-6">
         <div className="flex items-start gap-3">
           {userAvatarUrl ? (
@@ -110,7 +109,7 @@ export function UpdatesInput({
             size="sm"
             onClick={onDraftWithAi}
             disabled={isSubmitting}
-            className="text-card-foreground border-border hover:bg-card hover:text-accent-foreground flex h-auto justify-center gap-1.5 px-3 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:whitespace-nowrap"
+            className="text-card-foreground border-border hover:bg-card flex h-auto justify-center gap-1.5 px-3 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:whitespace-nowrap"
           >
             <Sparkles className="fill-primary/20 text-primary h-3.5 w-3.5" />
             Draft with AI

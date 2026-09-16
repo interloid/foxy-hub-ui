@@ -402,7 +402,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
         suggested: 'part_time',
         suggestedLabel: 'part-time',
         currentLabel: 'full-time',
-        reason: `Nobody is booked for a full day — the largest allocation is ${shown} h/day of ${maxCapacity}h.`,
+        reason: `Nobody is booked for a full day the largest allocation is ${shown} h/day of ${maxCapacity}h.`,
       }
     }
 
@@ -416,7 +416,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
         suggested: 'full_time',
         suggestedLabel: 'full-time',
         currentLabel: 'part-time',
-        reason: `Everyone is booked for a full day — the smallest allocation is ${shown} h/day of ${maxCapacity}h.`,
+        reason: `Everyone is booked for a full day the smallest allocation is ${shown} h/day of ${maxCapacity}h.`,
       }
     }
 
@@ -638,7 +638,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                 {...register('fixedPrice')}
               />
               <p className="text-muted-foreground text-[12px]">
-                Hours are tracked for capacity but billed at zero — the fee is
+                Hours are tracked for capacity but billed at zero the fee is
                 fixed.
               </p>
               <PricingHint
@@ -679,7 +679,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
               />
               <p className="text-muted-foreground text-[12px]">
                 How big you think the job is. Fixed work is scoped in hours, not
-                dates — this is what actual hours get measured against.
+                dates this is what actual hours get measured against.
               </p>
               <FxFieldError errors={[errors.estimatedHours]} />
             </FxField>

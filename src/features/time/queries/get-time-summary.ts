@@ -9,6 +9,7 @@ import {
 } from '../types'
 
 export async function getWeeklyTimeSummary(
+  orgId: string,
   projectId?: string
 ): Promise<WeeklyTimeSummary> {
   const supabase = await createClient()
@@ -40,6 +41,7 @@ export async function getWeeklyTimeSummary(
     .from('time_entries')
     .select('status, duration_minutes')
     .eq('user_id', user.id)
+    .eq('project.org_id', orgId)
     .gte('work_date', startOfWeekStr)
 
   if (projectId) {
@@ -92,6 +94,7 @@ export async function getWeeklyTimeSummary(
 }
 
 export async function getWeeklyTimeEntries(
+  orgId: string,
   projectId?: string
 ): Promise<WeeklyTimeEntryItem[]> {
   const supabase = await createClient()
@@ -126,6 +129,7 @@ export async function getWeeklyTimeEntries(
     `
     )
     .eq('user_id', user.id)
+    .eq('project.org_id', orgId)
     .gte('work_date', startOfWeekStr)
     .order('work_date', { ascending: false })
 
@@ -157,6 +161,7 @@ export async function getWeeklyTimeEntries(
 }
 
 export async function getPendingApprovals(
+  orgId: string,
   projectId?: string
 ): Promise<UserPendingApprovals[]> {
   const supabase = await createClient()
@@ -194,6 +199,7 @@ export async function getPendingApprovals(
     `
     )
     .eq('status', 'submitted')
+    .eq('project.org_id', orgId)
     .gte('work_date', startOfWeekStr)
     .order('work_date', { ascending: false })
 

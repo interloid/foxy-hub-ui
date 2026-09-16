@@ -100,10 +100,10 @@ export function WeeklyTimeEntriesTable({
       <FxTable>
         <FxTableHeader>
           <FxTableRow className="bg-muted/30 text-[11px]">
-            <FxTableHead className="w-25 text-center">DATE</FxTableHead>
-            <FxTableHead className="w-50 text-center">PROJECT</FxTableHead>
-            <FxTableHead className="w-100 text-center">DESCRIPTION</FxTableHead>
-            <FxTableHead className="w-25 text-center">HOURS</FxTableHead>
+            <FxTableHead className="w-25">DATE</FxTableHead>
+            <FxTableHead className="w-50">PROJECT</FxTableHead>
+            <FxTableHead className="w-100">DESCRIPTION</FxTableHead>
+            <FxTableHead className="w-25">HOURS</FxTableHead>
             <FxTableHead className="w-35 text-center">STATUS</FxTableHead>
           </FxTableRow>
         </FxTableHeader>
@@ -123,23 +123,19 @@ export function WeeklyTimeEntriesTable({
               const isRowSubmitting = submittingId === entry.id
               return (
                 <FxTableRow key={entry.id}>
-                  <FxTableCell className="text-muted-foreground text-center text-sm font-medium">
+                  <FxTableCell className="text-muted-foreground text-sm font-medium">
                     {formatDateLabel(entry.workDate)}
                   </FxTableCell>
 
-                  <FxTableCell className="text-center">
-                    <div className="flex flex-col items-center justify-center">
-                      <span className="text-foreground text-[13px] font-semibold">
-                        {entry.projectName}
-                      </span>
-                    </div>
+                  <FxTableCell className="text-foreground text-[13px] font-semibold">
+                    {entry.projectName}
                   </FxTableCell>
 
-                  <FxTableCell className="text-foreground/90 text-center text-sm">
+                  <FxTableCell className="text-foreground/90 text-sm">
                     {entry.description}
                   </FxTableCell>
 
-                  <FxTableCell className="text-center font-mono text-[13px] font-semibold tabular-nums">
+                  <FxTableCell className="font-mono text-[13px] font-semibold tabular-nums">
                     {formatMinutesToLabel(entry.durationMinutes)}
                   </FxTableCell>
 

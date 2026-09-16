@@ -13,7 +13,7 @@ import {
 import { TableBody } from '@/components/ui/table'
 import { InvoiceListItem } from '@/features/invoices/queries/get-invoices'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 interface InvoicesTableProps {
   invoices: InvoiceListItem[]
@@ -51,13 +51,15 @@ export function InvoicesTable({
   totalCount,
   totalPages,
   currentPage = 1,
-  onPageChange,
 }: InvoicesTableProps) {
-  const [page, setPage] = useState(currentPage)
-
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const handlePageChange = (newPage: number) => {
-    setPage(newPage)
-    onPageChange?.(newPage)
+    const params = new URLSearchParams(searchParams)
+    params.set('page', newPage.toString())
+
+    router.push(`${pathname}?${params.toString()}`)
   }
 
   return (
@@ -68,20 +70,12 @@ export function InvoicesTable({
           <FxTable className="w-full table-fixed text-xs">
             <FxTableHeader>
               <FxTableRow>
-                <FxTableHead className="w-[18%] text-center">
-                  INVOICE
-                </FxTableHead>
-                <FxTableHead className="w-[30%] text-center">
-                  PROJECT
-                </FxTableHead>
-                <FxTableHead className="w-[26%] text-center">
-                  CLIENT
-                </FxTableHead>
+                <FxTableHead className="w-[18%]">INVOICE</FxTableHead>
+                <FxTableHead className="w-[30%]">PROJECT</FxTableHead>
+                <FxTableHead className="w-[26%]">CLIENT</FxTableHead>
+                <FxTableHead className="w-[12%]">STATUS</FxTableHead>
                 <FxTableHead className="w-[14%] text-center">
                   AMOUNT
-                </FxTableHead>
-                <FxTableHead className="w-[12%] text-center">
-                  STATUS
                 </FxTableHead>
               </FxTableRow>
             </FxTableHeader>
@@ -103,28 +97,27 @@ export function InvoicesTable({
 
                   return (
                     <FxTableRow key={inv.id}>
-                      <FxTableCell className="text-foreground truncate text-center text-[12.5px] font-bold">
+                      <FxTableCell className="text-foreground truncate text-[12.5px] font-bold">
                         {inv.number}
                       </FxTableCell>
 
-                      <FxTableCell className="text-foreground truncate text-center text-[13px] font-medium">
+                      <FxTableCell className="text-foreground truncate text-[13px] font-medium">
                         {inv.projectName}
                       </FxTableCell>
 
-                      <FxTableCell className="text-muted-foreground truncate text-center text-[13px]">
+                      <FxTableCell className="text-muted-foreground truncate text-[13px]">
                         {inv.clientName}
                       </FxTableCell>
 
-                      <FxTableCell className="text-foreground truncate text-center text-[13px] font-extrabold">
-                        {formatCurrency(inv.amount)}
-                      </FxTableCell>
-
-                      <FxTableCell className="text-center">
-                        <div className="flex justify-center text-[12px]">
+                      <FxTableCell>
+                        <div className="flex text-[12px]">
                           <FxBadge variant={statusConfig.variant} size="sm" dot>
                             {statusConfig.label}
                           </FxBadge>
                         </div>
+                      </FxTableCell>
+                      <FxTableCell className="text-foreground truncate text-center text-[13px] font-extrabold">
+                        {formatCurrency(inv.amount)}
                       </FxTableCell>
                     </FxTableRow>
                   )
@@ -142,7 +135,8 @@ export function InvoicesTable({
           className="text-muted-foreground flex items-center justify-between px-2 text-xs"
         >
           <p className="font-medium">
-            Page <span className="text-foreground font-semibold">{page}</span>{' '}
+            Page{' '}
+            <span className="text-foreground font-semibold">{currentPage}</span>{' '}
             of{' '}
             <span className="text-foreground font-semibold">{totalPages}</span>{' '}
             ({totalCount} total)
@@ -152,8 +146,8 @@ export function InvoicesTable({
             <FxButton
               variant="outline"
               size="sm"
-              disabled={page <= 1}
-              onClick={() => handlePageChange(page - 1)}
+              disabled={currentPage <= 1}
+              onClick={() => handlePageChange(currentPage - 1)}
               className="h-8 gap-1 px-2.5 text-xs font-medium"
             >
               <ChevronLeft className="size-3.5" />
@@ -163,8 +157,8 @@ export function InvoicesTable({
             <FxButton
               variant="outline"
               size="sm"
-              disabled={page >= totalPages}
-              onClick={() => handlePageChange(page + 1)}
+              disabled={currentPage >= totalPages}
+              onClick={() => handlePageChange(currentPage + 1)}
               className="h-8 gap-1 px-2.5 text-xs font-medium"
             >
               Next

@@ -150,7 +150,7 @@ export function AppSidebar({
 
             <span className="flex-1 text-left">Search</span>
 
-            <span className="bg-accent text-2xs rounded-lg px-1.25 py-px font-mono">
+            <span className="bg-muted text-2xs rounded-lg px-1.25 py-px font-mono">
               ⌘K
             </span>
           </button>
@@ -169,11 +169,17 @@ export function AppSidebar({
               </>
             )}
             {section.items.map((item) => {
+              const isActive =
+                item.href === activeHref ||
+                (item.href !== `/${workspace.org}` &&
+                  item.href !== '/' &&
+                  activeHref.startsWith(`${item.href}/`))
+
               const navItem = (
                 <NavItem
                   density="product"
                   href={item.href}
-                  active={item.href === activeHref}
+                  active={isActive}
                   icon={<NavIcon name={item.icon} />}
                   count={item.count}
                   collapsed={collapsed}
@@ -181,18 +187,18 @@ export function AppSidebar({
                   onClick={() => {
                     if (isMobile) onClose?.()
                   }}
-                  aria-current={item.href === activeHref ? 'page' : undefined}
+                  aria-current={isActive ? 'page' : undefined}
                 >
                   {item.label}
                 </NavItem>
               )
 
               if (!collapsed) {
-                return <Fragment key={item.href}>{navItem}</Fragment>
+                return <Fragment key={item.label}>{navItem}</Fragment>
               }
 
               return (
-                <FxTooltip key={item.href}>
+                <FxTooltip key={item.label}>
                   <FxTooltipTrigger asChild>{navItem}</FxTooltipTrigger>
 
                   <FxTooltipContent side="right">{item.label}</FxTooltipContent>

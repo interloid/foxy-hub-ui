@@ -10,15 +10,11 @@ import { toast } from 'sonner'
 
 interface InvoicesHeaderProps {
   orgSlug: string
-  isTestMode?: boolean
   projects: ProjectInvoiceContext[]
 }
 
-export function InvoicesHeader({
-  orgSlug,
-  isTestMode = true,
-  projects,
-}: InvoicesHeaderProps) {
+export function InvoicesHeader({ orgSlug, projects }: InvoicesHeaderProps) {
+  const defaultProjectId = projects[0]?.id ?? ''
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false)
 
@@ -54,8 +50,7 @@ export function InvoicesHeader({
             Invoices
           </h1>
           <p className="text-subtle-foreground text-[14px]">
-            Billing to clients — powered by Stripe
-            {isTestMode && ' (test mode)'}.
+            Billing to clients powered by Stripe
           </p>
         </div>
 
@@ -76,7 +71,7 @@ export function InvoicesHeader({
         open={isOpen}
         onOpenChange={setIsOpen}
         projects={projects}
-        defaultProjectId={projects[0].id}
+        defaultProjectId={defaultProjectId}
         onSubmit={handleGenerateInvoice}
         isSubmitting={isSubmittingInvoice}
       />

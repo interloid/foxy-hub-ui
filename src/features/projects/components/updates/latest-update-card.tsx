@@ -9,12 +9,14 @@ interface LatestUpdatesCardProps {
   updates: ProjectUpdate[]
   projectId: string
   isPostingUpdate?: boolean
+  isOverview?: boolean
   isError?: boolean
 }
 
 export function LatestUpdatesCard({
   updates: initialUpdates,
   projectId,
+  isOverview = false,
   isError = false,
 }: LatestUpdatesCardProps) {
   // Hook handles realtime updates and limits display to top 5
@@ -86,7 +88,13 @@ export function LatestUpdatesCard({
                         {formatRelativeTime(update.createdAt)}
                       </time>
                     </div>
-                    <p className="text-muted-foreground text-[13px] leading-relaxed wrap-break-word">
+                    <p
+                      className={`text-muted-foreground text-[13px] leading-relaxed ${
+                        isOverview
+                          ? 'truncate'
+                          : 'max-h-32 overflow-y-auto pr-1 wrap-break-word'
+                      }`}
+                    >
                       {update.body}
                     </p>
                   </article>

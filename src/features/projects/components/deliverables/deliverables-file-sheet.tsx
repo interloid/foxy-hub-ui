@@ -34,26 +34,49 @@ import { toast } from 'sonner'
 import { uploadDeliveryAssets } from '../../actions'
 import type { ProjectDelivery } from '../../types'
 
+// Allowed MIME types
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'application/pdf',
+  'video/mp4',
+  'video/quicktime',
+  'application/zip',
+  'application/x-zip-compressed',
+] as const
+
+// Extension fallbacks when MIME type is missing/generic in some OS environments
 const ALLOWED_EXTENSIONS = [
-  'pdf',
-  'doc',
-  'docx',
-  'xls',
-  'xlsx',
-  'csv',
-  'ppt',
-  'pptx',
   'jpg',
   'jpeg',
   'png',
   'webp',
-  'svg',
+  'gif',
+  'pdf',
+  'mp4',
+  'mov',
   'zip',
 ]
 
+// HTML input accept attribute
+const ACCEPT_ATTRIBUTE = [
+  ...ALLOWED_MIME_TYPES,
+  '.pdf',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.webp',
+  '.gif',
+  '.mp4',
+  '.mov',
+  '.zip',
+].join(',')
+
 const MIN_FILE_SIZE = 1024 // 1 KB
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 MB
-const MAX_FILE_COUNT = 3 // Limited to 3 files
+const MAX_FILE_COUNT = 3 // Limited to 3 files selected at once
 const MAX_TOTAL_FILES = 5
 
 interface DeliverableFileSheetProps {
@@ -87,7 +110,7 @@ export function DeliverableFileSheet({
 
   const isPending = delivery.status === 'pending'
   const isApproved = delivery.status === 'approved'
-  // Extract file name from path
+
   const getFileName = (path: string) => {
     return path.split('/').pop() || path
   }
@@ -96,11 +119,26 @@ export function DeliverableFileSheet({
 
   const remainingSlots =
     MAX_TOTAL_FILES - existingAssetsCount - selectedFiles.length
+
+  // Helper function to check valid MIME type or fallback extension
+  const isValidFileType = (file: File): boolean => {
+    if (
+      ALLOWED_MIME_TYPES.includes(
+        file.type as (typeof ALLOWED_MIME_TYPES)[number]
+      )
+    ) {
+      return true
+    }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || ''
+    return ALLOWED_EXTENSIONS.includes(ext)
+  }
+
   const validateAndAddFiles = (files: FileList | File[]) => {
     setErrorMessage(null)
     const incomingFiles = Array.from(files)
 
-    // Check Max File Limit (Max 3 files)
+    // Check Max File Limit
     const totalAfterAddition =
       existingAssetsCount + selectedFiles.length + incomingFiles.length
 
@@ -114,17 +152,15 @@ export function DeliverableFileSheet({
     const validFiles: File[] = []
 
     for (const file of incomingFiles) {
-      const ext = file.name.split('.').pop()?.toLowerCase() || ''
-
-      // Extension Check
-      if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      // 1. Format / MIME Type Check
+      if (!isValidFileType(file)) {
         setErrorMessage(
-          `"${file.name}" has an invalid extension. Allowed formats: ${ALLOWED_EXTENSIONS.join(', ').toUpperCase()}`
+          `"${file.name}" has an invalid file format. Allowed formats: PDF, Images, MP4, MOV, ZIP.`
         )
         return
       }
 
-      // Size Check (1 KB to 5 MB)
+      // 2. Minimum Size Check (1 KB)
       if (file.size < MIN_FILE_SIZE) {
         setErrorMessage(
           `"${file.name}" is too small (${(file.size / 1024).toFixed(1)} KB). Minimum file size is 1 KB.`
@@ -132,6 +168,7 @@ export function DeliverableFileSheet({
         return
       }
 
+      // 3. Maximum Size Check (5 MB)
       if (file.size > MAX_FILE_SIZE) {
         setErrorMessage(
           `"${file.name}" exceeds 5 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`
@@ -178,7 +215,6 @@ export function DeliverableFileSheet({
     setErrorMessage(null)
   }
 
-  // Handle Upload Button Click
   const handleUpload = async () => {
     if (!delivery || selectedFiles.length === 0) return
 
@@ -195,7 +231,7 @@ export function DeliverableFileSheet({
       if (result.ok) {
         setSelectedFiles([])
         toast.success(
-          `Image${selectedFiles.length > 1 ? 's' : ''} uploaded successfully`
+          `File${selectedFiles.length > 1 ? 's' : ''} uploaded successfully`
         )
 
         onSuccessUpload?.()
@@ -209,6 +245,7 @@ export function DeliverableFileSheet({
       setIsUploading(false)
     }
   }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FxSheetContent>
@@ -231,11 +268,10 @@ export function DeliverableFileSheet({
               <span className="text-muted-foreground font-medium">
                 Description
               </span>
-              <p className="text-foreground mt-1 leading-relaxed">
+              <p className="text-foreground mt-1 max-h-32 overflow-y-auto pr-1 text-xs leading-relaxed [overflow-wrap:anywhere] break-words">
                 {delivery.description || 'No description provided.'}
               </p>
             </div>
-
             <div className="border-border flex items-center justify-between border-b pb-3">
               <span className="text-muted-foreground font-medium">
                 Milestone
@@ -378,7 +414,7 @@ export function DeliverableFileSheet({
                   type="file"
                   multiple
                   disabled={remainingSlots <= 0}
-                  accept={ALLOWED_EXTENSIONS.map((ext) => `.${ext}`).join(',')}
+                  accept={ACCEPT_ATTRIBUTE}
                   onChange={handleFileChange}
                   className="hidden"
                 />
@@ -390,7 +426,7 @@ export function DeliverableFileSheet({
                     Click to attach or drag & drop files
                   </p>
                   <p className="text-muted-foreground mt-0.5 text-[11px]">
-                    PDF, Office, Images, ZIP • 1 KB to 5 MB • Up to 3 files
+                    PDF, Images, MP4, MOV, ZIP • 1 KB to 5 MB • Up to 5 files
                   </p>
                 </div>
               </div>

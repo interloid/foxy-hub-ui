@@ -111,6 +111,7 @@ export function SignInForm({ initialError }: { initialError?: string }) {
             <FxInput
               id="password"
               type={showPassword ? 'text' : 'password'}
+              placeholder={SIGN_IN.password.placeholder}
               autoComplete="current-password"
               aria-invalid={
                 Boolean(form.formState.errors.password) || undefined

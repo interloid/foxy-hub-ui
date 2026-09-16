@@ -34,19 +34,19 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Textarea } from '@/components/ui/textarea'
 import { PopoverTrigger } from '@radix-ui/react-popover'
 
-import { useWorkspace } from '@/features/dashboard/context/workspace-context'
-import { toast } from 'sonner'
-import { createDelivery } from '../../actions'
-import { CreateDeliveryFormValues, createDeliverySchema } from '../../schema'
-import { ProjectMilestone } from '../../types'
+import { FxTextarea } from '@/components/shared/fx-textarea'
 import {
   FxTooltip,
   FxTooltipContent,
   FxTooltipTrigger,
 } from '@/components/shared/fx-tooltip'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { toast } from 'sonner'
+import { createDelivery } from '../../actions'
+import { CreateDeliveryFormValues, createDeliverySchema } from '../../schema'
+import { ProjectMilestone } from '../../types'
 
 interface CreateDeliverySheetProps {
   open: boolean
@@ -54,7 +54,7 @@ interface CreateDeliverySheetProps {
   projectId: string
   orgId: string
   milestones: ProjectMilestone[]
-  onSuccess?: () => void
+  onSuccess?: (deliveryId: string) => void
 }
 
 export function CreateDeliverySheet({
@@ -108,7 +108,7 @@ export function CreateDeliverySheet({
   const onSubmit = async (values: CreateDeliveryFormValues) => {
     setServerError(null)
     try {
-      await createDelivery({
+      const result = await createDelivery({
         projectId,
         orgId,
         title: values.title.trim(),
@@ -120,7 +120,7 @@ export function CreateDeliverySheet({
 
       toast.success('Deliverable created successfully')
       handleReset()
-      onSuccess?.()
+      onSuccess?.(result.data.id)
       onOpenChange(false)
     } catch (err: unknown) {
       console.error('Failed to create delivery:', err)
@@ -175,12 +175,13 @@ export function CreateDeliverySheet({
             {/* Description */}
             <FxField>
               <FxLabel htmlFor="delivery-description">Description</FxLabel>
-              <Textarea
+              <FxTextarea
                 id="delivery-description"
                 placeholder="Provide context or details about this deliverable..."
                 {...register('description')}
                 rows={3}
-                className="border-border bg-muted text-foreground placeholder:text-subtle-foreground focus-visible:border-ring rounded-md border text-xs outline-none"
+                variant="subtle"
+                className="rounded-md border text-xs outline-none"
               />
               {errors.description?.message && (
                 <FxFieldError>{errors.description.message}</FxFieldError>
@@ -218,7 +219,7 @@ export function CreateDeliverySheet({
                     <FxDropdownMenuItem
                       key={ms.id}
                       onClick={() => handleMilestoneSelect(ms)}
-                      className="hover:bg-primary! hover:text-brand-white! focus:bg-muted text-[13px]"
+                      className="text-[13px]"
                     >
                       <span className="truncate">{ms.title}</span>
                     </FxDropdownMenuItem>

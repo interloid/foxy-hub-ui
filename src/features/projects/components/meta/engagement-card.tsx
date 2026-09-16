@@ -270,7 +270,7 @@ function EngagementDetails({
       return (
         <div className="space-y-2 border-b pb-4">
           <p className="text-muted-foreground text-xs font-normal">
-            Set fee — hours tracked, not billed
+            Set fee hours tracked, not billed
           </p>
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Fixed price</span>
