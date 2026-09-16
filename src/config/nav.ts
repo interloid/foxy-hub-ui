@@ -61,16 +61,16 @@ export function getFooter(org: string, orgName?: string): FooterProps {
           { label: 'Projects', href: `${prefix}/projects` },
           { label: 'Time', href: `${prefix}/time` },
           { label: 'Invoices', href: `${prefix}/invoices` },
-          { label: 'Reports', href: `${prefix}/reports` },
+          { label: 'Reports', href: `#` },
         ],
       },
       {
         title: 'Workspace',
         items: [
-          { label: 'Billing & plan', href: `${prefix}/billing` },
-          { label: 'Settings', href: `${prefix}/settings` },
-          { label: 'Profile', href: `${prefix}/profile` },
-          { label: 'AI updates', href: `${prefix}/ai-updates` },
+          { label: 'Billing & plan', href: `#` },
+          { label: 'Settings', href: `#` },
+          { label: 'Profile', href: `#` },
+          { label: 'AI updates', href: `#` },
         ],
       },
       {
@@ -89,10 +89,10 @@ export function getFooter(org: string, orgName?: string): FooterProps {
       {
         title: 'Legal',
         items: [
-          { label: 'Privacy', href: `${prefix}/privacy` },
-          { label: 'Terms', href: `${prefix}/terms` },
-          { label: 'Security', href: `${prefix}/security` },
-          { label: 'Cookies', href: `${prefix}/cookies` },
+          { label: 'Privacy', href: `#` },
+          { label: 'Terms', href: `#` },
+          { label: 'Security', href: `#` },
+          { label: 'Cookies', href: `#` },
         ],
       },
     ],

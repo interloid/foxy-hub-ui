@@ -4,13 +4,13 @@ import { FxButton } from '@/components/shared/fx-button'
 import { FxTable, FxTableCell, FxTableRow } from '@/components/shared/fx-table'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { TableBody } from '@/components/ui/table'
-import { formatMinutesToLabel } from '@/features/dashboard/components/sheets/log-time-sheet/duration-input'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { cn } from '@/lib/utils'
 import { Check, Loader2, X } from 'lucide-react'
 import { useState } from 'react'
 import { updateTimeEntriesStatus } from '../action'
 import { ApprovalsViewProps } from '../types'
+import { formatMinutesToLabel } from '@/lib/time'
 
 function formatDateLabel(dateString: string): string {
   if (!dateString) return ''
@@ -225,7 +225,7 @@ export function ApprovalsView({
                             size="xs"
                             disabled={activeTarget !== null}
                             onClick={() => handleApproveSingle(entry.id)}
-                            className="bg-success/20 text-success hover:bg-success/30 h-8 border-none font-semibold disabled:opacity-50"
+                            className="bg-success-subtle text-success hover:bg-success/30 h-8 border-none font-semibold disabled:opacity-50"
                           >
                             {isApproving ? (
                               <Loader2 className="mr-1 size-3.5 animate-spin" />
@@ -240,7 +240,7 @@ export function ApprovalsView({
                             size="xs"
                             disabled={activeTarget !== null}
                             onClick={() => handleRejectSingle(entry.id)}
-                            className="bg-destructive/20 hover:bg-destructive/30 text-destructive h-8 border-none font-medium disabled:opacity-50"
+                            className="bg-destructive-subtle hover:bg-destructive/30 text-destructive h-8 border-none font-medium disabled:opacity-50"
                           >
                             {isRejecting ? (
                               <Loader2 className="mr-1 size-3.5 animate-spin" />

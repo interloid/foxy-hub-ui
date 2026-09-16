@@ -36,12 +36,12 @@ import {
 
 const ENGAGEMENT_BADGE_CONFIG: Record<
   EngagementModel,
-  { label: string; variant: 'orange' | 'blue' | 'amber' | 'emerald' }
+  { label: string; variant: 'default' | 'info' | 'warning' | 'success' }
 > = {
-  full_time: { label: 'Full-time', variant: 'orange' },
-  part_time: { label: 'Part-time', variant: 'blue' },
-  retainer: { label: 'Retainer', variant: 'amber' },
-  fixed: { label: 'Fixed price', variant: 'emerald' },
+  full_time: { label: 'Full-time', variant: 'default' },
+  part_time: { label: 'Part-time', variant: 'info' },
+  retainer: { label: 'Retainer', variant: 'warning' },
+  fixed: { label: 'Fixed price', variant: 'success' },
 }
 
 function formatCurrency(amount: number): string {
@@ -128,7 +128,6 @@ export function NewInvoiceSheet({
   const engagementConfig = currentProject
     ? ENGAGEMENT_BADGE_CONFIG[currentProject.engagement]
     : null
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FxSheetContent className="flex flex-col">
@@ -210,7 +209,7 @@ export function NewInvoiceSheet({
                   {currentProject.clientName}
                 </span>
                 {engagementConfig && (
-                  <FxBadge variant="default" size="sm" dot>
+                  <FxBadge variant={engagementConfig.variant} size="sm" dot>
                     {engagementConfig.label}
                   </FxBadge>
                 )}
@@ -234,7 +233,7 @@ export function NewInvoiceSheet({
 
               <div className="border-border bg-card overflow-hidden rounded-xl border">
                 {/* Table Header */}
-                <div className="text-muted-foreground dark:bg-muted/40 grid grid-cols-12 bg-stone-50/80 px-4 py-2.5 text-[11px] font-semibold tracking-wider uppercase">
+                <div className="text-muted-foreground dark:bg-muted/40 bg-muted grid grid-cols-12 px-4 py-2.5 text-[11px] font-semibold tracking-wider uppercase">
                   <div className="col-span-6">DESCRIPTION</div>
                   <div className="col-span-2 text-right">QTY</div>
                   <div className="col-span-2 text-right">RATE</div>
@@ -304,7 +303,7 @@ export function NewInvoiceSheet({
                     {...field}
                     id="notes"
                     placeholder="Payment terms, thanks, etc."
-                    className="min-h-22.5 bg-stone-50/80 text-xs"
+                    className="bg-muted min-h-22.5 text-xs"
                   />
                 )}
               />

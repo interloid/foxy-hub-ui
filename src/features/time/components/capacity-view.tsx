@@ -29,13 +29,13 @@ function getStatusConfig(percentage: number) {
     return {
       label: 'Fully committed',
       variant: 'success' as const,
-      textColor: 'text-emerald-600 dark:text-emerald-500',
+      textColor: 'text-success',
     }
   }
   return {
     label: 'Has capacity',
     variant: 'warning' as const,
-    textColor: 'text-orange-600 dark:text-orange-500',
+    textColor: 'text-primary',
   }
 }
 
@@ -120,7 +120,7 @@ export function CapacityView({
                 value={Math.min(percentage, 100)}
                 variant={status.variant}
                 size="lg"
-                className="bg-neutral-100 dark:bg-neutral-800"
+                className="bg-muted"
               />
 
               {/* Status and Allocation Chips */}

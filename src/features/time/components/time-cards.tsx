@@ -5,7 +5,6 @@ import {
   FxTabsTriggerUnderline,
 } from '@/components/shared/fx-tabs'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
-import { formatMinutesToLabel } from '@/features/dashboard/components/sheets/log-time-sheet/duration-input'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { cn } from '@/lib/utils'
 import { startTransition, useState } from 'react'
@@ -15,6 +14,7 @@ import { MyTimeCardProps } from '../types'
 import { ApprovalsView } from './approvals-view'
 import { CapacityView } from './capacity-view'
 import { WeeklyTimeEntriesTable } from './time-entry-table'
+import { formatMinutesToLabel } from '@/lib/time'
 
 export function TimeCard({
   summary,
@@ -176,7 +176,7 @@ export function TimeCard({
                 Approvals
                 {summary?.pendingApprovalsCount &&
                 summary.pendingApprovalsCount > 0 ? (
-                  <span className="bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary ml-1.5 inline-flex h-5 items-center justify-center rounded-full px-2 text-xs font-bold">
+                  <span className="bg-primary/10 text-primary dark:bg-primary-subtle dark:text-primary ml-1.5 inline-flex h-5 items-center justify-center rounded-full px-2 text-xs font-bold">
                     {summary.pendingApprovalsCount}
                   </span>
                 ) : null}

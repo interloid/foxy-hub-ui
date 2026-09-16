@@ -39,9 +39,15 @@ export async function getWeeklyTimeSummary(
 
   let query = supabase
     .from('time_entries')
-    .select('status, duration_minutes')
+    .select(
+      `status, duration_minutes,
+      projects!inner (
+        org_id
+      )
+      `
+    )
     .eq('user_id', user.id)
-    .eq('project.org_id', orgId)
+    .eq('projects.org_id', orgId)
     .gte('work_date', startOfWeekStr)
 
   if (projectId) {

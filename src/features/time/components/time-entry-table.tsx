@@ -10,10 +10,10 @@ import {
   FxTableRow,
 } from '@/components/shared/fx-table'
 import { TableBody } from '@/components/ui/table'
-import { formatMinutesToLabel } from '@/features/dashboard/components/sheets/log-time-sheet/duration-input'
 import { cn } from '@/lib/utils'
 import { Info, Loader2, Send } from 'lucide-react'
 import { WeeklyTimeEntriesTableProps, WeeklyTimeEntryItem } from '../types'
+import { formatMinutesToLabel } from '@/lib/time'
 
 function formatDateLabel(dateString: string): string {
   if (!dateString) return ''

@@ -3,6 +3,7 @@
 import { FxButton } from '@/components/shared/fx-button'
 import { FxInput, FxLabel } from '@/components/shared/fx-field'
 import { parseDurationToMinutes } from '@/lib/duration'
+import { formatMinutesToLabel } from '@/lib/time'
 import { useEffect, useMemo } from 'react'
 
 interface DurationInputProps {
@@ -12,15 +13,6 @@ interface DurationInputProps {
   alreadyLoggedMinutes?: number
   className?: string
   onErrorChange?: (hasError: boolean) => void
-}
-
-export function formatMinutesToLabel(totalMinutes: number): string {
-  const hours = Math.floor(totalMinutes / 60)
-  const mins = totalMinutes % 60
-
-  if (hours > 0 && mins > 0) return `${hours}h ${mins}m`
-  if (hours > 0) return `${hours}h`
-  return `${mins}m`
 }
 
 export function DurationInput({
