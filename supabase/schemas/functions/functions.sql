@@ -509,6 +509,8 @@ declare
   v_seq        int;
   v_number     text;
   v_claimed    int;
+  v_fixed_count int;
+  v_status      public.project_status;
 begin
   v_org_id     := (invoice_data->>'org_id')::uuid;
   v_project_id := (invoice_data->>'project_id')::uuid;
@@ -541,14 +543,30 @@ begin
       using errcode = '23505';
   end if;
 
-  -- 4. Fixed-price guard. A fixed engagement bills one flat fee with no period to key off of, so
-  --    `invoices_project_period_key` — which only constrains rows that carry a period — never
-  --    catches a repeat invoice here the way it does for a retainer. This is that engagement's
-  --    equivalent: once any invoice exists for the project, no more may be raised.
-  if v_engagement = 'fixed' and exists (
-    select 1 from public.invoices i where i.project_id = v_project_id
-  ) then
-    raise exception 'This fixed-price project has already been invoiced' using errcode = '23505';
+  -- 4. Fixed-price guard. A fixed engagement bills in exactly two stages rather than one flat
+  --    fee: half once the project reaches `in-progress`, the remaining half once it reaches
+  --    `pending-approval`. Capped at two invoices total, and each stage can only be raised while
+  --    the project is actually at that stage — read from the table rather than trusted from the
+  --    payload, so a stale client can't submit the wrong half out of order.
+  if v_engagement = 'fixed' then
+    select count(*) into v_fixed_count
+      from public.invoices i where i.project_id = v_project_id;
+
+    if v_fixed_count >= 2 then
+      raise exception 'This fixed-price project has already been fully invoiced' using errcode = '23505';
+    end if;
+
+    select p.status into v_status from public.projects p where p.id = v_project_id;
+
+    if v_fixed_count = 0 and v_status <> 'in-progress' then
+      raise exception 'The first fixed-price invoice can only be raised while the project is in progress'
+        using errcode = '22023';
+    end if;
+
+    if v_fixed_count = 1 and v_status <> 'pending-approval' then
+      raise exception 'The final fixed-price invoice can only be raised once the project is pending approval'
+        using errcode = '22023';
+    end if;
   end if;
 
   -- 5. Invoice number: INV-<year>-<seq>, sequential per org per year. Derived inside the

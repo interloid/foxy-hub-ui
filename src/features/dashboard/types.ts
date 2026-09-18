@@ -102,6 +102,11 @@ export interface ProjectOption {
   name: string
 }
 
+export interface ProjectsAndAllocationHours {
+  projects: ProjectOption[]
+  totalHours: number
+}
+
 export interface MilestoneOption {
   id: string
   title: string

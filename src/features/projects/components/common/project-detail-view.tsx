@@ -11,7 +11,6 @@ import type {
   DeliverableItem,
   GetProjectDeliveriesResult,
   HoursSummaryData,
-  MilestoneItem,
   Project,
   ProjectAllocationItem,
   ProjectUpdate,
@@ -28,6 +27,7 @@ import { HoursSummaryCards } from '../time-tracking/hours-summary-cards'
 import { TimeEntriesTableCard } from '../time-tracking/time-entries-card'
 import { ProjectUpdatesSection } from '../updates/project-updates-section'
 import { ProjectBreadcrumbSetter } from './project-breadcrump-setter'
+import { MilestoneItem } from '../../types/milestone'
 
 type QueryResult<T> = {
   data: T

@@ -1,5 +1,10 @@
-// src/features/projects/constants.ts
 import type { ProjectStatus } from './types'
+
+export const NON_INVOICEABLE_STATUSES = new Set<ProjectStatus | string>([
+  'draft',
+  'cancelled',
+  'completed',
+])
 
 export interface ProjectStatusStyle {
   label: string

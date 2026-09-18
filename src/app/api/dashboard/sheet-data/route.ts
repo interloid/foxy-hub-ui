@@ -65,15 +65,20 @@ export async function GET(req: NextRequest) {
     // 2. Fetch Capacity and Logged Minutes for a User on a specific date
     if (type === 'capacity') {
       const dateStr = searchParams.get('dateStr')
+      const projectId = searchParams.get('projectId')
 
-      if (!dateStr) {
+      if (!dateStr || !projectId) {
         return NextResponse.json({
           dailyCapacityHours: 8,
           alreadyLoggedMinutes: 0,
         })
       }
 
-      const capacityData = await getOrganizationCapacity(orgSlug, dateStr)
+      const capacityData = await getOrganizationCapacity(
+        orgSlug,
+        dateStr,
+        projectId
+      )
       return NextResponse.json(
         capacityData ?? { dailyCapacityHours: 8, alreadyLoggedMinutes: 0 }
       )
@@ -120,20 +125,22 @@ export async function GET(req: NextRequest) {
     if (type === 'projects') {
       const page = searchParams.get('page')
       const pageSize = searchParams.get('pageSize')
+      const allocatedProject = searchParams.get('allocatedProject') === 'true'
 
       if (page || pageSize) {
         const pageNum = parseInt(page || '1', 10)
         const sizeNum = parseInt(pageSize || '10', 10)
         const paginatedData = await fetchProjectsAction(
           orgSlug,
+          allocatedProject,
           pageNum,
           sizeNum
         )
         return NextResponse.json(paginatedData)
       }
 
-      const projects = await getProjects(orgSlug)
-      return NextResponse.json(Array.isArray(projects) ? projects : [])
+      const projects = await getProjects(orgSlug, allocatedProject)
+      return NextResponse.json(projects !== null ? projects : [])
     }
 
     return NextResponse.json([])

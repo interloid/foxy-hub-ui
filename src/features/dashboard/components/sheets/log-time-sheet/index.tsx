@@ -29,6 +29,7 @@ import {
   CapacityAndLoggedData,
   MilestoneOption,
   ProjectOption,
+  ProjectsAndAllocationHours,
 } from '@/features/dashboard/types'
 import { toISODate } from '@/lib/date'
 import {
@@ -89,12 +90,16 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     const query = new URLSearchParams({
       type: 'projects',
       orgSlug,
+      allocatedProject: 'true',
     })
     fetch(`/api/dashboard/sheet-data?${query.toString()}`, {
       signal: controller.signal,
     })
       .then((res) => (res.ok ? res.json() : []))
-      .then((data) => setProjects(Array.isArray(data) ? data : []))
+      .then((data: ProjectsAndAllocationHours) => {
+        setProjects(data !== null ? data.projects : [])
+        setDailyCapacityHours(data !== null ? data.totalHours : 8)
+      })
       .catch((err) => {
         if (err.name !== 'AbortError') console.error(err)
       })
@@ -103,7 +108,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
   }, [open, orgSlug])
 
   useEffect(() => {
-    if (!open || !selectedDate) return
+    if (!open || !selectedDate || !selectedProject) return
 
     const controller = new AbortController()
     const dateStr = toISODate(selectedDate)
@@ -112,6 +117,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
       type: 'capacity',
       orgSlug,
       dateStr,
+      projectId: selectedProject.id,
     })
 
     fetch(`/api/dashboard/sheet-data?${query.toString()}`, {
@@ -121,7 +127,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
         res.ok ? res.json() : ({} as CapacityAndLoggedData)
       )
       .then((data: CapacityAndLoggedData) => {
-        setDailyCapacityHours(data.dailyCapacityHours ?? 8)
+        setDailyCapacityHours(data !== null ? data.dailyCapacityHours : 8)
         setAlreadyLoggedMinutes(data.alreadyLoggedMinutes ?? 0)
       })
       .catch((err) => {
@@ -129,8 +135,13 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
       })
 
     return () => controller.abort()
-  }, [open, selectedDate, orgSlug])
-
+  }, [open, selectedDate, orgSlug, selectedProject])
+  console.log(
+    dailyCapacityHours,
+    alreadyLoggedMinutes,
+    'daily capacity hour',
+    'already loggged minutes'
+  )
   // Fetch Milestones when project changes
   const handleProjectSelect = (project: ProjectOption) => {
     setSelectedProject(project)
@@ -162,7 +173,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     ) {
       return
     }
-
+    console.log(dailyCapacityHours)
     const dateStr = toISODate(selectedDate)
 
     startTransition(async () => {

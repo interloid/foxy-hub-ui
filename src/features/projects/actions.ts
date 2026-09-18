@@ -5,10 +5,16 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { ActionResult } from '../onboarding/types'
+import { NON_INVOICEABLE_STATUSES } from './constants'
 import { buildInvoiceDraft } from './queries/get-invoice'
 import { getProjectsData } from './queries/get-projects'
 import { createMilestoneSchema } from './schema'
-import { CreateDeliveryInput, CreateMilestoneInput } from './types'
+import { CreateDeliveryInput, UpdateProjectInput } from './types'
+import {
+  CreateMilestoneInput,
+  MilestoneItem,
+  UpdateMilestoneParams,
+} from './types/milestone'
 
 const MINIMUM_CHARGE: Record<string, number> = {
   USD: 0.5,
@@ -56,6 +62,13 @@ export async function createInvoiceAction(
   const draft = await buildInvoiceDraft(projectId, orgSlug)
   if (!draft) {
     return { ok: false, error: 'Project not found in this organization.' }
+  }
+
+  if (NON_INVOICEABLE_STATUSES.has(draft.status)) {
+    return {
+      ok: false,
+      error: `This project is ${draft.status} and can no longer be invoiced.`,
+    }
   }
 
   if (draft.unratedNames.length > 0) {
@@ -306,10 +319,11 @@ export async function postUpdateAction(
 
 export async function fetchProjectsAction(
   orgSlug: string,
+  allocatedProject: boolean,
   page?: number,
   pageSize?: number
 ) {
-  return await getProjectsData({ orgSlug, page, pageSize })
+  return await getProjectsData({ orgSlug, page, pageSize, allocatedProject })
 }
 
 export async function uploadDeliveryAssets(
@@ -366,7 +380,6 @@ export async function createDelivery(input: CreateDeliveryInput) {
 
   const supabase = await createClient()
 
-  // 1. Get authenticated user ID
   const {
     data: { user },
     error: authError,
@@ -376,7 +389,6 @@ export async function createDelivery(input: CreateDeliveryInput) {
     throw new Error('Unauthorized')
   }
 
-  // 2. Verify that the target project belongs to the current workspace
   const { data: project, error: projErr } = await supabase
     .from('projects')
     .select('id')
@@ -388,7 +400,6 @@ export async function createDelivery(input: CreateDeliveryInput) {
     throw new Error('Project not found or unauthorized')
   }
 
-  // 3. Insert into public.deliveries using securely derived workspace ID
   const { data, error } = await supabase
     .from('deliveries')
     .insert({
@@ -409,7 +420,25 @@ export async function createDelivery(input: CreateDeliveryInput) {
     throw new Error('Failed to create delivery.')
   }
 
-  // 4. Revalidate cache
+  if (input.milestoneId) {
+    const { data: milestone } = await supabase
+      .from('milestones')
+      .select('status')
+      .eq('id', input.milestoneId)
+      .single()
+
+    if (milestone && milestone.status === 'pending') {
+      const { error: milestoneUpdateErr } = await supabase
+        .from('milestones')
+        .update({ status: 'in_progress' })
+        .eq('id', input.milestoneId)
+
+      if (milestoneUpdateErr) {
+        console.error('Error updating milestone status:', milestoneUpdateErr)
+      }
+    }
+  }
+
   revalidatePath(`/${workspace.slug}/projects/${input.projectId}`)
   return { success: true, data }
 }
@@ -441,4 +470,174 @@ async function createProjectUpdate({
   }
 
   return data
+}
+
+export async function updateMilestoneWithValidation({
+  milestoneId,
+  projectId,
+  title,
+  dueDate,
+  status,
+}: UpdateMilestoneParams): Promise<MilestoneItem> {
+  const supabase = await createClient()
+
+  const { data: project, error: projectError } = await supabase
+    .from('projects')
+    .select('start_date, due_date, created_at')
+    .eq('id', projectId)
+    .single()
+
+  if (projectError || !project) {
+    throw new Error('Failed to retrieve project details for validation.')
+  }
+
+  const projectStartDate = project.start_date
+    ? new Date(project.start_date).toISOString().split('T')[0]
+    : new Date(project.created_at).toISOString().split('T')[0]
+
+  const projectEndDate = project.due_date
+    ? new Date(project.due_date).toISOString().split('T')[0]
+    : null
+
+  if (dueDate) {
+    if (projectStartDate && dueDate < projectStartDate) {
+      throw new Error(
+        `Due date must be on or after the project start date (${projectStartDate}).`
+      )
+    }
+
+    if (projectEndDate && dueDate > projectEndDate) {
+      throw new Error(
+        `Due date must be on or before the project due date (${projectEndDate}).`
+      )
+    }
+  }
+
+  if (status === 'completed') {
+    const { data: deliverables, error: deliveriesError } = await supabase
+      .from('deliveries')
+      .select('id, status')
+      .eq('milestone_id', milestoneId)
+
+    if (deliveriesError) {
+      throw new Error('Failed to verify milestone deliverables.')
+    }
+
+    if (deliverables && deliverables.length > 0) {
+      const hasUnapproved = deliverables.some((d) => d.status !== 'approved')
+      if (hasUnapproved) {
+        throw new Error(
+          'Cannot complete milestone: All associated deliverables must be approved first.'
+        )
+      }
+    }
+  }
+
+  const { data: updatedMilestone, error: updateError } = await supabase
+    .from('milestones')
+    .update({
+      title,
+      due_date: dueDate || null,
+      status,
+    })
+    .eq('id', milestoneId)
+    .select()
+    .single()
+
+  if (updateError || !updatedMilestone) {
+    throw new Error(updateError?.message || 'Failed to update milestone.')
+  }
+
+  return {
+    ...updatedMilestone,
+    projectId: updatedMilestone.project_id,
+  } as MilestoneItem
+}
+
+export async function updateProjectWithValidation(input: UpdateProjectInput) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    throw new Error('Unauthorized. Please log in again.')
+  }
+
+  const trimmedName = input.name.trim()
+  if (!trimmedName) {
+    throw new Error('Project name cannot be empty.')
+  }
+
+  if (input.status === 'completed') {
+    const { data: project, error: projError } = await supabase
+      .from('projects')
+      .select('engagement, contract_value, retainer_amount')
+      .eq('id', input.projectId)
+      .single()
+
+    if (projError || !project) {
+      throw new Error('Project not found for completion validation.')
+    }
+
+    const { data: invoices, error: invError } = await supabase
+      .from('invoices')
+      .select('amount, status')
+      .eq('project_id', input.projectId)
+
+    if (invError) {
+      throw new Error('Failed to verify project invoices.')
+    }
+
+    const invoiceList = invoices || []
+
+    const hasUnpaidInvoices = invoiceList.some((inv) => inv.status !== 'paid')
+    if (hasUnpaidInvoices) {
+      throw new Error(
+        'Cannot complete project: all associated invoices must be paid.'
+      )
+    }
+
+    const totalInvoiceAmount = invoiceList.reduce(
+      (sum, inv) => sum + (Number(inv.amount) || 0),
+      0
+    )
+
+    const requiresFullValue = ['full_time', 'part_time', 'fixed'].includes(
+      project.engagement
+    )
+
+    if (requiresFullValue) {
+      const requiredValue = Number(project.contract_value) || 0
+
+      if (totalInvoiceAmount < requiredValue) {
+        throw new Error(
+          `Cannot complete project: Total invoiced amount ($${totalInvoiceAmount}) must meet or exceed the contract value ($${requiredValue}).`
+        )
+      }
+    }
+  }
+
+  const { data: updatedProject, error: updateError } = await supabase
+    .from('projects')
+    .update({
+      name: trimmedName,
+      description: input.description?.trim() || null,
+      status: input.status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', input.projectId)
+    .select()
+    .single()
+
+  if (updateError) {
+    console.error('Error updating project:', updateError)
+    throw new Error(updateError.message || 'Failed to update project.')
+  }
+
+  revalidatePath(`/${input.orgSlug}/projects/${input.projectId}`)
+
+  return updatedProject
 }

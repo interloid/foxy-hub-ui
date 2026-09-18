@@ -215,15 +215,19 @@ export function CreateDeliverySheet({
                       No Milestone
                     </div>
                   )}
-                  {milestones.map((ms) => (
-                    <FxDropdownMenuItem
-                      key={ms.id}
-                      onClick={() => handleMilestoneSelect(ms)}
-                      className="text-[13px]"
-                    >
-                      <span className="truncate">{ms.title}</span>
-                    </FxDropdownMenuItem>
-                  ))}
+                  {milestones.map((ms) => {
+                    if (ms.status !== 'completed') {
+                      return (
+                        <FxDropdownMenuItem
+                          key={ms.id}
+                          onClick={() => handleMilestoneSelect(ms)}
+                          className="text-[13px]"
+                        >
+                          <span className="truncate">{ms.title}</span>
+                        </FxDropdownMenuItem>
+                      )
+                    }
+                  })}
                 </FxDropdownMenuContent>
               </DropdownMenu>
             </FxField>

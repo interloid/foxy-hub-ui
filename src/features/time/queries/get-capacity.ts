@@ -1,3 +1,4 @@
+import { toISODate } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 
 const ROLE_ORDER: Record<string, number> = {
@@ -43,7 +44,7 @@ export async function getTeamCapacityData(orgId: string) {
     })
   }
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = toISODate(new Date())
   const { data: allocations } = await supabase
     .from('project_allocations')
     .select(

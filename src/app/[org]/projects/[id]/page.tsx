@@ -113,7 +113,7 @@ export default async function ProjectDetailPage({
     project.engagement,
     project.retainerPeriod
   )
-
+  console.log(allocationsResult)
   // Helper to handle results, log errors to Sentry, and return state
   function processResult<T>(
     result: PromiseSettledResult<T>,

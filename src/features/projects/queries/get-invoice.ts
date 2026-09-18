@@ -2,6 +2,7 @@
 import { toISODate } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 
+import { NON_INVOICEABLE_STATUSES } from '../constants'
 import { EngagementModel } from '../types'
 import {
   InvoiceAllocationRow,
@@ -31,7 +32,7 @@ export async function buildInvoiceDraft(
   const { data: project } = await supabase
     .from('projects')
     .select(
-      'id, name, org_id, engagement, contract_value, retainer_hours, retainer_amount, retainer_overage, retainer_period'
+      'id, name, org_id, engagement, status, start_date, due_date, created_at, contract_value, retainer_hours, retainer_amount, retainer_overage, retainer_period'
     )
     .eq('id', projectId)
     .eq('org_id', orgData.id)
@@ -70,15 +71,47 @@ export async function buildInvoiceDraft(
         )
       : null
 
-  const built = buildInvoiceLines(project, entries || [], allocations || [], {
-    memberNames,
-    roundingMinutes: orgData.rounding_minutes ?? 15,
-    periodStart: period?.start ?? null,
-    periodEnd: period?.end ?? null,
-  })
+  const { windowStart, windowEnd } = resolveInvoiceWindow(project)
 
-  const dueDate = new Date()
-  dueDate.setDate(dueDate.getDate() + (orgData.payment_terms_days ?? 30))
+  const { data: projectInvoices } = await supabase
+    .from('invoices')
+    .select('amount')
+    .eq('project_id', project.id)
+
+  const existingInvoiceCount = projectInvoices?.length ?? 0
+  const alreadyInvoicedAmount = (projectInvoices || []).reduce(
+    (sum, inv) => sum + Number(inv.amount || 0),
+    0
+  )
+
+  const { data: unApprovedEntries } = await supabase
+    .from('time_entries')
+    .select('id, user_id, duration_minutes, work_date')
+    .eq('project_id', project.id)
+    .in('status', ['draft', 'submitted'])
+    .is('invoice_id', null)
+
+  const built = buildInvoiceLines(
+    project,
+    entries || [],
+    allocations || [],
+    {
+      memberNames,
+      roundingMinutes: orgData.rounding_minutes ?? 15,
+      periodStart: period?.start ?? null,
+      periodEnd: period?.end ?? null,
+      windowStart,
+      windowEnd,
+      existingInvoiceCount,
+      alreadyInvoicedAmount,
+    },
+    unApprovedEntries || []
+  )
+
+  const invoiceDueDate = new Date()
+  invoiceDueDate.setDate(
+    invoiceDueDate.getDate() + (orgData.payment_terms_days ?? 30)
+  )
 
   return {
     ...built,
@@ -86,10 +119,22 @@ export async function buildInvoiceDraft(
     projectId: project.id,
     projectName: project.name,
     engagement: project.engagement as EngagementModel,
+    status: project.status,
     currency: orgData.currency ?? 'USD',
     periodStart: period?.start ?? null,
     periodEnd: period?.end ?? null,
-    dueDate: dueDate.toISOString(),
+    dueDate: invoiceDueDate.toISOString(),
+  }
+}
+
+function resolveInvoiceWindow(project: {
+  start_date: string | null
+  due_date: string | null
+  created_at: string
+}): { windowStart: string; windowEnd: string | null } {
+  return {
+    windowStart: project.start_date ?? toISODate(new Date(project.created_at)),
+    windowEnd: project.due_date ? toISODate(new Date(project.due_date)) : null,
   }
 }
 
@@ -119,14 +164,35 @@ function buildInvoiceLines(
   project: InvoiceProjectRow,
   entries: InvoiceEntryRow[],
   allocations: InvoiceAllocationRow[],
-  context: InvoiceBuildContext
+  context: InvoiceBuildContext,
+  unApprovedEntries: InvoiceEntryRow[] = []
 ): InvoiceDraftLines {
-  const { memberNames, roundingMinutes, periodStart, periodEnd } = context
+  const {
+    memberNames,
+    roundingMinutes,
+    periodStart,
+    periodEnd,
+    windowStart,
+    windowEnd,
+    existingInvoiceCount,
+    alreadyInvoicedAmount,
+  } = context
 
   const lines: InvoiceLine[] = []
   const entryIds: string[] = []
   const unratedNames: string[] = []
+  const outOfRangeNames = new Set<string>()
   let calloutMessage: string | null = null
+
+  entries = entries.filter((entry) => {
+    const afterStart = !windowStart || entry.work_date >= windowStart
+    const beforeEnd = !windowEnd || entry.work_date <= windowEnd
+
+    if (afterStart && beforeEnd) return true
+
+    outOfRangeNames.add(memberNames.get(entry.user_id) || 'Teammate')
+    return false
+  })
 
   if (
     project.engagement === 'full_time' ||
@@ -154,7 +220,6 @@ function buildInvoiceLines(
         entryIds: [],
         unrated: false,
       }
-
       acc.minutes += minutes
       acc.entryIds.push(entry.id)
 
@@ -179,7 +244,6 @@ function buildInvoiceLines(
       const exactHours = acc.minutes / 60
       const blendedRate = exactHours > 0 ? acc.weighted / exactHours : 0
       const billableHours = roundHoursUp(acc.minutes, roundingMinutes)
-
       entryIds.push(...acc.entryIds)
 
       lines.push({
@@ -196,80 +260,136 @@ function buildInvoiceLines(
         unitRateValue: money(blendedRate),
       })
     }
+
+    if (project.status === 'pending-approval' && lines.length === 0) {
+      const contractValue = project.contract_value ?? 0
+      const remaining = contractValue - (alreadyInvoicedAmount ?? 0)
+
+      if (remaining > 0) {
+        if (unApprovedEntries.length > 0) {
+          calloutMessage =
+            'Your logged work hours have not been submitted for approval, or they are currently under review. Once the work hours are approved, you can generate the invoice.'
+        } else {
+          lines.push({
+            id: `line-${project.id}`,
+            description: 'Remaining unbilled amount',
+            typeLabel: 'BALANCE',
+            qty: '-',
+            rate: '-',
+            amount: money(remaining),
+            quantityValue: null,
+            unitRateValue: null,
+          })
+        }
+      }
+    }
   } else if (project.engagement === 'retainer') {
-    const bucketHours = Number(project.retainer_hours) || 0
-    const retainerFee = Number(project.retainer_amount) || 0
-    const isWeekly = project.retainer_period === 'weekly'
+    if (windowEnd && periodStart && periodStart > windowEnd) {
+      calloutMessage = `This project's due date (${windowEnd}) has passed no further retainer periods are billable.`
+    } else {
+      const bucketHours = Number(project.retainer_hours) || 0
+      const retainerFee = Number(project.retainer_amount) || 0
+      const isWeekly = project.retainer_period === 'weekly'
 
-    const multiplier =
-      project.retainer_overage === null ||
-      project.retainer_overage === undefined
-        ? 1
-        : Number(project.retainer_overage)
+      const multiplier =
+        project.retainer_overage === null ||
+        project.retainer_overage === undefined
+          ? 1
+          : Number(project.retainer_overage)
 
-    const periodEntries = entries.filter(
-      (e) =>
-        (!periodStart || e.work_date >= periodStart) &&
-        (!periodEnd || e.work_date <= periodEnd)
-    )
+      const periodEntries = entries.filter(
+        (e) =>
+          (!periodStart || e.work_date >= periodStart) &&
+          (!periodEnd || e.work_date <= periodEnd)
+      )
 
-    entryIds.push(...periodEntries.map((e) => e.id))
+      entryIds.push(...periodEntries.map((e) => e.id))
 
-    const consumedMinutes = periodEntries.reduce(
-      (sum, e) => sum + (e.duration_minutes || 0),
-      0
-    )
+      const consumedMinutes = periodEntries.reduce(
+        (sum, e) => sum + (e.duration_minutes || 0),
+        0
+      )
 
-    const consumedHours = roundHoursUp(consumedMinutes, roundingMinutes)
-    const overageHours =
-      bucketHours > 0 ? Math.max(0, consumedHours - bucketHours) : 0
-
-    lines.push({
-      id: `retainer-${project.id}`,
-      description: isWeekly ? 'Weekly retainer' : 'Monthly retainer',
-      typeLabel: 'RETAINER',
-      qty: `${bucketHours}h bucket`,
-      rate: '—',
-      amount: money(retainerFee),
-      quantityValue: null,
-      unitRateValue: null,
-    })
-
-    if (overageHours > 0) {
-      const impliedRate = retainerFee / bucketHours
-      const overageRate = impliedRate * multiplier
+      const consumedHours = roundHoursUp(consumedMinutes, roundingMinutes)
+      const overageHours =
+        bucketHours > 0 ? Math.max(0, consumedHours - bucketHours) : 0
 
       lines.push({
-        id: `overage-${project.id}`,
-        description: `Overage beyond the ${bucketHours}h bucket`,
-        typeLabel: 'OVERAGE',
-        qty: formatHours(overageHours),
-        rate: `$${money(overageRate)}/hr`,
-        amount: money(overageHours * overageRate),
-        quantityValue: overageHours,
-        unitRateValue: money(overageRate),
+        id: `retainer-${project.id}`,
+        description: isWeekly ? 'Weekly retainer' : 'Monthly retainer',
+        typeLabel: 'RETAINER',
+        qty: `${bucketHours}h bucket`,
+        rate: '—',
+        amount: money(retainerFee),
+        quantityValue: null,
+        unitRateValue: null,
       })
 
-      calloutMessage = `Bucket ${formatHours(consumedHours)} of ${bucketHours}h used ${formatHours(overageHours)} billed at ×${multiplier} overage.`
-    } else {
-      calloutMessage = `Bucket ${formatHours(consumedHours)} of ${bucketHours}h used retainer bills in full even if under-consumed.`
+      if (overageHours > 0) {
+        const impliedRate = retainerFee / bucketHours
+        const overageRate = impliedRate * multiplier
+
+        lines.push({
+          id: `overage-${project.id}`,
+          description: `Overage beyond the ${bucketHours}h bucket`,
+          typeLabel: 'OVERAGE',
+          qty: formatHours(overageHours),
+          rate: `$${money(overageRate)}/hr`,
+          amount: money(overageHours * overageRate),
+          quantityValue: overageHours,
+          unitRateValue: money(overageRate),
+        })
+
+        calloutMessage = `Bucket ${formatHours(consumedHours)} of ${bucketHours}h used ${formatHours(overageHours)} billed at ×${multiplier} overage.`
+      } else {
+        calloutMessage = `Bucket ${formatHours(consumedHours)} of ${bucketHours}h used retainer bills in full even if under-consumed.`
+      }
     }
   } else if (project.engagement === 'fixed') {
     const fixedFee = Number(project.contract_value) || 0
+    const invoiceCount = existingInvoiceCount ?? 0
+    const invoicedSoFar = alreadyInvoicedAmount ?? 0
 
     entryIds.push(...entries.map((e) => e.id))
 
-    calloutMessage = 'Hours are tracked for context; the fee is fixed.'
-    lines.push({
-      id: `fixed-${project.id}`,
-      description: 'Fixed project fee',
-      typeLabel: 'FIXED',
-      qty: '—',
-      rate: '—',
-      amount: money(fixedFee),
-      quantityValue: null,
-      unitRateValue: null,
-    })
+    if (invoiceCount >= 2) {
+      calloutMessage =
+        'This fixed-price project has already been fully invoiced.'
+    } else if (invoiceCount === 0) {
+      if (project.status === 'in-progress') {
+        lines.push({
+          id: `fixed-1-${project.id}`,
+          description: 'Fixed project fee — project start (1 of 2)',
+          typeLabel: 'FIXED',
+          qty: '—',
+          rate: '—',
+          amount: money(fixedFee * 0.5),
+          quantityValue: null,
+          unitRateValue: null,
+        })
+        calloutMessage =
+          'First of two fixed-price invoices — 50% on project start. Hours are tracked for context; the fee is fixed.'
+      } else {
+        calloutMessage = `The first fixed-price invoice bills once the project is in progress (currently ${project.status}).`
+      }
+    } else {
+      if (project.status === 'pending-approval') {
+        lines.push({
+          id: `fixed-2-${project.id}`,
+          description: 'Fixed project fee — pending approval (2 of 2)',
+          typeLabel: 'FIXED',
+          qty: '—',
+          rate: '—',
+          amount: money(fixedFee - invoicedSoFar),
+          quantityValue: null,
+          unitRateValue: null,
+        })
+        calloutMessage =
+          'Final fixed-price invoice — remaining balance on pending approval. Hours are tracked for context; the fee is fixed.'
+      } else {
+        calloutMessage = `The final fixed-price invoice bills once the project is pending approval (currently ${project.status}).`
+      }
+    }
   }
 
   return {
@@ -277,6 +397,7 @@ function buildInvoiceLines(
     entryIds,
     calloutMessage,
     unratedNames,
+    outOfRangeNames: Array.from(outOfRangeNames),
     amount: money(lines.reduce((sum, line) => sum + line.amount, 0)),
   }
 }
@@ -332,13 +453,17 @@ export async function getProjectsForInvoicing(
   }
 
   // 1. Fetch active projects with client details
-  const { data: projects, error: projectsError } = await supabase
+  const { data: allProjects, error: projectsError } = await supabase
     .from('projects')
     .select(
       `
       id,
       name,
       engagement,
+      status,
+      start_date,
+      due_date,
+      created_at,
       contract_value,
       retainer_hours,
       retainer_amount,
@@ -351,10 +476,15 @@ export async function getProjectsForInvoicing(
     )
     .eq('org_id', orgData.id)
 
-  if (projectsError || !projects) {
+  if (projectsError || !allProjects) {
     console.error('Error fetching projects:', projectsError)
     return []
   }
+
+  // Draft/cancelled/completed projects are never eligible for a new invoice.
+  const projects = allProjects.filter(
+    (p) => !NON_INVOICEABLE_STATUSES.has(p.status)
+  )
 
   const projectIds = projects.map((p) => p.id)
 
@@ -371,6 +501,13 @@ export async function getProjectsForInvoicing(
     ? await supabase
         .from('project_allocations')
         .select('project_id, user_id, rate, effective_from, effective_to')
+        .in('project_id', projectIds)
+    : { data: [] }
+
+  const { data: projectInvoices } = projectIds.length
+    ? await supabase
+        .from('invoices')
+        .select('project_id, amount')
         .in('project_id', projectIds)
     : { data: [] }
 
@@ -400,17 +537,33 @@ export async function getProjectsForInvoicing(
           )
         : null
 
-    const { lines, calloutMessage, unratedNames } = buildInvoiceLines(
-      project,
-      (timeEntries || []).filter((e) => e.project_id === project.id),
-      (allocations || []).filter((a) => a.project_id === project.id),
-      {
-        memberNames,
-        roundingMinutes,
-        periodStart: period?.start ?? null,
-        periodEnd: period?.end ?? null,
-      }
+    const { windowStart, windowEnd } = resolveInvoiceWindow(project)
+
+    const invoicesForProject = (projectInvoices || []).filter(
+      (i) => i.project_id === project.id
     )
+    const existingInvoiceCount = invoicesForProject.length
+    const alreadyInvoicedAmount = invoicesForProject.reduce(
+      (sum, i) => sum + Number(i.amount || 0),
+      0
+    )
+
+    const { lines, calloutMessage, unratedNames, outOfRangeNames } =
+      buildInvoiceLines(
+        project,
+        (timeEntries || []).filter((e) => e.project_id === project.id),
+        (allocations || []).filter((a) => a.project_id === project.id),
+        {
+          memberNames,
+          roundingMinutes,
+          periodStart: period?.start ?? null,
+          periodEnd: period?.end ?? null,
+          windowStart,
+          windowEnd,
+          existingInvoiceCount,
+          alreadyInvoicedAmount,
+        }
+      )
 
     return {
       id: project.id,
@@ -418,21 +571,40 @@ export async function getProjectsForInvoicing(
       clientName,
       retainerPeriod: project.retainer_period,
       engagement: project.engagement as EngagementModel,
-      calloutMessage: withUnratedNotice(calloutMessage, unratedNames),
+      calloutMessage: withInvoiceNotices(
+        calloutMessage,
+        unratedNames,
+        outOfRangeNames
+      ),
       lines,
     }
   })
 }
 
-function withUnratedNotice(
+function withInvoiceNotices(
   calloutMessage: string | null,
-  unratedNames: string[]
+  unratedNames: string[],
+  outOfRangeNames: string[]
 ): string | null {
-  if (unratedNames.length === 0) return calloutMessage
+  const notices: string[] = []
 
-  const notice = `No rate in effect for ${unratedNames.join(', ')} their hours are excluded.`
+  if (unratedNames.length > 0) {
+    notices.push(
+      `No rate in effect for ${unratedNames.join(', ')} their hours are excluded.`
+    )
+  }
 
-  return calloutMessage ? `${notice} ${calloutMessage}` : notice
+  if (outOfRangeNames.length > 0) {
+    notices.push(
+      `Hours logged outside the project's start due window for ${outOfRangeNames.join(', ')} are excluded.`
+    )
+  }
+
+  if (notices.length === 0) return calloutMessage
+
+  return calloutMessage
+    ? `${notices.join(' ')} ${calloutMessage}`
+    : notices.join(' ')
 }
 
 export async function hasInvoiceForProject(
@@ -443,13 +615,16 @@ export async function hasInvoiceForProject(
   const supabase = await createClient()
 
   if (engagement === 'fixed') {
+    // Fixed projects bill in two stages now, so "already invoiced" only means fully invoiced —
+    // one existing invoice still leaves the second stage open once the project reaches
+    // `pending-approval`.
     const { data, error } = await supabase
       .from('invoices')
       .select('id')
       .eq('project_id', projectId)
-      .limit(1)
+      .limit(2)
     if (error) throw error
-    return (data?.length ?? 0) > 0
+    return (data?.length ?? 0) >= 2
   }
 
   if (engagement !== 'retainer') {

@@ -210,6 +210,7 @@ export async function getProjectById(
       retainer_period,
       retainer_amount,
       retainer_overage,
+      estimated_hours,
       override_reason,
       client_org_id,
       client:clients (
@@ -260,6 +261,7 @@ export async function getProjectById(
     createdAt: p.created_at,
     updatedAt: p.updated_at || p.created_at,
     progressPercent: 0,
+    estimatedHour: p.estimated_hours,
   }
 }
 

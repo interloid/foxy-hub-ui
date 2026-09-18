@@ -6,6 +6,7 @@ import {
 } from '@/components/shared/fx-tabs'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { formatMinutesToLabel } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import { startTransition, useState } from 'react'
 import { toast } from 'sonner'
@@ -14,7 +15,6 @@ import { MyTimeCardProps } from '../types'
 import { ApprovalsView } from './approvals-view'
 import { CapacityView } from './capacity-view'
 import { WeeklyTimeEntriesTable } from './time-entry-table'
-import { formatMinutesToLabel } from '@/lib/time'
 
 export function TimeCard({
   summary,
@@ -105,61 +105,6 @@ export function TimeCard({
       }
     })
   }
-
-  const handleApproveEntry = async (entryId: string) => {
-    try {
-      const res = await updateTimeEntriesStatus(entryId, 'approved', orgSlug)
-
-      if (res.success) {
-        toast.success('Time entry approved')
-      } else {
-        toast.error(res.error || 'Failed to approve entry. Please try again.')
-      }
-    } catch (error) {
-      toast.error('An unexpected error occurred while approving the entry.')
-      console.error('Failed to approve entry:', error)
-    }
-  }
-
-  const handleRejectEntry = async (entryId: string) => {
-    try {
-      const res = await updateTimeEntriesStatus(entryId, 'rejected', orgSlug)
-
-      if (res.success) {
-        toast.success('Time entry rejected')
-      } else {
-        toast.error(res.error || 'Failed to reject entry. Please try again.')
-      }
-    } catch (error) {
-      toast.error('An unexpected error occurred while rejecting the entry.')
-      console.error('Failed to reject entry:', error)
-    }
-  }
-
-  const handleApproveAll = async (userId: string) => {
-    const userGroup = approvals.find((g) => g.userId === userId)
-    if (!userGroup) return
-
-    const entryIds = userGroup.entries.map((e) => e.id)
-    if (entryIds.length === 0) return
-
-    try {
-      const res = await updateTimeEntriesStatus(entryIds, 'approved', orgSlug)
-
-      if (res.success) {
-        toast.success(
-          `Approved ${entryIds.length} ${
-            entryIds.length === 1 ? 'entry' : 'entries'
-          } for ${userGroup.fullName}`
-        )
-      } else {
-        toast.error(res.error || 'Failed to approve entries. Please try again.')
-      }
-    } catch (error) {
-      toast.error('An unexpected error occurred while approving entries.')
-      console.error('Failed to approve user entries:', error)
-    }
-  }
   return (
     <div className={cn('w-full space-y-4', className)}>
       <Tabs defaultValue="my-time" className="w-full">
@@ -221,12 +166,7 @@ export function TimeCard({
         {(role === 'admin' || role === 'owner') && (
           <>
             <TabsContent value="approvals" className="mt-4 outline-none">
-              <ApprovalsView
-                approvals={approvals}
-                onApproveEntry={handleApproveEntry}
-                onApproveAll={handleApproveAll}
-                onRejectEntry={handleRejectEntry}
-              />
+              <ApprovalsView approvals={approvals} />
             </TabsContent>
             <TabsContent value="capacity" className="mt-4 outline-none">
               <CapacityView

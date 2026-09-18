@@ -51,11 +51,6 @@ export function DeliverablesSection({
   const [deliveriesList, setDeliveriesList] =
     useState<ProjectDelivery[]>(initialDeliveries)
 
-  // `initialDeliveries` changes when the server refetches for a new
-  // `deliveriesPage`, but this component isn't remounted (no `key`), so
-  // `useState`'s initial value is only used once. Adjusting state during
-  // render (React's documented alternative to an effect for this exact
-  // "reset state when a prop changes" case) re-syncs it on page change.
   const [prevPage, setPrevPage] = useState(page)
   if (prevPage !== page) {
     setPrevPage(page)
@@ -109,9 +104,6 @@ export function DeliverablesSection({
 
       // Check if response returned the delivery object (not an error object)
       if (created && 'id' in created) {
-        // Keep this page's row count at `pageSize`: the new row is only
-        // known locally, so the server's `totalCount`/pagination haven't
-        // shifted — drop the last row rather than overflow the page.
         setDeliveriesList((prevList) =>
           [created, ...prevList].slice(0, pageSize)
         )

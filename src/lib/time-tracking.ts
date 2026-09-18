@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 export async function getLoggedMinutesForDate(
   userId: string,
   workDate: string,
+  projectId: string,
   orgId?: string
 ): Promise<number> {
   const supabase = await createClient()
@@ -11,6 +12,7 @@ export async function getLoggedMinutesForDate(
     .from('time_entries')
     .select('duration_minutes, projects!inner(org_id)')
     .eq('user_id', userId)
+    .eq('project_id', projectId)
     .eq('work_date', workDate)
 
   if (orgId) {

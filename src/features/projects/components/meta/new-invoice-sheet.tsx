@@ -2,7 +2,6 @@
 
 import { AlertCircle, ChevronDown, Send } from 'lucide-react'
 import { Controller, useForm } from 'react-hook-form'
-
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import {
@@ -102,7 +101,6 @@ export function NewInvoiceSheet({
     checkProjectInvoice(currentProject)
   }, [currentProject, currentProject?.id, currentProject?.engagement])
 
-  // Sync form state if defaultProjectId or projects list updates
   useEffect(() => {
     if (defaultProjectId) {
       setValue('projectId', defaultProjectId)

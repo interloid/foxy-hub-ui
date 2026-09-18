@@ -4,6 +4,7 @@ export interface InvoiceDraftLines {
   calloutMessage: string | null
   amount: number
   unratedNames: string[]
+  outOfRangeNames: string[]
 }
 
 export interface InvoiceDraft extends InvoiceDraftLines {
@@ -11,6 +12,7 @@ export interface InvoiceDraft extends InvoiceDraftLines {
   projectId: string
   projectName: string
   engagement: EngagementModel
+  status: string
   currency: string
   periodStart: string | null
   periodEnd: string | null
@@ -20,6 +22,10 @@ export interface InvoiceDraft extends InvoiceDraftLines {
 export interface InvoiceProjectRow {
   id: string
   engagement: string
+  status: string
+  start_date: string | null
+  due_date: string | null
+  created_at: string
   contract_value: number | null
   retainer_hours: number | null
   retainer_amount: number | null
@@ -46,6 +52,10 @@ export interface InvoiceBuildContext {
   roundingMinutes: number
   periodStart?: string | null
   periodEnd?: string | null
+  windowStart?: string | null
+  windowEnd?: string | null
+  existingInvoiceCount?: number
+  alreadyInvoicedAmount?: number
 }
 
 export type EngagementModel = 'full_time' | 'part_time' | 'retainer' | 'fixed'

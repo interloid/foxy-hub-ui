@@ -7,7 +7,7 @@ import {
   CapacityAndLoggedData,
   ClientOption,
   MilestoneOption,
-  ProjectOption,
+  ProjectsAndAllocationHours,
   TeammateAllocationCheck,
   TeamMemberOption,
 } from './types'
@@ -89,7 +89,8 @@ export async function getMilestonesForProject(
 
 export async function getDailyCapacityAndLoggedMinutes(
   dateString: string,
-  orgSlug: string
+  orgSlug: string,
+  projectId: string
 ): Promise<CapacityAndLoggedData> {
   if (!dateString || !orgSlug) {
     return { dailyCapacityHours: 8, alreadyLoggedMinutes: 0 }
@@ -110,18 +111,20 @@ export async function getDailyCapacityAndLoggedMinutes(
     return { dailyCapacityHours: 8, alreadyLoggedMinutes: 0 }
   }
 
-  const { data: orgData } = await supabase
-    .from('organizations')
-    .select('daily_capacity_hours')
-    .eq('id', workspace.id)
-    .maybeSingle()
+  const { data: allocations } = await supabase
+    .from('project_allocations')
+    .select('hours_per_day')
+    .eq('user_id', user.id)
+    .eq('project_id', projectId)
+    .single()
 
-  const dailyCapacityHours = orgData?.daily_capacity_hours ?? 8
+  const dailyCapacityHours = allocations ? allocations.hours_per_day : 8
 
   // Use the shared helper to calculate minutes consistently with proper organization scoping
   const alreadyLoggedMinutes = await getLoggedMinutesForDate(
     user.id,
     dateString,
+    projectId,
     workspace.id
   )
 
@@ -129,10 +132,11 @@ export async function getDailyCapacityAndLoggedMinutes(
 }
 
 export async function getProjectsForOrg(
-  orgSlug: string | null
-): Promise<ProjectOption[]> {
+  orgSlug: string | null,
+  allocatedProject: boolean
+): Promise<ProjectsAndAllocationHours | null> {
   // Manual Query Parameter Validation
-  if (!orgSlug || typeof orgSlug !== 'string') return []
+  if (!orgSlug || typeof orgSlug !== 'string') return null
 
   const supabase = await createClient()
 
@@ -140,29 +144,47 @@ export async function getProjectsForOrg(
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) return []
+  if (!user) return null
 
-  const { data, error } = await supabase
+  let projectds: string[] = []
+  let totalHours = 8
+
+  if (allocatedProject) {
+    const allocatedProject = await getUserAllocatedProjects(user.id)
+
+    // Quick optimization: If the user has no allocated projects, return early
+    if (!allocatedProject) {
+      return null
+    }
+    projectds = allocatedProject.projectIds
+    totalHours = allocatedProject.totalHours
+  }
+
+  let query = supabase
     .from('projects')
     .select(
       `
-      id,
-      name,
-      organization:organizations!inner (
-        slug,
-        memberships!inner (
-          user_id
-        )
+    id,
+    name,
+    organization:organizations!inner (
+      slug,
+      memberships!inner (
+        user_id
       )
-    `
+    )
+  `
     )
     .eq('organization.slug', orgSlug)
     .eq('organization.memberships.user_id', user.id)
-    .order('name', { ascending: true })
 
-  if (error || !data) return []
+  if (allocatedProject) {
+    query = query.in('id', projectds)
+  }
 
-  return data.map((p) => ({ id: p.id, name: p.name }))
+  const { data, error } = await query.order('name', { ascending: true })
+  if (error || !data) return null
+
+  return { projects: data.map((p) => ({ id: p.id, name: p.name })), totalHours }
 }
 
 export async function getTeammateAllocatedHours(
@@ -315,12 +337,46 @@ export async function getTeamMembersForOrg(
   })
 }
 
+async function getUserAllocatedProjects(userId: string): Promise<{
+  projectIds: string[]
+  totalHours: number
+} | null> {
+  const supabase = await createClient()
+
+  const today = toISODate(new Date())
+
+  const { data: allocations, error } = await supabase
+    .from('project_allocations')
+    .select('project_id, hours_per_day')
+    .eq('user_id', userId)
+    .lte('effective_from', today)
+    .or(`effective_to.is.null,effective_to.gte.${today}`)
+
+  if (error) {
+    console.error('Error fetching project allocations:', error)
+    return null
+  }
+
+  if (!allocations) return null
+
+  const totalHours = allocations.reduce((sum, item) => {
+    const hours = Number(item.hours_per_day) || 0
+    return sum + hours
+  }, 0)
+  const projectIds = Array.from(
+    new Set(allocations.map((item) => item.project_id))
+  )
+
+  return { projectIds, totalHours }
+}
+
 export const getProjects = getProjectsForOrg
 export const getMilestones = getMilestonesForProject
 export const getOrganizationCapacity = async (
   orgSlug: string,
-  dateStr: string
-) => getDailyCapacityAndLoggedMinutes(dateStr, orgSlug)
+  dateStr: string,
+  projectId: string
+) => getDailyCapacityAndLoggedMinutes(dateStr, orgSlug, projectId)
 export const getTeammateCapacity = async (
   userId: string,
   orgSlug: string,

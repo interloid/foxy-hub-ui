@@ -1,3 +1,4 @@
+import { MilestoneCounts, MilestoneStatus } from './types/milestone'
 import { TimeEntryStatus } from './types/time-entries'
 
 export type ProjectStatus =
@@ -14,9 +15,6 @@ export type EngagementModel = 'full_time' | 'part_time' | 'fixed' | 'retainer'
 export type RetainerPeriod = 'weekly' | 'monthly'
 
 export type DeliveryStatus = 'pending' | 'submitted' | 'approved' | 'rejected'
-
-export type MilestoneStatus = 'pending' | 'in_progress' | 'completed'
-export type MilestoneCounts = { completed: number; total: number }
 
 export interface CurrentUser {
   email: string | undefined
@@ -53,6 +51,7 @@ export interface Project {
   createdAt: string
   updatedAt: string
   progressPercent: number
+  estimatedHour?: number | null
 }
 
 export interface ProjectMetrics {
@@ -94,14 +93,7 @@ export interface DeliverableItem {
   fileType: string
   assets?: DeliveryAsset[]
 }
-export interface MilestoneItem {
-  id: string
-  projectId: string
-  title: string
-  dueDate?: string | null
-  status: MilestoneStatus
-  loggedMinutes?: number
-}
+
 export interface ProjectAllocationItem {
   id: string
   projectId: string
@@ -171,6 +163,7 @@ export interface CreateDeliveryInput {
 export interface ProjectMilestone {
   id: string
   title: string
+  status: MilestoneStatus
   dueDate?: string | null
 }
 
@@ -183,17 +176,9 @@ export interface CreateDeliverySheetProps {
   onSuccess?: () => void
 }
 
-export interface CreateMilestoneInput {
-  projectId: string
-  orgId: string
-  title: string
-  dueDate: string
-  orgSlug: string
-  status?: MilestoneStatus
-}
-
 export interface GetProjectsParams {
   orgSlug: string
+  allocatedProject: boolean
   page?: number
   pageSize?: number
   search?: string
@@ -214,4 +199,12 @@ export interface GetProjectDeliveriesResult {
   page: number
   pageSize: number
   totalPages: number
+}
+
+export interface UpdateProjectInput {
+  projectId: string
+  orgSlug: string
+  name: string
+  description?: string
+  status: ProjectStatus
 }

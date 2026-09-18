@@ -5,12 +5,13 @@ import { FxTable, FxTableCell, FxTableRow } from '@/components/shared/fx-table'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { TableBody } from '@/components/ui/table'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { formatMinutesToLabel } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import { Check, Loader2, X } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { updateTimeEntriesStatus } from '../action'
 import { ApprovalsViewProps } from '../types'
-import { formatMinutesToLabel } from '@/lib/time'
 
 function formatDateLabel(dateString: string): string {
   if (!dateString) return ''
@@ -31,13 +32,7 @@ function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-export function ApprovalsView({
-  approvals,
-  onApproveAll,
-  onApproveEntry,
-  onRejectEntry,
-  className,
-}: ApprovalsViewProps) {
+export function ApprovalsView({ approvals, className }: ApprovalsViewProps) {
   const [activeTarget, setActiveTarget] = useState<string | null>(null)
 
   const [removedEntryIds, setRemovedEntryIds] = useState<Set<string>>(new Set())
@@ -62,40 +57,19 @@ export function ApprovalsView({
     )
   }
 
-  const handleApproveWeek = async (userId: string, entryIds: string[]) => {
-    if (entryIds.length === 0) return
-
-    setActiveTarget(`user-${userId}`)
-    try {
-      const res = await updateTimeEntriesStatus(entryIds, 'approved', orgSlug)
-      if (res.success) {
-        setRemovedEntryIds((prev) => {
-          const next = new Set(prev)
-          entryIds.forEach((id) => next.add(id))
-          return next
-        })
-        await onApproveAll?.(userId)
-      } else {
-        console.error('Failed to approve week entries:', res.error)
-      }
-    } catch (err) {
-      console.error('Error approving week entries:', err)
-    } finally {
-      setActiveTarget(null)
-    }
-  }
-
   const handleApproveSingle = async (entryId: string) => {
     setActiveTarget(`entry-approve-${entryId}`)
     try {
       const res = await updateTimeEntriesStatus(entryId, 'approved', orgSlug)
-      if (res.success) {
-        setRemovedEntryIds((prev) => new Set(prev).add(entryId))
-        await onApproveEntry?.(entryId)
+      if (res.success || res.updatedCount > 0) {
+        toast.success('Time entry approved')
+        setRemovedEntryIds((prev) => new Set([...prev, entryId]))
       } else {
+        toast.error(res.error || 'Failed to approve entry. Please try again.')
         console.error('Failed to approve entry:', res.error)
       }
     } catch (err) {
+      toast.error('An unexpected error occurred while approving the entry.')
       console.error('Error approving entry:', err)
     } finally {
       setActiveTarget(null)
@@ -106,14 +80,47 @@ export function ApprovalsView({
     setActiveTarget(`entry-reject-${entryId}`)
     try {
       const res = await updateTimeEntriesStatus(entryId, 'rejected', orgSlug)
-      if (res.success) {
-        setRemovedEntryIds((prev) => new Set(prev).add(entryId))
-        await onRejectEntry?.(entryId)
+      if (res.success || res.updatedCount > 0) {
+        toast.success('Time entry rejected')
+        setRemovedEntryIds((prev) => new Set([...prev, entryId]))
       } else {
+        toast.error(res.error || 'Failed to reject entry. Please try again.')
         console.error('Failed to reject entry:', res.error)
       }
     } catch (err) {
+      toast.error('An unexpected error occurred while rejecting the entry.')
       console.error('Error rejecting entry:', err)
+    } finally {
+      setActiveTarget(null)
+    }
+  }
+
+  const handleApproveWeek = async (userId: string, entryIds: string[]) => {
+    if (entryIds.length === 0) return
+
+    setActiveTarget(`user-${userId}`)
+    try {
+      const res = await updateTimeEntriesStatus(entryIds, 'approved', orgSlug)
+
+      if (res.success || res.updatedCount > 0) {
+        setRemovedEntryIds((prev) => {
+          const next = new Set(prev)
+          entryIds.forEach((id) => next.add(id))
+          toast.success(
+            `Approved ${entryIds.length} ${
+              entryIds.length === 1 ? 'entry' : 'entries'
+            }`
+          )
+          return next
+        })
+      }
+
+      if (!res.success) {
+        toast.error(res.error || 'Failed to approve entries. Please try again.')
+      }
+    } catch (err) {
+      toast.error('An unexpected error occurred while approving entries.')
+      console.error('Error approving week entries:', err)
     } finally {
       setActiveTarget(null)
     }

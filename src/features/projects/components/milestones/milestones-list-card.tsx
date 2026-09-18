@@ -7,14 +7,16 @@ import { isAdminRole } from '@/lib/role'
 import { cn } from '@/lib/utils'
 import { AlertCircle } from 'lucide-react'
 import { useState } from 'react'
-import type { MilestoneItem, MilestoneStatus } from '../../types'
+import { MilestoneItem, MilestoneStatus } from '../../types/milestone'
 import { CreateMilestoneSheet } from './create-milestone-sheet'
+import { EditMilestoneSheet } from './edit-milestone-sheet'
 
 interface MilestonesListCardProps {
   milestones?: MilestoneItem[] | null
   isInOverview?: boolean
   projectId?: string
   isError?: boolean
+  onUpdateMilestone?: (updated: MilestoneItem) => Promise<void> | void
 }
 
 const STATUS_CONFIG: Record<
@@ -58,14 +60,23 @@ export function MilestonesListCard({
   isInOverview = true,
   projectId = '',
   isError = false,
+  onUpdateMilestone,
 }: MilestonesListCardProps) {
   const safeMilestones = milestones ?? []
   const displayedMilestones = isInOverview
     ? safeMilestones.slice(-5).reverse()
     : safeMilestones
   const { userRole, orgId = '' } = useWorkspace()
-  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false)
 
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false)
+  const [selectedMilestone, setSelectedMilestone] =
+    useState<MilestoneItem | null>(null)
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false)
+
+  const handleMilestoneClick = (item: MilestoneItem) => {
+    setSelectedMilestone(item)
+    setIsEditSheetOpen(true)
+  }
   return (
     <>
       <section
@@ -116,9 +127,12 @@ export function MilestonesListCard({
               return (
                 <div
                   key={item.id}
+                  onClick={
+                    isInOverview ? undefined : () => handleMilestoneClick(item)
+                  }
                   className={cn(
-                    'flex items-center justify-between',
-                    isInOverview ? 'py-3.5' : 'py-4'
+                    'flex items-center justify-between rounded-md px-1 transition-colors',
+                    isInOverview ? 'py-3.5' : 'cursor-pointer py-4'
                   )}
                 >
                   {/* Status Dot & Main Info */}
@@ -195,6 +209,13 @@ export function MilestonesListCard({
         onOpenChange={setIsCreateSheetOpen}
         projectId={projectId}
         orgId={orgId}
+      />
+
+      <EditMilestoneSheet
+        open={isEditSheetOpen}
+        onOpenChange={setIsEditSheetOpen}
+        milestone={selectedMilestone}
+        onSuccess={onUpdateMilestone}
       />
     </>
   )

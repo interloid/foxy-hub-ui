@@ -33,7 +33,7 @@ export function DurationInput({
   const isExceedingCapacity =
     parsedMinutes !== null &&
     alreadyLoggedMinutes + parsedMinutes > maxAllowedMinutes
-
+  console.log(isExceedingCapacity, parsedMinutes)
   const isInvalid = isSyntaxInvalid || isExceedingCapacity
 
   // Notify parent of error state changes

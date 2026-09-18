@@ -1,6 +1,5 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -9,10 +8,14 @@ import { FxButton } from '@/components/shared/fx-button'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 
 import { createInvoiceAction } from '../../actions'
-import { PROJECT_STATUS_CONFIG } from '../../constants'
+import {
+  NON_INVOICEABLE_STATUSES,
+  PROJECT_STATUS_CONFIG,
+} from '../../constants'
 import type { Project, ProjectStatus } from '../../types'
 import { ProjectInvoiceContext } from '../../types/invoice'
 import { NewInvoiceSheet } from '../meta/new-invoice-sheet'
+import { EditProjectSheet } from './edit-project-sheet'
 
 interface ProjectDetailHeaderProps {
   project: Project
@@ -29,6 +32,7 @@ export function ProjectDetailHeader({
 }: ProjectDetailHeaderProps) {
   const [isInvoiceSheetOpen, setIsInvoiceSheetOpen] = useState(false)
   const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false)
+  const [isUpdateProjectOpen, setIsUpdateProjectOpen] = useState(false)
 
   const { orgSlug } = useWorkspace()
 
@@ -75,6 +79,12 @@ export function ProjectDetailHeader({
     if (isInvoiceError) {
       toast.error(
         'Unable to load invoicing data. Please refresh and try again.'
+      )
+      return
+    }
+    if (NON_INVOICEABLE_STATUSES.has(project.status)) {
+      toast.error(
+        `This project is ${project.status} and can no longer be invoiced.`
       )
       return
     }
@@ -139,14 +149,10 @@ export function ProjectDetailHeader({
         >
           <FxButton
             variant="secondary"
+            onClick={() => setIsUpdateProjectOpen(true)}
             className="text-card-foreground border-border hover:bg-card flex h-auto justify-center gap-1.5 px-3 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:whitespace-nowrap"
           >
-            <Sparkles
-              className="text-primary shrink-0"
-              width={14}
-              height={14}
-            />
-            <span className="leading-tight">Draft update</span>
+            <span className="leading-tight">Update Project</span>
           </FxButton>
 
           <FxButton
@@ -167,6 +173,11 @@ export function ProjectDetailHeader({
         onSubmit={handleGenerateInvoice}
         isSubmitting={isSubmittingInvoice}
         hasExistingInvoice={hasExistingInvoice}
+      />
+      <EditProjectSheet
+        project={project}
+        open={isUpdateProjectOpen}
+        onOpenChange={setIsUpdateProjectOpen}
       />
     </>
   )
