@@ -1,4 +1,4 @@
-import type { ProjectStatus } from './types'
+import type { EngagementModel, ProjectStatus } from './types'
 
 export const NON_INVOICEABLE_STATUSES = new Set<ProjectStatus | string>([
   'draft',
@@ -50,3 +50,65 @@ export const PROJECT_STATUS_CONFIG: Record<ProjectStatus, ProjectStatusStyle> =
       dotClass: 'bg-destructive',
     },
   }
+
+export const ENGAGEMENT_LABELS: Record<EngagementModel, string> = {
+  full_time: 'Full Time',
+  part_time: 'Part Time',
+  fixed: 'Fixed Fee',
+  retainer: 'Retainer',
+}
+
+export const ALL_PROJECT_STATUSES = Object.keys(
+  PROJECT_STATUS_CONFIG
+) as ProjectStatus[]
+
+export const ALL_ENGAGEMENT_MODELS = Object.keys(
+  ENGAGEMENT_LABELS
+) as EngagementModel[]
+
+/** Statuses considered "active" work — everything except closed-out projects. */
+export const ACTIVE_PROJECT_STATUSES: ProjectStatus[] = [
+  'pending',
+  'in-progress',
+  'pending-approval',
+  'on-hold',
+  'draft',
+]
+
+/** No dedicated health model exists yet — "at risk" is proxied by on-hold status. */
+export const AT_RISK_PROJECT_STATUSES: ProjectStatus[] = ['on-hold']
+
+export const CLOSED_PROJECT_STATUSES: ProjectStatus[] = [
+  'completed',
+  'cancelled',
+]
+
+export type ProjectsTab =
+  'all-active' | 'mine' | 'at-risk' | 'retainers' | 'closed'
+
+export const PROJECT_TABS: { value: ProjectsTab; label: string }[] = [
+  { value: 'all-active', label: 'All active' },
+  { value: 'mine', label: 'Mine' },
+  { value: 'at-risk', label: 'At risk' },
+  { value: 'retainers', label: 'Retainers' },
+  { value: 'closed', label: 'Closed' },
+]
+
+export interface ProjectTabCounts {
+  allActive: number
+  mine: number
+  atRisk: number
+  retainers: number
+  closed: number
+}
+
+export const PAGE_SIZE_OPTIONS = [5, 10, 25] as const
+export const DEFAULT_PAGE_SIZE = 10
+
+export const TAB_COUNT_KEY: Record<ProjectsTab, keyof ProjectTabCounts> = {
+  'all-active': 'allActive',
+  mine: 'mine',
+  'at-risk': 'atRisk',
+  retainers: 'retainers',
+  closed: 'closed',
+}

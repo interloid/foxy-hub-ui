@@ -1,6 +1,59 @@
+import { getStartOfWeekISO } from '@/lib/week'
 import { createClient } from '@/lib/supabase/server'
 import { HoursSummaryData, TimeEntry } from '../types'
 import { TimeEntryItem } from '../types/time-entries'
+
+export async function getTotalLoggedHours(projectId: string): Promise<number> {
+  const supabase = await createClient()
+
+  const { data: entries, error } = await supabase
+    .from('time_entries')
+    .select('duration_minutes')
+    .eq('project_id', projectId)
+    .neq('status', 'rejected')
+
+  if (error || !entries) {
+    console.error('Error fetching total logged hours:', error)
+    return 0
+  }
+
+  const totalMinutes = entries.reduce(
+    (acc, item) => acc + (item.duration_minutes || 0),
+    0
+  )
+
+  return Number((totalMinutes / 60).toFixed(1))
+}
+
+export async function getWeeklyLoggedMinutesByUser(
+  projectId: string
+): Promise<Record<string, number>> {
+  const supabase = await createClient()
+
+  const weekStart = getStartOfWeekISO()
+  const weekEnd = new Date(weekStart)
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6)
+  const weekEndStr = weekEnd.toISOString().split('T')[0]
+
+  const { data: entries, error } = await supabase
+    .from('time_entries')
+    .select('user_id, duration_minutes')
+    .eq('project_id', projectId)
+    .neq('status', 'rejected')
+    .gte('work_date', weekStart)
+    .lte('work_date', weekEndStr)
+
+  if (error || !entries) {
+    console.error('Error fetching weekly logged minutes by user:', error)
+    return {}
+  }
+
+  return entries.reduce<Record<string, number>>((acc, entry) => {
+    acc[entry.user_id] =
+      (acc[entry.user_id] || 0) + (entry.duration_minutes || 0)
+    return acc
+  }, {})
+}
 
 export async function getProjectTimeEntries(
   projectId: string

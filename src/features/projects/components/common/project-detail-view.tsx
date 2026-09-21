@@ -5,6 +5,7 @@ import {
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { ProjectDetailHeader } from '@/features/projects/components/common/project-detail-header'
 import { LatestUpdatesCard } from '@/features/projects/components/updates/latest-update-card'
+import { calculateMilestoneProgress } from '@/lib/progress'
 import type {
   ClientItem,
   CurrentUser,
@@ -22,8 +23,10 @@ import { ClientCard } from '../meta/client-card'
 import { EngagementCard } from '../meta/engagement-card'
 import { ProgressCard } from '../meta/progress-card'
 import { MilestonesListCard } from '../milestones/milestones-list-card'
+import { HealthBurnCard } from '../time-tracking/health-burn-card'
 import { HoursBurnCard } from '../time-tracking/hours-burn-card'
 import { HoursSummaryCards } from '../time-tracking/hours-summary-cards'
+import { PlannedVsLoggedCard } from '../time-tracking/planned-vs-logged-card'
 import { TimeEntriesTableCard } from '../time-tracking/time-entries-card'
 import { ProjectUpdatesSection } from '../updates/project-updates-section'
 import { ProjectBreadcrumbSetter } from './project-breadcrump-setter'
@@ -48,6 +51,8 @@ interface ProjectDetailViewProps {
   timeEntries: QueryResult<TimeEntryItem[]>
   deliveries: QueryResult<GetProjectDeliveriesResult>
   latestDeliveries: QueryResult<GetProjectDeliveriesResult>
+  totalLoggedHours: QueryResult<number>
+  weeklyLoggedMinutesByUser: QueryResult<Record<string, number>>
   canManageAllocations?: boolean
   hasExistingInvoice?: boolean
 }
@@ -65,9 +70,21 @@ export function ProjectDetailView({
   timeEntries,
   deliveries,
   latestDeliveries,
+  totalLoggedHours,
+  weeklyLoggedMinutesByUser,
   canManageAllocations = false,
   hasExistingInvoice,
 }: ProjectDetailViewProps) {
+  const isRetainer = project.engagement === 'retainer'
+  const healthLoggedHours = isRetainer
+    ? loggedHours.data
+    : totalLoggedHours.data
+  const healthBudgetHours = isRetainer
+    ? (project.retainerHours ?? null)
+    : (project.estimatedHour ?? null)
+  const workDeliveredPercent = calculateMilestoneProgress(
+    milestones.data
+  ).percentage
   return (
     <main className="ds:p-6 min-w-full space-y-6">
       <ProjectBreadcrumbSetter name={project?.name} />
@@ -89,13 +106,16 @@ export function ProjectDetailView({
               Overview
             </FxTabsTriggerUnderline>
             <FxTabsTriggerUnderline
+              value="time-budget"
+              className="cursor-pointer"
+            >
+              Time & budget
+            </FxTabsTriggerUnderline>
+            <FxTabsTriggerUnderline
               value="milestones"
               className="cursor-pointer"
             >
               Milestones
-            </FxTabsTriggerUnderline>
-            <FxTabsTriggerUnderline value="hours" className="cursor-pointer">
-              Hours
             </FxTabsTriggerUnderline>
             <FxTabsTriggerUnderline value="updates" className="cursor-pointer">
               Updates
@@ -174,7 +194,23 @@ export function ProjectDetailView({
           />
         </TabsContent>
 
-        <TabsContent value="hours" className="grid gap-5">
+        <TabsContent value="time-budget" className="grid gap-5">
+          <HealthBurnCard
+            loggedHours={healthLoggedHours}
+            budgetHours={healthBudgetHours}
+            workDeliveredPercent={workDeliveredPercent}
+            startDate={project.startDate}
+            dueDate={project.dueDate}
+            isError={
+              (isRetainer ? loggedHours.isError : totalLoggedHours.isError) ||
+              milestones.isError
+            }
+          />
+          <PlannedVsLoggedCard
+            allocations={allocations.data}
+            weeklyLoggedMinutesByUser={weeklyLoggedMinutesByUser.data}
+            isError={allocations.isError || weeklyLoggedMinutesByUser.isError}
+          />
           <HoursSummaryCards
             summary={hoursSummary.data}
             isError={hoursSummary.isError}

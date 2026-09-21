@@ -104,6 +104,7 @@ export type Database = {
           id: string
           name: string
           org_id: string
+          status: boolean
         }
         Insert: {
           contact_email?: string | null
@@ -112,6 +113,7 @@ export type Database = {
           id?: string
           name: string
           org_id: string
+          status?: boolean
         }
         Update: {
           contact_email?: string | null
@@ -120,6 +122,7 @@ export type Database = {
           id?: string
           name?: string
           org_id?: string
+          status?: boolean
         }
         Relationships: [
           {
@@ -415,6 +418,7 @@ export type Database = {
           id: string
           org_id: string
           role: Database['public']['Enums']['user_role']
+          status: boolean
           user_id: string
         }
         Insert: {
@@ -424,6 +428,7 @@ export type Database = {
           id?: string
           org_id: string
           role: Database['public']['Enums']['user_role']
+          status?: boolean
           user_id: string
         }
         Update: {
@@ -433,6 +438,7 @@ export type Database = {
           id?: string
           org_id?: string
           role?: Database['public']['Enums']['user_role']
+          status?: boolean
           user_id?: string
         }
         Relationships: [
@@ -921,6 +927,7 @@ export type Database = {
       is_org_member: { Args: { target_org_id: string }; Returns: boolean }
       is_slug_available: { Args: { candidate: string }; Returns: boolean }
       reject_time_entry: { Args: { entry_id: string }; Returns: undefined }
+      revoke_user_sessions: { Args: { p_user_id: string }; Returns: undefined }
       set_member_rates: {
         Args: {
           new_cost_rate?: number

@@ -4,14 +4,30 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { siteConfig } from '@/config/site'
 import { createClient } from '@/lib/supabase/server'
 
+function toSafePath(next: string | null, site: string): string {
+  if (!next) return '/'
+
+  if (next.startsWith('/') && !next.startsWith('//')) return next
+
+  try {
+    const url = new URL(next)
+    if (url.origin === new URL(site).origin) {
+      return `${url.pathname}${url.search}`
+    }
+  } catch {
+    // Not a parseable URL — fall through to the safe default.
+  }
+
+  return '/'
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const tokenHash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
-  const next = searchParams.get('next') ?? '/'
 
-  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/'
   const site = siteConfig.url
+  const safeNext = toSafePath(searchParams.get('next'), site)
 
   const supabase = await createClient()
 

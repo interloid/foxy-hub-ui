@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { MilestoneItem } from '../types'
+import { MilestoneItem } from '../types/milestone'
 
 export async function getProjectMilestones(
   projectId: string

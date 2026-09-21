@@ -17,7 +17,6 @@ export const ONBOARD_ACCOUNT = {
     slug: {
       label: 'Workspace URL',
       placeholder: 'interloid',
-      suffix: '.foxyhub.app',
     },
   },
 } as const

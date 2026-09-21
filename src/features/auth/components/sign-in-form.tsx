@@ -34,6 +34,24 @@ export function SignInForm({ initialError }: { initialError?: string }) {
     }
   }, [initialError])
 
+  // Supabase reports link failures in the URL fragment, which never reaches the
+  // server, so without this the page just looks like an ordinary sign-in.
+  useEffect(() => {
+    if (!window.location.hash.includes('error')) return
+
+    const params = new URLSearchParams(window.location.hash.slice(1))
+
+    toast.error(
+      params.get('error_description') || 'That link is invalid or has expired.'
+    )
+
+    history.replaceState(
+      null,
+      '',
+      window.location.pathname + window.location.search
+    )
+  }, [])
+
   const form = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
     mode: 'onTouched',

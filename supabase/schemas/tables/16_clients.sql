@@ -33,6 +33,19 @@ create table public.clients (
   contact_name  text,
   contact_email text,
 
+  -- ── Whether this company is still a live client of THIS workspace ────────────────────
+  --
+  -- The mirror of `memberships.status`, and for the same reason: the Clients table offers
+  -- "deactivate", not "delete". A hard delete would take the company's name with it, and
+  -- `projects.client_org_id` is `on delete set null` — so every project that company ever
+  -- paid for would silently lose the name on its row, in the invoices and in the dashboard's
+  -- pending-approval list. Keeping the row keeps those labels readable forever; the flag is
+  -- what stops the company appearing in pickers and seat counts.
+  --
+  -- NOT NULL with a default: every existing row starts active, and "is this still a client"
+  -- has no third unknown state.
+  status        boolean     not null default true,
+
   created_at    timestamptz not null default now(),
 
   -- Two companies with one name inside one workspace are a data-entry slip, not two clients.
@@ -40,7 +53,7 @@ create table public.clients (
   unique (org_id, name)
 );
 
-create index if not exists clients_org_id_idx on public.clients(org_id);
+create index if not exists clients_org_id_idx on public.clients(org_id, status);
 
 -- The company a project belongs to. Nullable: every existing project predates this column, and
 -- an internal project has no client at all. `on delete set null` rather than cascade — deleting

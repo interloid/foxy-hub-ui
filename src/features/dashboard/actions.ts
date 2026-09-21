@@ -320,5 +320,6 @@ export async function createProject(
 
   // 6. Path Revalidation
   revalidatePath(`/${orgSlug}`)
+  revalidatePath(`/${orgSlug}/projects`)
   return { ok: true }
 }

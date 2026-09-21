@@ -1,6 +1,7 @@
 'use server'
 
 import { getWorkspace, isAdminRole } from '@/lib/dal'
+import { formatCurrency } from '@/lib/money'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -21,8 +22,6 @@ const MINIMUM_CHARGE: Record<string, number> = {
   EUR: 0.5,
   GBP: 0.3,
   INR: 0.5,
-  AUD: 0.5,
-  CAD: 0.5,
 }
 
 const DEFAULT_MINIMUM_CHARGE = 0.5
@@ -87,12 +86,14 @@ export async function createInvoiceAction(
   }
 
   if (draft.amount <= 0) {
+    const zero = formatCurrency(0, draft.currency)
+
     return {
       ok: false,
       error:
         draft.engagement === 'fixed'
-          ? 'This project has no fixed price set, so the invoice would be $0. Set a contract value first.'
-          : 'The invoice total is $0. Check the project’s engagement terms before billing.',
+          ? `This project has no fixed price set, so the invoice would be ${zero}. Set a contract value first.`
+          : `The invoice total is ${zero}. Check the project’s engagement terms before billing.`,
     }
   }
 

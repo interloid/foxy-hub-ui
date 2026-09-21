@@ -323,6 +323,9 @@ grant execute on function public.is_slug_available(text) to anon, authenticated;
 -- recursion.
 -- ---------------------------------------------------------------------
 
+-- `status` is filtered in all three. Every policy in schemas/policies keys off one of
+-- these, so a deactivated membership stops granting access everywhere at once rather
+-- than each policy having to remember the check.
 create or replace function public.current_user_orgs()
 returns setof uuid
 language sql
@@ -330,7 +333,8 @@ security definer
 stable
 set search_path = ''
 as $$
-  select org_id from public.memberships where user_id = auth.uid();
+  select org_id from public.memberships
+  where user_id = auth.uid() and status;
 $$;
 
 create or replace function public.is_org_member(target_org_id uuid)
@@ -342,7 +346,7 @@ set search_path = ''
 as $$
   select exists (
     select 1 from public.memberships
-    where user_id = auth.uid() and org_id = target_org_id
+    where user_id = auth.uid() and org_id = target_org_id and status
   );
 $$;
 
@@ -358,6 +362,7 @@ as $$
     where user_id = auth.uid()
       and org_id  = target_org_id
       and role    = any(allowed_roles)
+      and status
   );
 $$;
 
@@ -849,3 +854,25 @@ end;
 $$;
 
 grant execute on function public.check_email_exists(text) to service_role, authenticated, anon;
+
+-- ---------------------------------------------------------------------
+-- Revoke every session a user holds (called when they are deactivated)
+-- ---------------------------------------------------------------------
+
+create or replace function public.revoke_user_sessions(p_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if p_user_id is null then
+    raise exception 'A user id is required' using errcode = '22023';
+  end if;
+
+  delete from auth.sessions where user_id = p_user_id;
+end;
+$$;
+
+revoke execute on function public.revoke_user_sessions(uuid) from public, anon, authenticated;
+grant  execute on function public.revoke_user_sessions(uuid) to service_role;

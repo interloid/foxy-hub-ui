@@ -7,6 +7,24 @@ create table public.memberships (
   user_id    uuid             not null references auth.users(id)
                               on update cascade on delete cascade,
 
+  -- ── Whether this person still has access to THIS organization ─────────────────────────
+  --
+  -- Deactivation is what the Members screen offers instead of deletion: "keeps every
+  -- timesheet, invoice and comment intact — it only removes access and frees the seat".
+  -- Deleting the row would satisfy neither half, since `project_allocations.user_id` and
+  -- `time_entries.user_id` point at `auth.users` and would outlive it as orphans nobody
+  -- can name.
+  --
+  -- On `memberships` rather than `profiles` because access is a fact INSIDE one
+  -- organization — the same person can sit in two orgs, and one agency revoking them must
+  -- not touch the other. `profiles` is global identity. It is also what the existing
+  -- `owners_admins_update_member_role` policy already guards, down to its `role <> 'owner'`
+  -- clause, so the owner cannot be deactivated at all.
+  --
+  -- NOT NULL with a default: every existing row and every row the signup trigger writes
+  -- starts active, and a flag that gates access has no third "unknown" state.
+  status     boolean          not null    default true,
+
   -- ── What a person is worth, per organization ───────────────────────────────────────────
   --
   -- A person had no rate anywhere. `project_allocations.rate` was the ONLY rate column in the

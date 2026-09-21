@@ -28,10 +28,13 @@ export async function getClientsForOrg(
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return []
 
+  // Deactivated companies stay in the table so old projects and invoices keep their
+  // name, but they must not be offered as a client for new work.
   const { data, error } = await supabase
     .from('clients')
     .select('id, name')
     .eq('org_id', workspace.id)
+    .eq('status', true)
     .order('name', { ascending: true })
 
   if (error || !data) return []

@@ -10,12 +10,20 @@ export async function sendInvitations(
     invitedBy: string
     invites: readonly TeamInvite[]
     siteUrl: string
+    /** Where the invitee lands once /auth/confirm has taken them through set-password. */
+    nextPath?: string
   }
 ): Promise<InviteOutcome> {
+  // Reaches the template as {{ .RedirectTo }}, so it is the destination itself
+  // rather than a callback URL — /auth/confirm verifies the token server-side.
+  const redirectTo = `${params.siteUrl}${params.nextPath || '/'}`
+
   const wanted = params.invites
     .map((invite) => ({
       email: invite.email.trim().toLowerCase(),
       role: invite.role.toLowerCase(),
+      fullName: invite.fullName?.trim() || null,
+      projectId: invite.projectId || null,
     }))
     .filter((invite) => invite.email.length > 0)
 
@@ -24,17 +32,18 @@ export async function sendInvitations(
       const rawToken = `${crypto.randomUUID()}${crypto.randomUUID()}`
       const tokenHash = await sha256Hex(rawToken)
 
-      await admin
+      await supabase
         .from('invitations')
         .delete()
         .eq('org_id', params.orgId)
         .eq('email', invite.email)
         .is('accepted_at', null)
 
-      const { data: row, error: insertError } = await admin
+      const { data: row, error: insertError } = await supabase
         .from('invitations')
         .insert({
           org_id: params.orgId,
+          project_id: invite.projectId,
           email: invite.email,
           role: invite.role,
           token_hash: tokenHash,
@@ -56,12 +65,22 @@ export async function sendInvitations(
         }
       }
 
-      // Dispatch invite email via Supabase Auth Admin API
+      // Sent with the admin API rather than signInWithOtp: that issues a PKCE
+      // link whose verifier lives in the INVITER's browser, so the invitee could
+      // never redeem it. This token is stateless and works in any browser.
+      //
+      // `invite_token` is what makes handle_new_user_signup take its INVITED branch —
+      // without it the trigger reads org_name/slug and builds a whole new workspace.
+      // `user_name` is what it writes into profiles.full_name.
       const { error: mailError } = await admin.auth.admin.inviteUserByEmail(
         invite.email,
         {
-          data: { invite_token: rawToken, org_id: params.orgId },
-          redirectTo: `${params.siteUrl}/set-password`,
+          data: {
+            invite_token: rawToken,
+            org_id: params.orgId,
+            ...(invite.fullName ? { user_name: invite.fullName } : {}),
+          },
+          redirectTo,
         }
       )
 
@@ -71,8 +90,7 @@ export async function sendInvitations(
           mailError.message
         )
 
-        // Delete using admin client to guarantee cleanup regardless of RLS policies
-        await admin.from('invitations').delete().eq('id', row.id)
+        await supabase.from('invitations').delete().eq('id', row.id)
 
         return {
           email: invite.email,

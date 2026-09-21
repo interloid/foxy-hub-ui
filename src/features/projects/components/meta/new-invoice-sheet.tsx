@@ -1,7 +1,5 @@
 'use client'
 
-import { AlertCircle, ChevronDown, Send } from 'lucide-react'
-import { Controller, useForm } from 'react-hook-form'
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import {
@@ -24,7 +22,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { formatCurrency } from '@/lib/money'
+import { AlertCircle, ChevronDown, Send } from 'lucide-react'
 import { useEffect, useMemo, useState, useTransition } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 import { hasInvoiceForProject } from '../../queries/get-invoice'
 import {
   EngagementModel,
@@ -41,15 +43,6 @@ const ENGAGEMENT_BADGE_CONFIG: Record<
   part_time: { label: 'Part-time', variant: 'info' },
   retainer: { label: 'Retainer', variant: 'warning' },
   fixed: { label: 'Fixed price', variant: 'success' },
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
 }
 
 export function NewInvoiceSheet({
@@ -72,6 +65,7 @@ export function NewInvoiceSheet({
     })
 
   const watchedProjectId = watch('projectId')
+  const { currency } = useWorkspace()
   const activeProjectId =
     watchedProjectId || defaultProjectId || projects[0]?.id || ''
 
@@ -260,7 +254,7 @@ export function NewInvoiceSheet({
                         {line.rate}
                       </div>
                       <div className="text-foreground col-span-2 text-right text-[12.5px] font-bold">
-                        {formatCurrency(line.amount)}
+                        {formatCurrency(line.amount, currency)}
                       </div>
                     </div>
                   ))
@@ -277,7 +271,7 @@ export function NewInvoiceSheet({
             <div className="border-border/80 flex items-center justify-between border-t pt-3 text-[15px]">
               <span className="text-muted-foreground font-bold">Total</span>
               <span className="text-foreground text-base font-bold">
-                {formatCurrency(totalAmount)}
+                {formatCurrency(totalAmount, currency)}
               </span>
             </div>
 

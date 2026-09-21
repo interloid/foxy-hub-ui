@@ -1,5 +1,7 @@
 'use client'
 
+import { ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -7,6 +9,7 @@ import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 
+import { formatCurrency } from '@/lib/money'
 import { createInvoiceAction } from '../../actions'
 import {
   NON_INVOICEABLE_STATUSES,
@@ -34,13 +37,12 @@ export function ProjectDetailHeader({
   const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false)
   const [isUpdateProjectOpen, setIsUpdateProjectOpen] = useState(false)
 
-  const { orgSlug } = useWorkspace()
+  const { orgSlug, currency } = useWorkspace()
 
-  const formattedValue = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(project.contractValue ?? project.retainerAmount ?? 0)
+  const formattedValue = formatCurrency(
+    project.contractValue ?? project.retainerAmount ?? 0,
+    currency
+  )
 
   const clientInitials = project.clientName
     ? project.clientName.substring(0, 2).toUpperCase()
@@ -95,6 +97,14 @@ export function ProjectDetailHeader({
     <>
       <header className="ds:items-between ds:justify-between flex flex-col gap-4 md:flex-row md:justify-between">
         <div className="space-y-2">
+          <Link
+            href={`/${orgSlug}/projects`}
+            className="text-muted-foreground hover:text-foreground duration-fast inline-flex items-center gap-1.5 text-xs font-medium transition-colors"
+          >
+            <ArrowLeft className="size-3.5" />
+            All Projects
+          </Link>
+
           <div className="flex items-center gap-3">
             <h1 className="text-foreground ds:text-2xl min-w-0 text-[22px] font-bold tracking-tight">
               {project.name}

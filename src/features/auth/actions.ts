@@ -56,16 +56,40 @@ export async function signInWithPassword(
   }
 
   const userId = data.user.id
-  const { data: membership, error: membershipError } = await supabase
+
+  // Every membership, not just the newest one: somebody deactivated at one agency may still
+  // be active at another, and they should land in the workspace they can still use.
+  // `view_own_membership` lets a user read their own rows whatever their status, so this
+  // needs no RPC — the flag is readable right here.
+  const { data: memberships, error: membershipError } = await supabase
     .from('memberships')
-    .select('organizations(slug)')
+    .select('status, organizations(slug)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
 
-  const orgSlug = (membership?.organizations as { slug: string } | null)?.slug
-  if (membershipError || !orgSlug) {
+  if (membershipError) {
+    return { ok: true, redirectTo: '/onboard' }
+  }
+
+  const rows = memberships ?? []
+  const activeRows = rows.filter((row) => row.status)
+
+  // Memberships, but none of them live. Without this they would fall through to /onboard and
+  // be invited to create a fresh workspace, which is the opposite of being deactivated. The
+  // session is dropped too, since RLS would hand them an empty app rather than an explanation.
+  if (rows.length > 0 && activeRows.length === 0) {
+    await supabase.auth.signOut()
+    return {
+      ok: false,
+      error: 'Your access to this workspace has been removed.',
+    }
+  }
+
+  const orgSlug = activeRows
+    .map((row) => (row.organizations as { slug: string } | null)?.slug)
+    .find(Boolean)
+
+  if (!orgSlug) {
     return { ok: true, redirectTo: '/onboard' }
   }
 

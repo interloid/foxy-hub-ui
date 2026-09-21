@@ -17,6 +17,7 @@ import {
 } from '@/components/shared/fx-sheet'
 import { updateMemberRatesAction } from '@/features/dashboard/actions'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { getCurrencySymbol } from '@/lib/money'
 import { TeamMemberOption } from '@/features/dashboard/types'
 
 interface MemberRateRow {
@@ -59,7 +60,8 @@ function toRate(value: number | undefined | null): number | null {
 }
 
 export function TeamRatesSheet({ open, onOpenChange }: TeamRatesSheetProps) {
-  const { orgSlug } = useWorkspace()
+  const { orgSlug, currency } = useWorkspace()
+  const currencySymbol = getCurrencySymbol(currency)
 
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -227,7 +229,7 @@ export function TeamRatesSheet({ open, onOpenChange }: TeamRatesSheetProps) {
                         htmlFor={`bill-rate-${member.userId}`}
                         className="text-muted-foreground mb-1 block text-[10px] font-semibold uppercase"
                       >
-                        Bill rate $/hr
+                        Bill rate {currencySymbol}/hr
                       </FxLabel>
                       <FxInput
                         id={`bill-rate-${member.userId}`}
@@ -250,7 +252,7 @@ export function TeamRatesSheet({ open, onOpenChange }: TeamRatesSheetProps) {
                         htmlFor={`cost-rate-${member.userId}`}
                         className="text-muted-foreground mb-1 block text-[10px] font-semibold uppercase"
                       >
-                        Cost $/hr
+                        Cost {currencySymbol}/hr
                       </FxLabel>
                       <FxInput
                         id={`cost-rate-${member.userId}`}

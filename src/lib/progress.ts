@@ -1,4 +1,4 @@
-import { MilestoneStatus } from '@/features/projects/types'
+import { MilestoneStatus } from '@/features/projects/types/milestone'
 
 export interface ProgressResult {
   totalCount: number

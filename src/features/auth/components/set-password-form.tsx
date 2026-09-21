@@ -64,7 +64,7 @@ export function SetPasswordForm({
       if (result.role === 'owner' && !isReset && !forgot) {
         setShowDialog(true)
       } else {
-        router.replace('/')
+        router.replace(next)
       }
     })
   })

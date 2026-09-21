@@ -12,6 +12,9 @@ import {
   Popover,
   PopoverTrigger,
 } from '@/components/shared/fx-menu'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { getCurrencySymbol } from '@/lib/money'
+import { TeamMemberOption } from '@/features/dashboard/types'
 import { toISODate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import { Calendar as CalendarIcon, ChevronDown, X } from 'lucide-react'
@@ -24,7 +27,6 @@ import {
 } from 'react-hook-form'
 import type { AllocationRowIssues } from './team-allocation-section'
 import { AllocationFormValues, NewProjectFormValues } from './types'
-import { TeamMemberOption } from '@/features/dashboard/types'
 
 interface TeamAllocationRowProps {
   index: number
@@ -70,6 +72,9 @@ export function TeamAllocationRow({
     control,
     name: `allocations.${index}.userId`,
   })
+
+  const { currency } = useWorkspace()
+  const currencySymbol = getCurrencySymbol(currency)
 
   const selectedMember = teamMembers.find((m) => m.id === selectedUserId)
   const displayName =
@@ -258,7 +263,7 @@ export function TeamAllocationRow({
         {/* Rate $/HR */}
         <div className="w-full min-w-0">
           <label className="text-muted-foreground block truncate text-[10px] font-semibold uppercase">
-            Rate $/HR
+            Rate {currencySymbol}/hr
           </label>
           <FxInput
             type="number"

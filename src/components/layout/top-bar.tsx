@@ -33,7 +33,13 @@ export function TopBar({
   className,
 }: {
   breadcrumbs: BreadcrumbNavItem[]
-  account: { name: string; email: string; initials: string; org?: string }
+  account: {
+    name: string
+    email: string
+    initials: string
+    role: string
+    org?: string
+  }
   notificationCount?: number
   onMenuClick?: () => void
   className?: string

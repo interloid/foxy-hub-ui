@@ -24,35 +24,45 @@ export function ProjectsLoadingSkeleton({
         key={`row-skeleton-${index}`}
         className="h-16.25 transition-colors"
       >
-        <FxTableCell className="text-center align-middle">
-          <div className="mx-auto flex w-fit flex-col items-start overflow-hidden">
+        <FxTableCell className="align-middle">
+          <div className="flex flex-col items-start gap-1.5 overflow-hidden">
             <Skeleton className="h-4 w-36" />
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-16 rounded-full" />
+              <Skeleton className="h-3 w-14" />
+            </div>
           </div>
         </FxTableCell>
-        <FxTableCell className="text-center align-middle">
-          <div className="mx-auto flex w-fit justify-center">
+        <FxTableCell className="align-middle">
+          <div className="flex w-fit justify-start">
             <Skeleton className="h-4 w-24" />
           </div>
         </FxTableCell>
-        <FxTableCell className="text-center align-middle">
-          <div className="mx-auto flex justify-center">
-            <Skeleton className="h-5 w-20 rounded-full" />
+        <FxTableCell className="align-middle">
+          <div className="flex justify-start">
+            <Skeleton className="h-4 w-20 rounded-full" />
           </div>
         </FxTableCell>
-        <FxTableCell className="text-center align-middle">
-          <div className="mx-auto flex justify-center">
-            <Skeleton className="h-4 w-20" />
+        <FxTableCell className="align-middle">
+          <div className="flex w-32 items-center gap-3">
+            <Skeleton className="h-2 w-full rounded-full" />
+            <Skeleton className="h-3 w-9" />
           </div>
         </FxTableCell>
-        <FxTableCell className="text-center align-middle">
-          <div className="mx-auto flex w-40 items-center justify-center gap-3">
-            <Skeleton className="h-2 w-24 rounded-full" />
-            <Skeleton className="h-4 w-8" />
+        <FxTableCell className="align-middle">
+          <div className="flex w-32 items-center gap-3">
+            <Skeleton className="h-2 w-full rounded-full" />
+            <Skeleton className="h-3 w-9" />
           </div>
         </FxTableCell>
         <FxTableCell className="text-center align-middle">
           <div className="mx-auto flex justify-center">
             <Skeleton className="h-4 w-16" />
+          </div>
+        </FxTableCell>
+        <FxTableCell className="text-center align-middle">
+          <div className="mx-auto flex justify-center">
+            <Skeleton className="h-4 w-12" />
           </div>
         </FxTableCell>
       </FxTableRow>
@@ -64,32 +74,41 @@ export function ProjectsLoadingSkeleton({
 
   return (
     <div className="flex w-full flex-col gap-5">
-      <header className="ds:items-between ds:justify-between flex flex-col gap-4 md:flex-row md:justify-between">
+      <div className="flex flex-col gap-4 p-3 md:flex-row md:items-start md:justify-between">
         <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-7 w-36" />
-          </div>
+          <Skeleton className="h-6 w-28" />
+          <Skeleton className="h-4 w-72" />
         </div>
-      </header>
+
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-9 w-full sm:w-70" />
+          <Skeleton className="h-9 w-32 shrink-0" />
+        </div>
+      </div>
+
+      <Skeleton className="h-8 w-full max-w-125" />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Skeleton className="h-7 w-24 rounded-full" />
+        <Skeleton className="h-7 w-24 rounded-full" />
+        <Skeleton className="h-7 w-24 rounded-full" />
+        <Skeleton className="h-7 w-28 rounded-full" />
+        <Skeleton className="h-4 w-32 sm:ml-auto" />
+      </div>
 
       <section aria-labelledby="all-projects-table-heading">
         <FxCard className="border-border shadow-card overflow-hidden p-0">
           <div className="min-h-162.5 w-full overflow-x-auto">
-            <FxTable className="w-full min-w-197.5 table-fixed">
+            <FxTable className="w-full min-w-236 table-fixed">
               <FxTableHeader>
                 <FxTableRow className="bg-secondary/30 hover:bg-secondary/30 justify-center">
-                  <FxTableHead className="w-57.5 text-center">
-                    Project
-                  </FxTableHead>
-                  <FxTableHead className="w-35 text-center">Client</FxTableHead>
-                  <FxTableHead className="w-35 text-center">Status</FxTableHead>
-                  <FxTableHead className="w-35 text-center">
-                    Engagement
-                  </FxTableHead>
-                  <FxTableHead className="w-35 text-center">
-                    Progress
-                  </FxTableHead>
-                  <FxTableHead className="w-35 text-center">Value</FxTableHead>
+                  <FxTableHead className="w-56">Project</FxTableHead>
+                  <FxTableHead className="w-32">Client</FxTableHead>
+                  <FxTableHead className="w-28">Health</FxTableHead>
+                  <FxTableHead className="w-36">Hours burned</FxTableHead>
+                  <FxTableHead className="w-36">Progress</FxTableHead>
+                  <FxTableHead className="w-28 text-center">Value</FxTableHead>
+                  <FxTableHead className="w-20 text-center">Due</FxTableHead>
                 </FxTableRow>
               </FxTableHeader>
 
@@ -100,7 +119,10 @@ export function ProjectsLoadingSkeleton({
           </div>
 
           <div className="border-border flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <Skeleton className="h-4 w-48" />
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-8 w-28 rounded-full" />
+              <Skeleton className="h-4 w-20" />
+            </div>
             <div className="flex items-center gap-2">
               <Skeleton className="h-8 w-20 rounded-md" />
               <Skeleton className="h-4 w-20" />

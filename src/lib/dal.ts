@@ -23,6 +23,7 @@ export type AccountDTO = {
 export type WorkspaceDTO = {
   id: string
   name: string
+  currency: string
   slug: string
   role: UserRole
 }
@@ -73,8 +74,9 @@ export const getWorkspace = cache(
     if (slug) {
       const { data, error } = await supabase
         .from('memberships')
-        .select('role, organizations!inner(id, name, slug)')
+        .select('role, organizations!inner(id, name, slug, currency)')
         .eq('user_id', session.id)
+        .eq('status', true)
         .eq('organizations.slug', slug)
         .maybeSingle()
 
@@ -84,6 +86,7 @@ export const getWorkspace = cache(
       return {
         id: org.id,
         name: org.name,
+        currency: org.currency,
         slug: org.slug,
         role: data.role as UserRole,
       }
@@ -91,8 +94,9 @@ export const getWorkspace = cache(
 
     const { data, error } = await supabase
       .from('memberships')
-      .select('role, organizations!inner(id, name, slug)')
+      .select('role, organizations!inner(id, name, slug, currency)')
       .eq('user_id', session.id)
+      .eq('status', true)
       .order('created_at', { ascending: true })
       .limit(1)
 
@@ -106,6 +110,7 @@ export const getWorkspace = cache(
     return {
       id: org.id,
       name: org.name,
+      currency: org.currency,
       slug: org.slug,
       role: firstMembership.role as UserRole,
     }

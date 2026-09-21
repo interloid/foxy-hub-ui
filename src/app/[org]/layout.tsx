@@ -33,6 +33,7 @@ export default async function OrgLayout({
     <WorkspaceProvider
       orgSlug={org}
       orgId={workspace?.id}
+      currency={workspace?.currency}
       userRole={account.role}
     >
       <BreadcrumbProvider>

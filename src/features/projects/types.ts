@@ -1,3 +1,5 @@
+import type { ProjectsTab, ProjectTabCounts } from './constants'
+import type { ProjectHealthStatus } from './lib/project-health'
 import { MilestoneCounts, MilestoneStatus } from './types/milestone'
 import { TimeEntryStatus } from './types/time-entries'
 
@@ -29,6 +31,14 @@ export interface ProjectMember {
   role: string
 }
 
+export interface ProjectHealthSummary {
+  status: ProjectHealthStatus
+  label: string
+  loggedHours: number
+  budgetHours: number | null
+  hoursBurnedPercent: number | null
+}
+
 export interface Project {
   id: string
   orgId: string
@@ -52,6 +62,7 @@ export interface Project {
   updatedAt: string
   progressPercent: number
   estimatedHour?: number | null
+  health?: ProjectHealthSummary
 }
 
 export interface ProjectMetrics {
@@ -178,15 +189,21 @@ export interface CreateDeliverySheetProps {
 
 export interface GetProjectsParams {
   orgSlug: string
-  allocatedProject: boolean
+  allocatedProject?: boolean
   page?: number
   pageSize?: number
   search?: string
+  tab?: ProjectsTab
+  status?: ProjectStatus
+  engagement?: EngagementModel
+  clientId?: string
+  teamMemberId?: string
 }
 
 export interface GetProjectsResult {
   projects: Project[]
   metrics: ProjectMetrics
+  tabCounts: ProjectTabCounts
   totalCount: number
   page: number
   pageSize: number

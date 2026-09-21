@@ -162,7 +162,7 @@ export function AppSidebar({
               <>
                 <div className="bg-border mx-1 my-1.5 h-px" />
                 {!collapsed && (
-                  <div className="text-2xs text-subtle-foreground px-2.5 pt-1 pb-1.5 leading-4 font-semibold">
+                  <div className="text-2xs text-subtle-foreground px-2.5 pt-1 pb-1.5 leading-4 font-semibold uppercase">
                     {section.label}
                   </div>
                 )}

@@ -1,16 +1,11 @@
+'use client'
+
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { InvoiceMetrics } from '@/features/invoices/queries/get-invoice-metrics'
+import { formatCurrency } from '@/lib/money'
 
 interface InvoiceMetricsProps {
   metrics: InvoiceMetrics
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
 }
 
 export function InvoiceMetricsCards({ metrics }: InvoiceMetricsProps) {
@@ -35,6 +30,7 @@ export function InvoiceMetricsCards({ metrics }: InvoiceMetricsProps) {
     },
   ]
 
+  const { currency } = useWorkspace()
   return (
     <section aria-label="Invoice summary" className="w-full">
       <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -48,7 +44,7 @@ export function InvoiceMetricsCards({ metrics }: InvoiceMetricsProps) {
                 value={card.value}
                 className={`text-2xl text-[24px] font-bold tracking-tight ${card.textClass}`}
               >
-                {formatCurrency(card.value)}
+                {formatCurrency(card.value, currency)}
               </data>
             </article>
           </li>

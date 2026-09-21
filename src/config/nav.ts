@@ -19,7 +19,12 @@ export function getNavSections(org: string): NavSection[] {
       label: 'Workspace',
       items: [
         { label: 'Billing & plan', icon: 'billing', href: `#` },
-        { label: 'Settings', icon: 'settings', href: `#` },
+        {
+          label: 'Members & clients',
+          icon: 'user',
+          href: `${prefix}/members-clients`,
+        },
+        { label: 'Settings', icon: 'settings', href: `${prefix}/settings` },
         { label: 'Auth & demo', icon: 'auth', href: '/sign-in' },
       ],
     },

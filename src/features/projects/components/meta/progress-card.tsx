@@ -4,7 +4,7 @@ import { FxProgress } from '@/components/shared/fx-progress'
 import { calculateMilestoneProgress } from '@/lib/progress'
 import { AlertCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { MilestoneItem } from '../../types'
+import type { MilestoneItem } from '../../types/milestone'
 
 interface ProgressCardProps {
   milestones: MilestoneItem[]

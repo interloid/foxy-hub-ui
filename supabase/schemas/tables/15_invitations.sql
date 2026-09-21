@@ -45,12 +45,17 @@ create table public.invitations (
   constraint invitations_role_check
     check (role in ('admin', 'member', 'client')),
 
-  -- A client is the client OF something.
-  constraint invitations_client_needs_project
-    check (role <> 'client' or project_id is not null),
+  -- A client invitation MAY name a project, and `handle_new_user_signup` hands that
+  -- project's `client_id` to them when they accept — that is what portal access is.
+  --
+  -- It is not required. An agency takes a client on before the first project exists,
+  -- and refusing the invitation until one does would mean either waiting or inventing
+  -- a placeholder project. Accepting without one costs nothing: the trigger's
+  -- `update ... where id = v_invite.project_id` matches no rows, so the client simply
+  -- sees an empty portal until a project is pointed at them.
 
   -- The project must belong to the inviting org. With MATCH SIMPLE a NULL project_id
-  -- skips the check, which is what non-client invitations want.
+  -- skips the check, which is what an invitation with no project wants.
   constraint invitations_project_in_org
     foreign key (project_id, org_id)
     references public.projects(id, org_id) on delete cascade

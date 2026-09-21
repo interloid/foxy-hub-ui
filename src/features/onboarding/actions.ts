@@ -8,7 +8,6 @@ import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
 
 import { rateLimit } from '@/lib/rate-limit'
-import { SupabaseClient } from '@supabase/supabase-js'
 import { ONBOARD_TAKEN } from './data'
 import {
   createWorkspaceSchema,
@@ -161,7 +160,7 @@ export async function inviteTeam(
     }
   }
 
-  let admin: SupabaseClient
+  let admin: ReturnType<typeof createAdminClient>
   try {
     admin = createAdminClient()
   } catch (err) {
@@ -177,6 +176,7 @@ export async function inviteTeam(
     invitedBy: user.id,
     invites,
     siteUrl: siteUrl(),
+    nextPath: `/${membership.organization.slug}`,
   })
 
   if (data.created > 0) {

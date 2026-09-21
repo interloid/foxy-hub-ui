@@ -19,6 +19,8 @@ import {
   getMonthlyLoggedHours,
   getProjectHoursSummary,
   getRecentProjectTimeEntries,
+  getTotalLoggedHours,
+  getWeeklyLoggedMinutesByUser,
 } from '@/features/projects/queries/get-time-entries'
 import { getProjectUpdates } from '@/features/projects/queries/get-updates'
 import { HoursSummaryData } from '@/features/projects/types'
@@ -94,6 +96,8 @@ export default async function ProjectDetailPage({
     timeEntriesResult,
     deliveriesResult,
     latestDeliveriesResult,
+    totalLoggedHoursResult,
+    weeklyLoggedMinutesByUserResult,
   ] = await Promise.allSettled([
     getProjectsForInvoicing(org),
     getProjectUpdates(id),
@@ -107,13 +111,14 @@ export default async function ProjectDetailPage({
     getRecentProjectTimeEntries(id),
     getProjectDeliveries(id, deliveriesPage, DELIVERIES_PAGE_SIZE),
     getProjectDeliveries(id, 1, OVERVIEW_DELIVERIES_LIMIT),
+    getTotalLoggedHours(id),
+    getWeeklyLoggedMinutesByUser(id),
   ])
   const hasInvoice = await hasInvoiceForProject(
     id,
     project.engagement,
     project.retainerPeriod
   )
-  console.log(allocationsResult)
   // Helper to handle results, log errors to Sentry, and return state
   function processResult<T>(
     result: PromiseSettledResult<T>,
@@ -186,6 +191,16 @@ export default async function ProjectDetailPage({
     'getProjectDeliveries (latest)',
     { ...emptyDeliveriesResult, page: 1, pageSize: OVERVIEW_DELIVERIES_LIMIT }
   )
+  const totalLoggedHours = processResult(
+    totalLoggedHoursResult,
+    'getTotalLoggedHours',
+    0
+  )
+  const weeklyLoggedMinutesByUser = processResult(
+    weeklyLoggedMinutesByUserResult,
+    'getWeeklyLoggedMinutesByUser',
+    {}
+  )
 
   return (
     <ProjectDetailView
@@ -203,6 +218,8 @@ export default async function ProjectDetailPage({
       canManageAllocations={canManageAllocations}
       deliveries={deliveries}
       latestDeliveries={latestDeliveries}
+      totalLoggedHours={totalLoggedHours}
+      weeklyLoggedMinutesByUser={weeklyLoggedMinutesByUser}
       hasExistingInvoice={hasInvoice}
     />
   )

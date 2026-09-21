@@ -42,8 +42,10 @@ import { useFieldArray, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { getCurrencySymbol } from '@/lib/money'
 import { computePricingInsight } from '@/features/dashboard/pricing'
 import { newProjectFormSchema } from '@/features/dashboard/schema'
+import { ClientOption, TeamMemberOption } from '@/features/dashboard/types'
 import { toISODate } from '@/lib/date'
 import { EngagementModelSelector } from './engagement-model-selector'
 import { PricingHint } from './pricing-hint'
@@ -53,7 +55,6 @@ import {
   TeamAllocationSection,
 } from './team-allocation-section'
 import { NewProjectFormValues } from './types'
-import { ClientOption, TeamMemberOption } from '@/features/dashboard/types'
 
 interface NewProjectSheetProps {
   open: boolean
@@ -147,6 +148,8 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     }
   }
 
+  const { currency } = useWorkspace()
+  const currencySymbol = getCurrencySymbol(currency)
   // Check Capacity via HTTP GET Route Handler
   const checkCapacityForUser = useCallback(
     async (userId: string, dateStr?: string) => {
@@ -592,7 +595,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                 htmlFor="contractvalue"
                 className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
               >
-                Contract value / budget ($)
+                Contract value / budget ({currencySymbol})
               </FxLabel>
               <FxInput
                 type="number"
@@ -625,7 +628,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                 htmlFor="fixedprice"
                 className="text-muted-foreground block text-[13px] font-medium"
               >
-                Fixed price ($)
+                Fixed price ({currencySymbol})
               </FxLabel>
               <FxInput
                 type="number"
@@ -763,7 +766,7 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
                     htmlFor="retaineramount"
                     className="text-muted-foreground mb-1.5 block text-[13px] font-medium"
                   >
-                    Retainer amount ($)
+                    Retainer amount ({currencySymbol})
                   </FxLabel>
                   <FxInput
                     type="number"

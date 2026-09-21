@@ -11,6 +11,7 @@ import {
   PendingApproval,
   UserRole,
 } from './types'
+import { formatCurrency } from '@/lib/money'
 
 export async function getDashboardData(
   orgSlug: string
@@ -309,12 +310,4 @@ export async function getDashboardData(
       renewsAt: subscription?.current_period_end || null,
     },
   }
-}
-
-function formatCurrency(amount: number, currency = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount)
 }

@@ -17,12 +17,19 @@ import { useTransition } from 'react'
 import { notifyOtherTabsOnLogout } from '../common/tab-session-sync'
 import { FxSpinner } from '../shared/fx-loader'
 import { NAV_ICONS } from './nav-icons'
+import { FxBadge } from '../shared/fx-badge'
 
 export function AccountMenu({
   account,
   className,
 }: {
-  account: { name: string; email: string; initials: string; org?: string }
+  account: {
+    name: string
+    email: string
+    initials: string
+    role: string
+    org?: string
+  }
   className?: string
 }) {
   const [signingOut, startSignOut] = useTransition()
@@ -37,7 +44,7 @@ export function AccountMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          'md:border-border bg-muted text-muted-foreground hover:text-foreground focus-visible:ring-ring flex h-9.5 shrink-0 items-center gap-2 rounded-full border py-1 pr-2 pl-1 transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
+          'md:border-border bg-muted text-muted-foreground hover:text-foreground focus-visible:ring-ring flex h-9.5 shrink-0 cursor-pointer items-center gap-2 rounded-full border py-1 pr-2 pl-1 transition-colors duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
 
           'max-dash:pr-1',
           className
@@ -47,9 +54,12 @@ export function AccountMenu({
           {account.initials}
         </span>
 
-        <span className="text-foreground dash:inline hidden text-sm font-medium">
-          {account.name}
-        </span>
+        <div className="text-foreground dash:inline hidden text-sm font-medium">
+          <div>{account.name}</div>
+          <div className="text-info text-start text-[11px] font-semibold uppercase">
+            {account.role}
+          </div>
+        </div>
         <NAV_ICONS.chevron
           size={14}
           strokeWidth={1.7}
@@ -66,10 +76,16 @@ export function AccountMenu({
           <span className="bg-brand-gradient text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-full text-base font-semibold">
             {account.initials}
           </span>
-          <span className="flex min-w-0 flex-col">
-            <span className="text-md text-foreground truncate font-semibold">
-              {account.name}
-            </span>
+          <span className="flex w-full min-w-0 flex-col">
+            <div className="flex items-center gap-2">
+              <span className="text-md text-foreground truncate font-semibold">
+                {account.name}
+              </span>
+              <FxBadge variant={'info'} size={'sm'}>
+                {'Member'}
+              </FxBadge>
+            </div>
+
             <span className="text-subtle-foreground truncate text-xs font-normal">
               {account.email}
             </span>

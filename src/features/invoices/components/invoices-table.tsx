@@ -11,7 +11,9 @@ import {
   FxTableScroll,
 } from '@/components/shared/fx-table'
 import { TableBody } from '@/components/ui/table'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { InvoiceListItem } from '@/features/invoices/queries/get-invoices'
+import { formatCurrency } from '@/lib/money'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
@@ -37,15 +39,6 @@ const STATUS_BADGE_CONFIG: Record<
   cancelled: { label: 'Cancelled', variant: 'destructive' },
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
-
 export function InvoicesTable({
   invoices,
   totalCount,
@@ -53,6 +46,7 @@ export function InvoicesTable({
   currentPage = 1,
 }: InvoicesTableProps) {
   const router = useRouter()
+  const { currency } = useWorkspace()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const handlePageChange = (newPage: number) => {
@@ -117,7 +111,7 @@ export function InvoicesTable({
                         </div>
                       </FxTableCell>
                       <FxTableCell className="text-foreground truncate text-center text-[13px] font-extrabold">
-                        {formatCurrency(inv.amount)}
+                        {formatCurrency(inv.amount, currency)}
                       </FxTableCell>
                     </FxTableRow>
                   )
