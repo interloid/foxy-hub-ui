@@ -1,4 +1,4 @@
-import { isAdminRole } from '@/lib/role'
+import { isAdminRole, isBillingRole } from '@/lib/role'
 import { DashboardData } from '../../types'
 import { ActiveProjects } from '../widgets/active-projects'
 import { PendingApprovals } from '../widgets/pending-approvals'
@@ -42,10 +42,13 @@ export function DashboardOverview({ data }: DashboardOverviewProps) {
               overCount={data.capacityOverCount}
             />
           )}
-          {isAdminRole(data.role) && (
+          {/* Billing, so isBillingRole: `11_rls_subscriptions` excludes manager,
+              and showing the card to someone RLS returns no row to is how it
+              silently reads $0 (decisions.md D048). */}
+          {isBillingRole(data.role) && (
             <StudioPlanCard
               planInfo={data.planInfo}
-              isAdmin={isAdminRole(data.role)}
+              isAdmin={isBillingRole(data.role)}
             />
           )}
         </div>

@@ -18,8 +18,11 @@ export interface PendingApproval {
   id: string
   name: string
   project: string
+  /** `getDeliveryById` is keyed on (delivery, project), so the row carries both. */
+  projectId: string
   client: string
-  ext: string
+  /** Null until the agency sets one — the badge falls back to a dash. */
+  dueDate: string | null
 }
 
 export interface ActiveProject {

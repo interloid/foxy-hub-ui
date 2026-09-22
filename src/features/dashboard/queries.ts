@@ -1,5 +1,6 @@
 import { getWorkspace, isAdminRole } from '@/lib/dal'
 import { toISODate } from '@/lib/date'
+import { roleLabel } from '@/lib/role'
 import { createClient } from '@/lib/supabase/server'
 
 import { getLoggedMinutesForDate } from '@/lib/time-tracking'
@@ -324,9 +325,9 @@ export async function getTeamMembersForOrg(
 
   return memberships.map((item) => {
     const fullName = profileMap.get(item.user_id) || 'Unnamed Teammate'
-    const role = item.role
-      ? item.role.charAt(0).toUpperCase() + item.role.slice(1)
-      : 'Member'
+    // Not `charAt(0).toUpperCase()`: that renders 'primary_admin' as
+    // "Primary_admin".
+    const role = roleLabel(item.role) || 'Contributor'
 
     return {
       id: item.user_id,

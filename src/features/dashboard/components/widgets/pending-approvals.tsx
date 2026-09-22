@@ -1,8 +1,29 @@
+'use client'
+
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
 import { PendingApproval } from '@/features/dashboard/types'
-import { CheckCircle2 } from 'lucide-react'
+import { approveDeliveryAction } from '@/features/projects/actions'
+import { DeliverableFileSheet } from '@/features/projects/components/deliverables/deliverables-file-sheet'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { useFileActions } from '@/features/projects/hooks/use-file-actions'
+import { getDeliveryById } from '@/features/projects/queries/get-deliverables'
+import type { ProjectDelivery } from '@/features/projects/types'
+import { format, parseISO } from 'date-fns'
+import { CheckCircle2, Loader2 } from 'lucide-react'
+import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
+
+function dueMonth(value: string | null): string {
+  if (!value) return '-'
+
+  try {
+    return format(parseISO(value), 'MMM')
+  } catch {
+    return '-'
+  }
+}
 
 interface PendingApprovalsProps {
   approvals: PendingApproval[]
@@ -10,12 +31,73 @@ interface PendingApprovalsProps {
   onApproveClick?: (id: string) => void
 }
 
-export function PendingApprovals({
-  approvals = [],
-  onViewAllClick,
-  onApproveClick,
-}: PendingApprovalsProps) {
+export function PendingApprovals({ approvals = [] }: PendingApprovalsProps) {
   const hasApprovals = approvals && approvals.length > 0
+
+  const [selectedDelivery, setSelectedDelivery] =
+    useState<ProjectDelivery | null>(null)
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [openingId, setOpeningId] = useState<string | null>(null)
+  const [isOpening, startOpening] = useTransition()
+
+  const { handleViewFile, handleDownloadFile } = useFileActions('deliverables')
+  const { orgSlug } = useWorkspace()
+
+  const handleApprove = async (deliveryId: string) => {
+    if (!selectedDelivery) return
+
+    const result = await approveDeliveryAction(
+      deliveryId,
+      selectedDelivery.projectId,
+      orgSlug
+    )
+
+    if (!result.ok) {
+      toast.error(result.error)
+      return
+    }
+
+    toast.success('Deliverable approved.')
+    setIsSheetOpen(false)
+  }
+
+  const openDelivery = (item: PendingApproval) => {
+    setOpeningId(item.id)
+
+    startOpening(async () => {
+      try {
+        const delivery = await getDeliveryById(item.id, item.projectId)
+
+        if (!delivery || !('id' in delivery)) {
+          toast.error('Could not open that deliverable.')
+          return
+        }
+
+        setSelectedDelivery(delivery)
+        setIsSheetOpen(true)
+      } catch (err) {
+        console.error('Failed to load delivery:', err)
+        toast.error('Could not open that deliverable.')
+      } finally {
+        setOpeningId(null)
+      }
+    })
+  }
+
+  // Re-read after an upload so the sheet's file list reflects what was just added.
+  const handleSuccessUpload = async () => {
+    if (!selectedDelivery) return
+
+    try {
+      const updated = await getDeliveryById(
+        selectedDelivery.id,
+        selectedDelivery.projectId
+      )
+      if (updated && 'id' in updated) setSelectedDelivery(updated)
+    } catch (err) {
+      console.error('Failed to refetch delivery assets:', err)
+    }
+  }
 
   return (
     <FxCard className="overflow-hidden">
@@ -38,17 +120,6 @@ export function PendingApprovals({
               {hasApprovals ? `${approvals.length} waiting` : '0 waiting'}
             </FxBadge>
           </div>
-
-          {hasApprovals && (
-            <FxButton
-              variant="ghost"
-              size="xs"
-              // onClick={onViewAllClick}
-              className="text-muted-foreground hover:text-muted-foreground h-auto bg-transparent p-0 text-[12.5px] hover:bg-transparent"
-            >
-              View all
-            </FxButton>
-          )}
         </div>
 
         {/* List of Approvals OR Empty State */}
@@ -60,9 +131,11 @@ export function PendingApprovals({
                 className="compact:items-center compact:flex-row compact:gap-0 flex flex-col justify-between gap-4 px-5 py-3.5 transition-colors"
               >
                 <div className="compact:gap-3.5 flex min-w-0 items-center gap-5 pr-2">
-                  {/* File Type Icon Badge */}
-                  <div className="bg-warning-subtle text-primary-accent flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-xl border text-xs font-bold tracking-wider uppercase">
-                    {item.ext}
+                  <div
+                    aria-hidden="true"
+                    className="bg-warning-subtle text-primary-accent flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-xl border text-[11px] font-bold uppercase"
+                  >
+                    {dueMonth(item.dueDate)}
                   </div>
 
                   {/* File Info */}
@@ -80,10 +153,14 @@ export function PendingApprovals({
                 {/* Action Button */}
                 <FxButton
                   size="default"
-                  // onClick={() => onApproveClick?.(item.id)}
-                  className="border-border bg-muted text-foreground hover:border-border-strong hover:bg-muted shrink-0 rounded-lg px-4 text-[12.5px]"
+                  onClick={() => openDelivery(item)}
+                  disabled={isOpening && openingId === item.id}
+                  className="border-border bg-muted text-foreground hover:border-border-strong hover:bg-muted shrink-0 gap-1.5 rounded-lg px-4 text-[12.5px]"
                 >
-                  Approve
+                  {isOpening && openingId === item.id && (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  )}
+                  View
                 </FxButton>
               </div>
             ))}
@@ -103,6 +180,16 @@ export function PendingApprovals({
           </div>
         )}
       </FxCardContent>
+
+      <DeliverableFileSheet
+        delivery={selectedDelivery}
+        open={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+        onApprove={handleApprove}
+        onViewFile={handleViewFile}
+        onDownloadFile={handleDownloadFile}
+        onSuccessUpload={handleSuccessUpload}
+      />
     </FxCard>
   )
 }

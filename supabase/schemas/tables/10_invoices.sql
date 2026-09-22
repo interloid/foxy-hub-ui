@@ -1,6 +1,6 @@
 create table public.invoices (
   id             uuid        primary key default gen_random_uuid(),
-  invoice_number text        not null unique,
+  invoice_number text        not null,
   org_id         uuid        not null    references public.organizations(id) on delete cascade,
   project_id     uuid        not null    references public.projects(id) on delete cascade,
   amount         numeric     not null    check (amount >= 0),
@@ -11,7 +11,16 @@ create table public.invoices (
   -- without an explicit currency disagreed with the org that issued it.
   currency       text        not null default 'USD' check (char_length(currency) = 3),
   description    text,
+  -- Stripe's hosted invoice page. Written when the invoice is ISSUED, not when it is paid:
+  -- the invoice-first flow finalises a Stripe invoice up front, so this is the link a client
+  -- follows to pay and to download the document. It used to hold Stripe's post-payment
+  -- receipt, which meant the only invoices with a payment link were the ones already settled.
   invoice_url    text,
+
+  -- The Stripe invoice this row was issued as. The webhook matches payments back by it, and
+  -- its presence is what makes re-issuing idempotent — a second click returns the existing
+  -- hosted URL rather than billing the client twice.
+  stripe_invoice_id text unique,
   status         public.invoice_status        not null    default 'draft',
   payment_intent text        unique,
   created_at     timestamptz not null    default now(),
@@ -43,6 +52,9 @@ create table public.invoices (
   period_start   date,
   period_end     date        check (period_end is null or period_end >= period_start)
 );
+
+create unique index if not exists invoices_org_number_key
+  on public.invoices(org_id, invoice_number);
 
 create index if not exists invoices_org_id_idx     on public.invoices(org_id);
 create index if not exists invoices_project_id_idx on public.invoices(project_id);

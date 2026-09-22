@@ -36,6 +36,7 @@ import { deactivateClientAction, deactivateMembershipAction } from '../actions'
 import type { ClientCompanyRow, MembersClientsData, PersonRow } from '../types'
 import { InviteMemberSheet } from './invite-member-sheet'
 import { NewClientSheet } from './new-client-sheet'
+import { roleLabel } from '@/lib/role'
 
 const AVATAR_COLORS = [
   'bg-primary',
@@ -47,9 +48,10 @@ const AVATAR_COLORS = [
 ]
 
 const ROLE_BADGE: Record<PersonRow['role'], string> = {
-  owner: 'bg-warning-subtle text-warning',
+  primary_admin: 'bg-warning-subtle text-warning',
   admin: 'bg-info-subtle text-info',
-  member: 'bg-success-subtle text-success',
+  manager: 'bg-primary-subtle text-primary',
+  contributor: 'bg-success-subtle text-success',
   client: 'bg-muted text-muted-foreground',
 }
 
@@ -119,7 +121,7 @@ function MemberTable({
   viewerRole: MembersClientsData['viewerRole']
   onDeactivate: (row: PersonRow) => void
 }) {
-  const canDeactivate = viewerRole === 'owner'
+  const canDeactivate = viewerRole === 'primary_admin'
 
   return (
     <FxCard className="overflow-hidden p-0">
@@ -152,7 +154,7 @@ function MemberTable({
                 canDeactivate &&
                 row.isActive &&
                 row.role !== 'admin' &&
-                row.role !== 'owner'
+                row.role !== 'primary_admin'
 
               return (
                 <FxTableRow key={row.membershipId}>
@@ -189,11 +191,8 @@ function MemberTable({
                   </FxTableCell>
 
                   <FxTableCell>
-                    <FxBadge
-                      className={`${ROLE_BADGE[row.role]} capitalize`}
-                      shape="pill"
-                    >
-                      {row.role}
+                    <FxBadge className={ROLE_BADGE[row.role]} shape="pill">
+                      {roleLabel(row.role)}
                     </FxBadge>
                   </FxTableCell>
 

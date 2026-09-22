@@ -7,7 +7,12 @@ export function getNavSections(org: string): NavSection[] {
   return [
     {
       items: [
-        { label: 'Dashboard', icon: 'dashboard', href: `${prefix}` },
+        {
+          label: 'Dashboard',
+          icon: 'dashboard',
+          href: `${prefix}`,
+          exact: true,
+        },
         { label: 'Projects', icon: 'projects', href: `${prefix}/projects` },
         { label: 'Time', icon: 'time', href: `${prefix}/time` },
         { label: 'Invoices', icon: 'invoices', href: `${prefix}/invoices` },
@@ -29,6 +34,64 @@ export function getNavSections(org: string): NavSection[] {
       ],
     },
   ]
+}
+
+/**
+ * The portal's sidebar. A separate list rather than a filter over `getNavSections`,
+ * because the hrefs live under `/portal/{org}` and the screens behind them are their own.
+ */
+export function getClientNavSections(org: string): NavSection[] {
+  const prefix = org ? `/portal/${org}` : '/portal'
+
+  return [
+    {
+      items: [
+        {
+          label: 'Dashboard',
+          icon: 'dashboard',
+          href: `${prefix}`,
+          exact: true,
+        },
+        { label: 'Projects', icon: 'projects', href: `${prefix}/projects` },
+      ],
+    },
+  ]
+}
+
+/**
+ * `getFooter` links into the staff app — every one of those hrefs would bounce a client
+ * back out through the `[org]` gate, so the portal gets its own short list.
+ */
+export function getClientFooter(org: string, orgName?: string): FooterProps {
+  const prefix = org ? `/portal/${org}` : '/portal'
+  const staff = getFooter(org, orgName)
+
+  return {
+    ...staff,
+    groups: [
+      {
+        title: 'Your workspace',
+        items: [
+          { label: 'Dashboard', href: `${prefix}` },
+          { label: 'Projects', href: `${prefix}/projects` },
+        ],
+      },
+      {
+        title: 'Resources',
+        items: [
+          { label: 'Support', href: '#' },
+          { label: 'Docs', href: '#' },
+        ],
+      },
+      {
+        title: 'Legal',
+        items: [
+          { label: 'Privacy', href: '#' },
+          { label: 'Terms', href: '#' },
+        ],
+      },
+    ],
+  }
 }
 
 export function withInvoiceCount(count: number = 0, org: string): NavSection[] {

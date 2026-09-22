@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { inviteTeam } from '@/features/onboarding/actions'
 import type { ActionResult, InviteOutcome } from '@/features/onboarding/types'
 import { getWorkspace } from '@/lib/dal'
-import { isAdminRole } from '@/lib/role'
+import { isAdminRole, type InvitableStaffRole } from '@/lib/role'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -13,7 +13,7 @@ import { getClientUsage, getSeatUsage } from './queries'
 
 export async function inviteMemberAction(
   orgSlug: string,
-  input: { email: string; role: 'Admin' | 'Member'; fullName?: string }
+  input: { email: string; role: InvitableStaffRole; fullName?: string }
 ): Promise<ActionResult<InviteOutcome>> {
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return { ok: false, error: 'Workspace not found.' }
@@ -199,7 +199,10 @@ export async function deactivateClientAction(
   if (!workspace) return { ok: false, error: 'Workspace not found.' }
 
   if (!isAdminRole(workspace.role)) {
-    return { ok: false, error: 'Only an owner or admin can remove clients.' }
+    return {
+      ok: false,
+      error: 'Only a primary admin, admin or manager can remove clients.',
+    }
   }
 
   // A soft flag, not a delete: `projects.client_org_id` is `on delete set null`, so
@@ -241,10 +244,10 @@ export async function deactivateMembershipAction(
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return { ok: false, error: 'Workspace not found.' }
 
-  if (workspace.role !== 'owner') {
+  if (workspace.role !== 'primary_admin') {
     return {
       ok: false,
-      error: 'Only the workspace owner can deactivate people.',
+      error: 'Only the workspace primary admin can deactivate people.',
     }
   }
 
@@ -253,7 +256,7 @@ export async function deactivateMembershipAction(
     .update({ status: false })
     .eq('id', membershipId)
     .eq('org_id', workspace.id)
-    .neq('role', 'owner')
+    .neq('role', 'primary_admin')
     .select('id, user_id')
 
   if (error) {

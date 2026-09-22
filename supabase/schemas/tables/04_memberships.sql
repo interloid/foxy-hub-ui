@@ -18,8 +18,8 @@ create table public.memberships (
   -- On `memberships` rather than `profiles` because access is a fact INSIDE one
   -- organization — the same person can sit in two orgs, and one agency revoking them must
   -- not touch the other. `profiles` is global identity. It is also what the existing
-  -- `owners_admins_update_member_role` policy already guards, down to its `role <> 'owner'`
-  -- clause, so the owner cannot be deactivated at all.
+  -- `owners_admins_update_member_role` policy already guards, down to its `role <> 'primary_admin'`
+  -- clause, so the primary admin cannot be deactivated at all.
   --
   -- NOT NULL with a default: every existing row and every row the signup trigger writes
   -- starts active, and a flag that gates access has no third "unknown" state.

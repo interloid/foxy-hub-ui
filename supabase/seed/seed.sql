@@ -52,7 +52,7 @@
 --
 -- DEMO CREDENTIALS — all four accounts share the password
 --
---   priya.nair@example.com          owner    Priya Nair
+--   priya.nair@example.com          primary_admin  Priya Nair
 --   marcus.lee@example.com          admin    Marcus Lee
 --   ana.torres@example.com          member   Ana Torres
 --   erik.lund@nordwave.example.com  client   Erik Lund   (Nordwave Coffee)
@@ -239,16 +239,16 @@ values (
   now() - interval '120 days'
 );
 
--- Seats are staff only — `getDashboardMetrics` counts owner/admin/member and
+-- Seats are staff only — `getDashboardMetrics` counts primary_admin/admin/manager/contributor and
 -- excludes clients, so Erik is a guest on the plan rather than a billed seat.
 insert into public.memberships (id, user_id, org_id, role, created_at)
 values
   ('20000000-0000-4000-8000-000000000011', '10000000-0000-4000-8000-000000000001',
-   '20000000-0000-4000-8000-000000000001', 'owner',  now() - interval '120 days'),
+   '20000000-0000-4000-8000-000000000001', 'primary_admin',  now() - interval '120 days'),
   ('20000000-0000-4000-8000-000000000012', '10000000-0000-4000-8000-000000000002',
    '20000000-0000-4000-8000-000000000001', 'admin',  now() - interval '96 days'),
   ('20000000-0000-4000-8000-000000000013', '10000000-0000-4000-8000-000000000003',
-   '20000000-0000-4000-8000-000000000001', 'member', now() - interval '74 days'),
+   '20000000-0000-4000-8000-000000000001', 'contributor', now() - interval '74 days'),
   ('20000000-0000-4000-8000-000000000014', '10000000-0000-4000-8000-000000000004',
    '20000000-0000-4000-8000-000000000001', 'client', now() - interval '40 days');
 
@@ -713,7 +713,7 @@ values (
   '20000000-0000-4000-8000-000000000001',
   null,
   'jules.okafor@example.com',
-  'member',
+  'contributor',
   encode(extensions.digest('foxy-demo-invite-0001', 'sha256'), 'hex'),
   '10000000-0000-4000-8000-000000000001',
   now() - interval '2 days',

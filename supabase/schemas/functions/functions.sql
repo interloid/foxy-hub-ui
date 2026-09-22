@@ -29,7 +29,7 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------
--- Time entry: approve (submitted → approved, org owner only)
+-- Time entry: approve (submitted → approved, primary admin / admin / manager)
 -- ---------------------------------------------------------------------
 create or replace function public.approve_time_entry(entry_id uuid)
 returns void
@@ -38,7 +38,8 @@ security definer
 set search_path = ''
 as $$
 begin
-  -- Owners AND admins may approve. The old join was on `organizations.user_id` — the org's
+  -- Primary admins, admins AND managers may approve. The old join was on
+  -- `organizations.user_id` — the org's
   -- single creator — so a user with the `admin` role could not approve anything, even
   -- though approvals are an Admin-dashboard action in the design.
   if exists (
@@ -49,7 +50,7 @@ begin
       and te.status = 'submitted'
       and public.has_org_role(
         p.org_id,
-        array['owner', 'admin']::public.user_role[]
+        array['primary_admin', 'admin', 'manager']::public.user_role[]
       )
   ) then
     update public.time_entries
@@ -62,7 +63,7 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------
--- Time entry: reject (submitted → rejected, org owner or admin)
+-- Time entry: reject (submitted → rejected, primary admin / admin / manager)
 -- ---------------------------------------------------------------------
 create or replace function public.reject_time_entry(entry_id uuid)
 returns void
@@ -79,7 +80,7 @@ begin
       and te.status = 'submitted'
       and public.has_org_role(
         p.org_id,
-        array['owner', 'admin']::public.user_role[]
+        array['primary_admin', 'admin', 'manager']::public.user_role[]
       )
   ) then
     update public.time_entries
@@ -115,7 +116,8 @@ begin
   -- pass anything. Requiring it to match the delivery's own project makes a mismatched
   -- pair fail instead of silently succeeding.
   update public.deliveries
-     set status = p_status
+     set status      = p_status,
+         approved_at = case when p_status = 'approved' then now() else null end
    where id = p_delivery_id
      and deliveries.project_id = p_project_id
      and exists (
@@ -133,7 +135,7 @@ $$;
 -- ---------------------------------------------------------------------
 -- Auth trigger: new user signup
 -- Runs on INSERT into auth.users. Redeems an invitation, OR creates a
--- fresh org + membership + subscription for a new owner.
+-- fresh org + membership + subscription for a new primary admin.
 --
 -- SECURITY — this function must never derive org_id, role or project_id
 -- from `raw_user_meta_data`. That field is whatever the caller passed to
@@ -145,8 +147,8 @@ $$;
 --
 -- The only field trusted here is `invite_token`, and it is trusted as a
 -- BEARER SECRET rather than an assertion: holding it is the proof. Org,
--- role and project are read off the `public.invitations` row an owner or
--- admin created. See `schemas/tables/15_invitations.sql`.
+-- role and project are read off the `public.invitations` row a primary
+-- admin, admin or manager created. See `schemas/tables/15_invitations.sql`.
 -- ---------------------------------------------------------------------
 create or replace function public.handle_new_user_signup()
 returns trigger
@@ -206,7 +208,7 @@ begin
 
     -- org_id and role come from the INVITATION, never from the payload. No text cast
     -- either: v_invite.role is already public.user_role, and the table's check
-    -- constraint forbids 'owner'.
+    -- constraint forbids 'primary_admin'. 'manager' IS invitable.
     insert into public.memberships (user_id, org_id, role)
     values (v_user_id, v_invite.org_id, v_invite.role);
 
@@ -224,9 +226,9 @@ begin
      where id = v_invite.id;
 
   else
-    -- ---- New owner path ---------------------------------------------------
+    -- ---- New primary-admin path ------------------------------------------
     -- org_name and slug are user-supplied, and that is safe: this user is creating
-    -- their OWN new organisation and becoming its owner. There is no existing tenant
+    -- their OWN new organisation and becoming its primary admin. There is no existing tenant
     -- to escalate into. Contrast the invited path above, where org and role must come
     -- from an invitation precisely because they name someone else's tenant.
     --
@@ -266,7 +268,7 @@ begin
     returning id into v_org_id;
 
     insert into public.memberships (user_id, org_id, role)
-    values (v_user_id, v_org_id, 'owner');
+    values (v_user_id, v_org_id, 'primary_admin');
 
     insert into public.subscriptions (plan_id, org_id)
     values (v_plan_id, v_org_id);
@@ -385,8 +387,8 @@ declare
 begin
   v_org_id := (project_data->>'org_id')::uuid;
 
-  -- 1. Authorization check: caller must be an owner or admin of the organization
-  if not public.has_org_role(v_org_id, array['owner', 'admin']::public.user_role[]) then
+  -- 1. Authorization check: caller must be a primary admin, admin or manager of the org
+  if not public.has_org_role(v_org_id, array['primary_admin', 'admin', 'manager']::public.user_role[]) then
     raise exception 'Not authorized to create projects for this organization' using errcode = '42501';
   end if;
 
@@ -521,8 +523,9 @@ begin
   v_project_id := (invoice_data->>'project_id')::uuid;
   v_period     := nullif(invoice_data->>'period_start', '')::date;
 
-  -- 1. Authorization: only owners and admins bill.
-  if not public.has_org_role(v_org_id, array['owner', 'admin']::public.user_role[]) then
+  -- 1. Authorization: only primary admins and admins bill. `manager` is deliberately absent —
+  --    billing is the one thing that role does not do. See schemas/types/types.sql.
+  if not public.has_org_role(v_org_id, array['primary_admin', 'admin']::public.user_role[]) then
     raise exception 'Not authorized to create invoices for this organization' using errcode = '42501';
   end if;
 
@@ -684,10 +687,10 @@ grant execute on function public.create_invoice_with_entries(jsonb, uuid[]) to a
 --
 -- SECURITY DEFINER for two reasons the row policy cannot express:
 --
---   1. `owners_admins_update_member_role` gates EVERY update on `role <> 'owner'`. That is
---      right for role edits — an admin must not demote the owner — but it also means the
---      owner's own rates could never be set through the API, and in a small agency the owner
---      is usually the most billable person in it.
+--   1. `owners_admins_update_member_role` gates EVERY update on `role <> 'primary_admin'`. That is
+--      right for role edits — an admin must not demote the primary admin — but it also means
+--      the primary admin's own rates could never be set through the API, and in a small agency
+--      they are usually the most billable person in it.
 --   2. It confines the write to the two rate columns. The general update policy allows any
 --      column, so an endpoint built on it would be one typo away from editing roles.
 --
@@ -705,7 +708,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if not public.has_org_role(target_org_id, array['owner', 'admin']::public.user_role[]) then
+  if not public.has_org_role(target_org_id, array['primary_admin', 'admin', 'manager']::public.user_role[]) then
     raise exception 'Not authorized to set rates for this organization' using errcode = '42501';
   end if;
 
@@ -748,16 +751,16 @@ declare
   v_is_admin boolean;
 begin
   -- 1. Authorization check: caller must be an active member of the organization
-  if not public.has_org_role(p_org_id, array['owner', 'admin', 'member']::public.user_role[]) then
+  if not public.has_org_role(p_org_id, array['primary_admin', 'admin', 'manager', 'contributor']::public.user_role[]) then
     raise exception 'Not authorized to log time for this organization' using errcode = '42501';
   end if;
 
-  -- 2. Determine if the caller holds elevated privileges (owner or admin)
-  v_is_admin := public.has_org_role(p_org_id, array['owner', 'admin']::public.user_role[]);
+  -- 2. Determine if the caller holds elevated privileges (primary admin, admin or manager)
+  v_is_admin := public.has_org_role(p_org_id, array['primary_admin', 'admin', 'manager']::public.user_role[]);
 
-  -- 3. Enforce user boundary: regular members can only log time for themselves
+  -- 3. Enforce user boundary: contributors can only log time for themselves
   if not v_is_admin and p_user_id <> auth.uid() then
-    raise exception 'Regular members can only log time for themselves' using errcode = '42501';
+    raise exception 'Contributors can only log time for themselves' using errcode = '42501';
   end if;
 
   -- 4. Verify that the target project belongs to the specified organization

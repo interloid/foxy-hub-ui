@@ -105,6 +105,7 @@ export type Database = {
           name: string
           org_id: string
           status: boolean
+          stripe_customer_id: string | null
         }
         Insert: {
           contact_email?: string | null
@@ -114,6 +115,7 @@ export type Database = {
           name: string
           org_id: string
           status?: boolean
+          stripe_customer_id?: string | null
         }
         Update: {
           contact_email?: string | null
@@ -123,6 +125,7 @@ export type Database = {
           name?: string
           org_id?: string
           status?: boolean
+          stripe_customer_id?: string | null
         }
         Relationships: [
           {
@@ -352,6 +355,7 @@ export type Database = {
           period_start: string | null
           project_id: string
           status: Database['public']['Enums']['invoice_status']
+          stripe_invoice_id: string | null
           subtotal: number
           tax_amount: number
         }
@@ -371,6 +375,7 @@ export type Database = {
           period_start?: string | null
           project_id: string
           status?: Database['public']['Enums']['invoice_status']
+          stripe_invoice_id?: string | null
           subtotal?: number
           tax_amount?: number
         }
@@ -390,6 +395,7 @@ export type Database = {
           period_start?: string | null
           project_id?: string
           status?: Database['public']['Enums']['invoice_status']
+          stripe_invoice_id?: string | null
           subtotal?: number
           tax_amount?: number
         }
@@ -974,7 +980,8 @@ export type Database = {
         | 'unpaid'
         | 'paused'
       time_entry_status: 'draft' | 'submitted' | 'approved' | 'rejected'
-      user_role: 'owner' | 'admin' | 'member' | 'client'
+      user_role:
+        'primary_admin' | 'admin' | 'manager' | 'contributor' | 'client'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1130,7 +1137,7 @@ export const Constants = {
         'paused',
       ],
       time_entry_status: ['draft', 'submitted', 'approved', 'rejected'],
-      user_role: ['owner', 'admin', 'member', 'client'],
+      user_role: ['primary_admin', 'admin', 'manager', 'contributor', 'client'],
     },
   },
 } as const

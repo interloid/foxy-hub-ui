@@ -10,13 +10,24 @@ export async function sendInvitations(
     invitedBy: string
     invites: readonly TeamInvite[]
     siteUrl: string
-    /** Where the invitee lands once /auth/confirm has taken them through set-password. */
-    nextPath?: string
+    /**
+     * The workspace the invitee is joining. The link they land on is built from this per
+     * person, because a client belongs in the portal and staff belong in the app — one
+     * `nextPath` for the whole batch could not serve a mixed invite.
+     */
+    orgSlug?: string
   }
 ): Promise<InviteOutcome> {
-  // Reaches the template as {{ .RedirectTo }}, so it is the destination itself
-  // rather than a callback URL — /auth/confirm verifies the token server-side.
-  const redirectTo = `${params.siteUrl}${params.nextPath || '/'}`
+  // Reaches the template as {{ .RedirectTo }}, so it is the destination itself rather than
+  // a callback URL — /auth/confirm verifies the token server-side and carries this through
+  // set-password as `next`.
+  const landingFor = (role: string) => {
+    if (!params.orgSlug) return `${params.siteUrl}/`
+
+    return role === 'client'
+      ? `${params.siteUrl}/portal/${params.orgSlug}`
+      : `${params.siteUrl}/${params.orgSlug}`
+  }
 
   const wanted = params.invites
     .map((invite) => ({
@@ -80,7 +91,7 @@ export async function sendInvitations(
             org_id: params.orgId,
             ...(invite.fullName ? { user_name: invite.fullName } : {}),
           },
-          redirectTo,
+          redirectTo: landingFor(invite.role),
         }
       )
 
@@ -122,7 +133,7 @@ export async function findOwnedOrgId(
   const { data } = await supabase
     .from('memberships')
     .select('org_id')
-    .eq('role', 'owner')
+    .eq('role', 'primary_admin')
     .limit(1)
     .maybeSingle()
   return (data?.org_id as string | undefined) ?? null

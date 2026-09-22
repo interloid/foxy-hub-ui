@@ -18,7 +18,7 @@ import { AlertCircle, Eye } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { submitDeliveryForApproval } from '../../actions'
+import { approveDeliveryAction, submitDeliveryForApproval } from '../../actions'
 import { useFileActions } from '../../hooks/use-file-actions'
 import { getDeliveryById } from '../../queries/get-deliverables'
 import { ProjectDelivery, ProjectMilestone } from '../../types'
@@ -132,6 +132,37 @@ export function DeliverablesSection({
   const handleViewDelivery = (delivery: ProjectDelivery) => {
     setSelectedDelivery(delivery)
     setIsSheetOpen(true)
+  }
+
+  // Only reachable from the portal: the sheet shows Approve for a client viewing a
+  // submitted deliverable, and nobody else.
+  const handleApprove = async (deliveryId: string) => {
+    if (!selectedDelivery) return
+
+    const result = await approveDeliveryAction(
+      deliveryId,
+      selectedDelivery.projectId,
+      orgSlug
+    )
+
+    if (!result.ok) {
+      toast.error(result.error)
+      return
+    }
+
+    const approvedAt = new Date().toISOString()
+    setSelectedDelivery((prev) =>
+      prev ? { ...prev, status: 'approved', approvedAt } : null
+    )
+    setDeliveriesList((prevList) =>
+      prevList.map((item) =>
+        item.id === deliveryId
+          ? { ...item, status: 'approved', approvedAt }
+          : item
+      )
+    )
+    toast.success('Deliverable approved.')
+    setIsSheetOpen(false)
   }
 
   const handleSubmitForApproval = async (deliveryId: string) => {
@@ -331,6 +362,7 @@ export function DeliverablesSection({
         open={isSheetOpen}
         onOpenChange={setIsSheetOpen}
         onSubmitForApproval={handleSubmitForApproval}
+        onApprove={handleApprove}
         onViewFile={handleViewFile}
         onDownloadFile={handleDownloadFile}
         onSuccessUpload={handleSuccessUpload}

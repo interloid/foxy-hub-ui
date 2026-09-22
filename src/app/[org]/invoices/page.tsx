@@ -1,4 +1,5 @@
 import { InvoicesHeader } from '@/features/invoices/components/invoice-header'
+import { InvoicePaidBanner } from '@/features/invoices/components/invoice-paid-banner'
 import { InvoiceMetricsCards } from '@/features/invoices/components/invoice-metrics'
 import { InvoicesTable } from '@/features/invoices/components/invoices-table'
 import { getInvoiceMetrics } from '@/features/invoices/queries/get-invoice-metrics'
@@ -43,6 +44,7 @@ export default async function InvoicePage({
 
   return (
     <div className="ds:p-6 space-y-6">
+      <InvoicePaidBanner />
       <InvoicesHeader orgSlug={org} projects={projects} />
       <InvoiceMetricsCards metrics={metrics} />
       <InvoicesTable

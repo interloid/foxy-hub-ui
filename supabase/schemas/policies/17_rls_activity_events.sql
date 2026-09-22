@@ -13,7 +13,7 @@ create policy "staff_view_activity_events"
   using (
     public.has_org_role(
       activity_events.org_id,
-      array['owner', 'admin', 'member']::public.user_role[]
+      array['primary_admin', 'admin', 'manager', 'contributor']::public.user_role[]
     )
   );
 
@@ -22,7 +22,7 @@ create policy "staff_view_activity_events"
 -- append-only for every API caller by construction rather than by convention. Rewriting history
 -- would defeat the point of keeping it.
 --
--- Any member may write, because any member's actions are what the feed reports — the writer is
+-- Any staff member may write, because their actions are what the feed reports — the writer is
 -- whoever did the thing. Two things are pinned rather than trusted:
 --
 --   `actor_id` must be the caller (or null for a system event), so nobody can post activity
@@ -37,7 +37,7 @@ create policy "members_insert_activity_events"
   with check (
     public.has_org_role(
       activity_events.org_id,
-      array['owner', 'admin', 'member']::public.user_role[]
+      array['primary_admin', 'admin', 'manager', 'contributor']::public.user_role[]
     )
     and activity_events.actor_id = (select auth.uid())
   );

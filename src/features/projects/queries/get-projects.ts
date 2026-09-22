@@ -249,8 +249,12 @@ export async function getProjectsData({
     projectsQuery = projectsQuery.ilike('name', `%${search.trim()}%`)
   }
 
+  // `client_org_id`, not `client_id`. The filter pill's options come from `getClientsForOrg`,
+  // which lists `clients` rows — so this compared a `clients.id` against a column holding an
+  // `auth.users.id`. Both are uuid, so Postgres accepted it and matched nothing: picking a
+  // client emptied the table instead of filtering it.
   if (clientId && clientId !== 'all') {
-    projectsQuery = projectsQuery.eq('client_id', clientId)
+    projectsQuery = projectsQuery.eq('client_org_id', clientId)
   }
 
   if (engagement) {
@@ -311,6 +315,7 @@ export async function getProjectsData({
       name: p.name,
       code: `PRJ-${p.id.substring(0, 4).toUpperCase()}`,
       clientId: p.client_id,
+      clientOrgId: p.client_org_id ?? null,
       clientName: p.client?.name ?? 'Internal Project',
       description: p.description ?? null,
       status: p.status,
@@ -458,6 +463,7 @@ export async function getProjectById(
     orgId: p.org_id,
     name: p.name,
     clientId: p.client_id,
+    clientOrgId: p.client_org_id ?? null,
     clientName: p.client?.name ?? 'Internal Project',
     description: p.description ?? null,
     status: p.status,

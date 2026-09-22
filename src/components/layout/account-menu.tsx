@@ -11,6 +11,7 @@ import {
 } from '@/components/shared/fx-menu'
 import { signOut } from '@/features/auth/actions'
 import { cn } from '@/lib/utils'
+import { roleLabel } from '@/lib/role'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
@@ -81,9 +82,11 @@ export function AccountMenu({
               <span className="text-md text-foreground truncate font-semibold">
                 {account.name}
               </span>
-              <FxBadge variant={'info'} size={'sm'}>
-                {'Member'}
-              </FxBadge>
+              {account.role && (
+                <FxBadge variant={'info'} size={'sm'}>
+                  {roleLabel(account.role)}
+                </FxBadge>
+              )}
             </div>
 
             <span className="text-subtle-foreground truncate text-xs font-normal">

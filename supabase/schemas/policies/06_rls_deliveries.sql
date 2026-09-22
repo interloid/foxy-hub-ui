@@ -12,7 +12,7 @@ create policy "staff_and_project_client_view_deliveries"
   using (
     public.has_org_role(
       deliveries.org_id,
-      array['owner', 'admin', 'member']::public.user_role[]
+      array['primary_admin', 'admin', 'manager', 'contributor']::public.user_role[]
     )
     or exists (
       select 1 from public.projects p
@@ -28,7 +28,7 @@ create policy "owners_admins_insert_deliveries"
       select 1 from public.memberships m
       where m.user_id = (select auth.uid())
         and m.org_id  = deliveries.org_id
-        and m.role    in ('owner', 'admin')
+        and m.role    in ('primary_admin', 'admin', 'manager')
     )
   );
 
@@ -39,6 +39,6 @@ create policy "staff_update_deliveries"
       select 1 from public.memberships m
       where m.user_id = (select auth.uid())
         and m.org_id  = deliveries.org_id
-        and m.role    in ('owner', 'admin', 'member')
+        and m.role    in ('primary_admin', 'admin', 'manager', 'contributor')
     )
   );

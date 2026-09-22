@@ -1,5 +1,6 @@
 import { NAV_ICONS } from '@/components/layout/nav-icons'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
+import { cn } from '@/lib/utils'
 import { Folder } from 'lucide-react'
 import { DashboardStat, DeltaType } from '../../types'
 
@@ -33,13 +34,23 @@ interface StatsGridProps {
   stats: DashboardStat[]
 }
 
-export function StatsGrid({ stats }: StatsGridProps) {
+export function StatsGrid({
+  stats,
+  role,
+}: StatsGridProps & { role?: string | null }) {
   if (!stats || !Array.isArray(stats) || stats.length === 0) {
     return null
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+    <div
+      className={cn(
+        'grid grid-cols-1 gap-4',
+        role === 'client'
+          ? 'md:grid-cols-3'
+          : 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+      )}
+    >
       {stats.map((stat, i) => {
         const iconKey = stat.icon as keyof typeof NAV_ICONS
         const IconComponent =

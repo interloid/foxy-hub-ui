@@ -52,7 +52,7 @@ async function redeemPendingInvites(
     if (!invite.email) continue
 
     const email = invite.email.trim().toLowerCase()
-    const role = (invite.role || 'member').toLowerCase()
+    const role = (invite.role || 'contributor').toLowerCase()
 
     const rawToken = `${crypto.randomUUID()}${crypto.randomUUID()}`
 
@@ -384,6 +384,85 @@ serve(async (req) => {
 
           console.log('Subscription updated successfully:', updatedSubs[0])
         }
+        break
+      }
+
+      /**
+       * The invoice-first flow's settlement events.
+       *
+       * `checkout.session.completed` above still handles invoices paid the old way, where
+       * the Stripe invoice was a by-product of Checkout. Here the invoice existed first
+       * and the client paid it on its own hosted page, so there is no session — the
+       * invoice itself reports the outcome.
+       *
+       * `invoice.payment_succeeded` fires alongside `invoice.paid` for card payments;
+       * both are handled so neither ordering leaves the row unsettled, and the update is
+       * written by id so a duplicate is a no-op rather than a second charge.
+       */
+      case 'invoice.paid':
+      case 'invoice.payment_succeeded': {
+        const stripeInvoice = event.data.object as Stripe.Invoice
+
+        // `metadata.invoice_id` is the app's own row, set when the invoice was issued.
+        // Matching on it rather than on `stripe_invoice_id` alone means a row whose update
+        // failed at issue time still settles correctly.
+        const appInvoiceId = stripeInvoice.metadata?.invoice_id
+
+        if (!appInvoiceId && !stripeInvoice.id) {
+          console.warn('invoice event with nothing to match on:', event.id)
+          break
+        }
+
+        const paymentIntent =
+          typeof stripeInvoice.payment_intent === 'string'
+            ? stripeInvoice.payment_intent
+            : (stripeInvoice.payment_intent?.id ?? null)
+
+        let query = supabase.from('invoices').update({
+          status: 'paid',
+          paid_at: new Date(
+            (stripeInvoice.status_transitions?.paid_at ??
+              Math.floor(Date.now() / 1000)) * 1000
+          ).toISOString(),
+          payment_intent: paymentIntent,
+          invoice_url: stripeInvoice.hosted_invoice_url,
+          stripe_invoice_id: stripeInvoice.id,
+        })
+
+        query = appInvoiceId
+          ? query.eq('id', appInvoiceId)
+          : query.eq('stripe_invoice_id', stripeInvoice.id)
+
+        const { data: settled, error: settleError } = await query.select('id')
+
+        if (settleError) {
+          throw new Error(
+            `Failed to settle invoice ${stripeInvoice.id}: ${settleError.message}`
+          )
+        }
+
+        if (!settled || settled.length === 0) {
+          // Not fatal: a Stripe invoice raised outside this app (a subscription charge,
+          // say) has no row here, and retrying would never find one.
+          console.warn(`No app invoice matched ${stripeInvoice.id}`)
+        } else {
+          console.log(`Invoice ${settled[0].id} marked paid.`)
+        }
+
+        break
+      }
+
+      /**
+       * A failed attempt is not a status change. The invoice stays `due` or `overdue`, so
+       * the client can try again and the overdue cron keeps its own schedule — writing a
+       * `failed` state here would need a status the enum does not have, and would hide the
+       * fact that the money is still owed.
+       */
+      case 'invoice.payment_failed': {
+        const stripeInvoice = event.data.object as Stripe.Invoice
+        console.warn(
+          `Payment failed for invoice ${stripeInvoice.id} (app: ${stripeInvoice.metadata?.invoice_id ?? 'unknown'})`
+        )
         break
       }
 

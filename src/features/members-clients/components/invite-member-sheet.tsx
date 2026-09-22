@@ -24,6 +24,7 @@ import {
 import { Sheet } from '@/components/ui/sheet'
 
 import { inviteMemberAction } from '../actions'
+import type { InvitableStaffRole } from '@/lib/role'
 
 interface InviteMemberSheetProps {
   orgSlug: string
@@ -32,9 +33,13 @@ interface InviteMemberSheetProps {
 }
 
 const ROLE_OPTIONS = [
-  { value: 'Member', label: 'Member — projects and time, no billing' },
+  {
+    value: 'Contributor',
+    label: 'Contributor — projects and time, no billing',
+  },
+  { value: 'Manager', label: 'Manager — everything except billing' },
   { value: 'Admin', label: 'Admin — everything except ownership' },
-] as const
+] as const satisfies readonly { value: InvitableStaffRole; label: string }[]
 
 export function InviteMemberSheet({
   orgSlug,
@@ -43,7 +48,7 @@ export function InviteMemberSheet({
 }: InviteMemberSheetProps) {
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
-  const [role, setRole] = useState<'Admin' | 'Member'>('Member')
+  const [role, setRole] = useState<InvitableStaffRole>('Contributor')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,7 +78,7 @@ export function InviteMemberSheet({
     toast.success(`Invite sent to ${email.trim()}`)
     setEmail('')
     setFullName('')
-    setRole('Member')
+    setRole('Contributor')
     onOpenChange(false)
   }
 
@@ -118,7 +123,7 @@ export function InviteMemberSheet({
               <FxLabel htmlFor="invite-member-role">Role</FxLabel>
               <Select
                 value={role}
-                onValueChange={(value) => setRole(value as 'Admin' | 'Member')}
+                onValueChange={(value) => setRole(value as InvitableStaffRole)}
               >
                 <SelectTrigger
                   id="invite-member-role"
@@ -146,8 +151,8 @@ export function InviteMemberSheet({
             </FxField>
 
             <p className="text-muted-foreground text-xs">
-              Only the Owner can hand over ownership, and only Admins see
-              billing.
+              Only the Primary admin can hand over ownership, and only Primary
+              admins and Admins see billing.
             </p>
           </FxSheetBody>
 

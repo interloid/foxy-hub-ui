@@ -6,8 +6,11 @@ import { createClient } from '@/lib/supabase/server'
 
 import { formatLastActive } from './lib/format-last-active'
 import type { MembersClientsData, PersonRow, WorkspaceRole } from './types'
+import { STAFF_ROLES } from '@/lib/role'
 
-const TEAM_ROLES = ['owner', 'admin', 'member'] as const
+// Staff, as an explicit allow-list: a role missing from here is invisible on
+// the Members screen AND uncounted against the plan's seats.
+const TEAM_ROLES = STAFF_ROLES
 
 export async function getMembersClientsData(
   orgSlug: string

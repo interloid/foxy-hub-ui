@@ -176,7 +176,7 @@ export async function inviteTeam(
     invitedBy: user.id,
     invites,
     siteUrl: siteUrl(),
-    nextPath: `/${membership.organization.slug}`,
+    orgSlug: membership.organization.slug,
   })
 
   if (data.created > 0) {

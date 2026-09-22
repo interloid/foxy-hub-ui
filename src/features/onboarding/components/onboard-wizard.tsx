@@ -495,7 +495,7 @@ export function OnboardWizard() {
                       }
                       className="border-border-strong mt-0.5 h-10 self-start rounded-md text-sm"
                       onClick={() =>
-                        invites.append({ email: '', role: 'Member' })
+                        invites.append({ email: '', role: 'Contributor' })
                       }
                     >
                       <Plus className="size-3.5" strokeWidth={2} />

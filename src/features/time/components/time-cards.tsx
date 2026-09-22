@@ -7,6 +7,7 @@ import {
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { formatMinutesToLabel } from '@/lib/time'
+import { isAdminRole } from '@/lib/role'
 import { cn } from '@/lib/utils'
 import { startTransition, useState } from 'react'
 import { toast } from 'sonner'
@@ -112,7 +113,7 @@ export function TimeCard({
           <FxTabsTriggerUnderline value="my-time" className="cursor-pointer">
             My time
           </FxTabsTriggerUnderline>
-          {(role === 'admin' || role === 'owner') && (
+          {isAdminRole(role) && (
             <>
               <FxTabsTriggerUnderline
                 value="approvals"
@@ -163,7 +164,7 @@ export function TimeCard({
             onSubmitAllDrafts={handleBatchSubmit}
           />
         </TabsContent>
-        {(role === 'admin' || role === 'owner') && (
+        {isAdminRole(role) && (
           <>
             <TabsContent value="approvals" className="mt-4 outline-none">
               <ApprovalsView approvals={approvals} />

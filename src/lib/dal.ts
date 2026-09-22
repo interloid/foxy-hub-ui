@@ -1,7 +1,7 @@
 import { UserRole } from '@/features/dashboard/types'
 import { cache } from 'react'
 import { initialsOf } from './initials'
-import { isAdminRole } from './role'
+import { isAdminRole, STAFF_ROLES } from './role'
 import { createClient } from './supabase/server'
 
 export type SessionUser = {
@@ -234,7 +234,7 @@ export const getDashboardMetrics = cache(
         .from('memberships')
         .select('id', { count: 'exact', head: true })
         .eq('org_id', orgId)
-        .in('role', ['owner', 'admin', 'member']),
+        .in('role', STAFF_ROLES),
 
       supabase
         .from('organizations')

@@ -1,10 +1,10 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { overdueInvoiceTemplate } from "./invoice.template.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { overdueInvoiceTemplate } from './invoice.template.ts'
 
 const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-);
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+)
 
 /**
  * Exchanges the Google refresh token for an access token.
@@ -15,85 +15,96 @@ const supabase = createClient(
  * for no reason. Access tokens last an hour; one run cannot outlive one.
  */
 async function getGmailAccessToken(): Promise<string> {
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: Deno.env.get("G_CLIENT_ID")!,
-      client_secret: Deno.env.get("G_CLIENT_SECRET")!,
-      refresh_token: Deno.env.get("G_REFRESH_TOKEN")!,
-      grant_type: "refresh_token",
+      client_id: Deno.env.get('G_CLIENT_ID')!,
+      client_secret: Deno.env.get('G_CLIENT_SECRET')!,
+      refresh_token: Deno.env.get('G_REFRESH_TOKEN')!,
+      grant_type: 'refresh_token',
     }),
-  });
+  })
 
-  const tokenData = await response.json();
+  const tokenData = await response.json()
   if (!tokenData.access_token) {
-    throw new Error("Failed to get access token: " + JSON.stringify(tokenData));
+    throw new Error('Failed to get access token: ' + JSON.stringify(tokenData))
   }
-  return tokenData.access_token as string;
+  return tokenData.access_token as string
 }
 
 /** RFC 2047-safe base64url of a UTF-8 MIME message, without the deprecated `unescape`. */
 function encodeMessage(raw: string): string {
-  const bytes = new TextEncoder().encode(raw);
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const bytes = new TextEncoder().encode(raw)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-async function sendGmail(accessToken: string, to: string, subject: string, message: string) {
+async function sendGmail(
+  accessToken: string,
+  to: string,
+  subject: string,
+  message: string
+) {
   const rawMessage = [
     `To: ${to}`,
     `Subject: ${subject}`,
     `Content-Type: text/html; charset=utf-8`,
     ``,
     message,
-  ].join("\r\n");
+  ].join('\r\n')
 
-  const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ raw: encodeMessage(rawMessage) }),
-  });
+  const response = await fetch(
+    'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ raw: encodeMessage(rawMessage) }),
+    }
+  )
 
   // Checked BEFORE logging success — the old version logged "message sent" above this test,
   // so failures were reported as sends.
   if (!response.ok) {
-    throw new Error("Failed to send email: " + (await response.text()));
+    throw new Error('Failed to send email: ' + (await response.text()))
   }
 }
 
 type OverdueInvoice = {
-  id: string;
-  invoice_number: string;
-  amount: number | string;
-  currency: string;
-  due_date: string | null;
-  projects: { name: string; client_id: string | null } | null;
-  organizations: { name: string | null } | null;
-};
+  id: string
+  invoice_number: string
+  amount: number | string
+  currency: string
+  due_date: string | null
+  projects: { name: string; client_id: string | null } | null
+  organizations: { name: string | null } | null
+}
 
 function formatAmount(amount: number | string, currency: string): string {
-  const value = Number(amount);
-  if (!Number.isFinite(value)) return `${amount} ${currency}`;
+  const value = Number(amount)
+  if (!Number.isFinite(value)) return `${amount} ${currency}`
   try {
-    return new Intl.NumberFormat("en-IN", { style: "currency", currency }).format(value);
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency,
+    }).format(value)
   } catch {
     // `currency` is only constrained to three characters, so it need not be a real ISO code.
-    return `${value.toFixed(2)} ${currency}`;
+    return `${value.toFixed(2)} ${currency}`
   }
 }
 
 function formatDueDate(dueDate: string | null): string {
-  if (!dueDate) return "";
-  return new Date(dueDate).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  if (!dueDate) return ''
+  return new Date(dueDate).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
 }
 
 Deno.serve(async (req) => {
@@ -102,63 +113,90 @@ Deno.serve(async (req) => {
   // only gate. It sends `Authorization: Bearer <webhook_secret>` from Vault; the same
   // value must be set as this function's `webhook_secret` secret
   // (`supabase secrets set webhook_secret=...`) for the comparison below to pass.
-  const expected = Deno.env.get("webhook_secret");
+  const expected = Deno.env.get('webhook_secret')
   if (!expected) {
-    console.error("webhook_secret is not configured for invoice-overdue-handler");
-    return new Response(JSON.stringify({ error: "Not configured" }), { status: 500 });
+    console.error(
+      'webhook_secret is not configured for invoice-overdue-handler'
+    )
+    return new Response(JSON.stringify({ error: 'Not configured' }), {
+      status: 500,
+    })
   }
-  if (req.headers.get("Authorization") !== `Bearer ${expected}`) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  if (req.headers.get('Authorization') !== `Bearer ${expected}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+    })
   }
 
   // One query, with the project and organisation embedded, instead of a second round trip
   // for projects. Named columns rather than `select('*')`.
   const { data: invoices, error } = await supabase
-    .from("invoices")
+    .from('invoices')
     .select(
-      "id, invoice_number, amount, currency, due_date, projects(name, client_id), organizations(name)",
+      'id, invoice_number, amount, currency, due_date, projects(name, client_id), organizations(name)'
     )
-    .eq("status", "due")
-    .lt("due_date", new Date().toISOString())
-    .returns<OverdueInvoice[]>();
+    .eq('status', 'due')
+    .lt('due_date', new Date().toISOString())
+    .returns<OverdueInvoice[]>()
 
-  if (error) return new Response(JSON.stringify(error), { status: 200 });
+  // 500, not 200. This returned success on a failed query, so a broken run looked
+  // identical to a quiet night: the cron logged fine, nothing was marked, and invoices sat
+  // at 'due' indefinitely while the dashboard's overdue counts silently understated. A
+  // status the scheduler can see is the only way this surfaces.
+  if (error) {
+    console.error('Could not load overdue invoices:', error.message)
+    return new Response(JSON.stringify({ error: 'Query failed' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
 
   if (!invoices || invoices.length === 0) {
-    return new Response(JSON.stringify({ message: "No overdue invoices", processed: 0 }), {
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ message: 'No overdue invoices', processed: 0 }),
+      {
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
   }
 
   // Resolve each distinct client ONCE. Previously this was one admin call per project on
   // every run, repeated for clients appearing on several projects.
-  const clientIds = new Set<string>();
+  const clientIds = new Set<string>()
   for (const invoice of invoices) {
-    const clientId = invoice.projects?.client_id;
-    if (clientId) clientIds.add(clientId);
+    const clientId = invoice.projects?.client_id
+    if (clientId) clientIds.add(clientId)
   }
 
-  const emailByClientId = new Map<string, string>();
+  const emailByClientId = new Map<string, string>()
   for (const clientId of clientIds) {
-    const { data, error: userError } = await supabase.auth.admin.getUserById(clientId);
-    if (!userError && data.user?.email) emailByClientId.set(clientId, data.user.email);
+    const { data, error: userError } =
+      await supabase.auth.admin.getUserById(clientId)
+    if (!userError && data.user?.email)
+      emailByClientId.set(clientId, data.user.email)
   }
 
-  let accessToken: string;
+  let accessToken: string
   try {
-    accessToken = await getGmailAccessToken();
+    accessToken = await getGmailAccessToken()
   } catch (err) {
-    console.error("Could not obtain a Gmail access token:", err);
-    return new Response(JSON.stringify({ error: "Mail auth failed" }), { status: 200 });
+    // Also 500, and for the same reason: without a token not one email goes out, and a
+    // 200 here reported a full run. The invoices stay at 'due' so the next run retries
+    // them — which is only useful if somebody learns this run failed.
+    console.error('Could not obtain a Gmail access token:', err)
+    return new Response(JSON.stringify({ error: 'Mail auth failed' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
-  let emailed = 0;
-  let marked = 0;
-  let skipped = 0;
+  let emailed = 0
+  let marked = 0
+  let skipped = 0
 
   for (const invoice of invoices) {
-    const clientId = invoice.projects?.client_id;
-    const email = clientId ? emailByClientId.get(clientId) : undefined;
+    const clientId = invoice.projects?.client_id
+    const email = clientId ? emailByClientId.get(clientId) : undefined
 
     if (email) {
       try {
@@ -167,23 +205,25 @@ Deno.serve(async (req) => {
           email,
           `Invoice ${invoice.invoice_number} is overdue`,
           overdueInvoiceTemplate({
-            orgName: invoice.organizations?.name ?? "Foxy HUB",
-            projectName: invoice.projects?.name ?? "your project",
+            orgName: invoice.organizations?.name ?? 'Foxy HUB',
+            projectName: invoice.projects?.name ?? 'your project',
             invoiceNumber: invoice.invoice_number,
             amountLabel: formatAmount(invoice.amount, invoice.currency),
             dueDateLabel: formatDueDate(invoice.due_date),
-          }),
-        );
-        emailed++;
+          })
+        )
+        emailed++
       } catch (err) {
-        console.error(`Failed to email invoice ${invoice.invoice_number}:`, err);
+        console.error(`Failed to email invoice ${invoice.invoice_number}:`, err)
       }
     } else {
       // No client on the project, or no address on the account. The old code still called
       // sendGmail here, producing a literal `To: undefined` that Gmail rejected every run.
       // The invoice is still genuinely overdue, so it is still marked below.
-      console.warn(`No client email for invoice ${invoice.invoice_number} not emailed`);
-      skipped++;
+      console.warn(
+        `No client email for invoice ${invoice.invoice_number} not emailed`
+      )
+      skipped++
     }
 
     // Marked one at a time, immediately after its own email attempt — NOT once at the end.
@@ -202,22 +242,28 @@ Deno.serve(async (req) => {
     // email could not be sent — otherwise a clientless invoice would sit at 'due' forever
     // and be retried nightly.
     const { error: updateError } = await supabase
-      .from("invoices")
-      .update({ status: "overdue" })
-      .eq("id", invoice.id);
+      .from('invoices')
+      .update({ status: 'overdue' })
+      .eq('id', invoice.id)
 
     if (updateError) {
       console.error(
         `Failed to mark invoice ${invoice.invoice_number} overdue:`,
-        updateError.message,
-      );
+        updateError.message
+      )
     } else {
-      marked++;
+      marked++
     }
   }
 
   return new Response(
-    JSON.stringify({ message: "Done", found: invoices.length, emailed, marked, skipped }),
-    { headers: { "Content-Type": "application/json" } },
-  );
-});
+    JSON.stringify({
+      message: 'Done',
+      found: invoices.length,
+      emailed,
+      marked,
+      skipped,
+    }),
+    { headers: { 'Content-Type': 'application/json' } }
+  )
+})

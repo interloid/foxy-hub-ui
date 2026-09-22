@@ -43,7 +43,10 @@ export interface Project {
   id: string
   orgId: string
   name: string
+  /** `projects.client_id` — the portal USER, which is what RLS compares to `auth.uid()`. */
   clientId?: string | null
+  /** `projects.client_org_id` — the client COMPANY, which is what `clientName` names. */
+  clientOrgId?: string | null
   clientName: string
   description?: string | null
   status: ProjectStatus
@@ -224,4 +227,9 @@ export interface UpdateProjectInput {
   name: string
   description?: string
   status: ProjectStatus
+  /**
+   * The client company to attach. Only honoured when the project has none — see
+   * `updateProjectWithValidation`, which refuses to move a project between clients.
+   */
+  clientOrgId?: string | null
 }

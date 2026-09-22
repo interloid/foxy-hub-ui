@@ -1,7 +1,7 @@
 'use client'
 
 import { ChevronDown } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { FxButton } from '@/components/shared/fx-button'
@@ -24,6 +24,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 
 import { FxTextarea } from '@/components/shared/fx-textarea'
+import type { ClientOption } from '@/features/dashboard/types'
 import { updateProjectWithValidation } from '../../actions'
 import { PROJECT_STATUS_CONFIG } from '../../constants'
 import type { Project, ProjectStatus } from '../../types'
@@ -56,6 +57,46 @@ export function EditProjectSheet({
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const hasClient = Boolean(project.clientOrgId)
+
+  const [clientOrgId, setClientOrgId] = useState<string | null>(
+    project.clientOrgId ?? null
+  )
+  const [clients, setClients] = useState<ClientOption[]>([])
+  const [isLoadingClients, setIsLoadingClients] = useState(false)
+
+  useEffect(() => {
+    if (!open || hasClient) return
+
+    const controller = new AbortController()
+
+    async function loadClients() {
+      setIsLoadingClients(true)
+
+      try {
+        const response = await fetch(
+          `/api/dashboard/sheet-data?type=clients&orgSlug=${encodeURIComponent(orgSlug)}`,
+          { signal: controller.signal }
+        )
+        const data = response.ok ? await response.json() : []
+        setClients(Array.isArray(data) ? data : [])
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Could not load clients:', error)
+        }
+      } finally {
+        setIsLoadingClients(false)
+      }
+    }
+
+    void loadClients()
+    return () => controller.abort()
+  }, [open, hasClient, orgSlug])
+
+  const selectedClientName = hasClient
+    ? project.clientName
+    : (clients.find((client) => client.id === clientOrgId)?.name ?? null)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -68,6 +109,7 @@ export function EditProjectSheet({
         name,
         description,
         status,
+        clientOrgId: hasClient ? undefined : clientOrgId,
       })
 
       toast.success('Project updated successfully!')
@@ -128,6 +170,56 @@ export function EditProjectSheet({
                 placeholder="Add project description..."
                 rows={3}
               />
+            </FxField>
+
+            {/* Client */}
+            <FxField>
+              <FxLabel htmlFor="projectClient">Client</FxLabel>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild disabled={hasClient}>
+                  <button
+                    id="projectClient"
+                    type="button"
+                    disabled={hasClient}
+                    className="border-input bg-background text-foreground focus:ring-ring flex h-9 w-full cursor-pointer items-center justify-between rounded-md border px-3 text-sm focus:ring-1 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <span
+                      className={
+                        selectedClientName ? '' : 'text-subtle-foreground'
+                      }
+                    >
+                      {selectedClientName ??
+                        (isLoadingClients
+                          ? 'Loading clients...'
+                          : 'Select a client')}
+                    </span>
+                    {!hasClient && (
+                      <ChevronDown className="size-4 opacity-50" />
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <FxDropdownMenuContent align="start" className="w-60">
+                  {clients.length === 0 ? (
+                    <FxDropdownMenuItem disabled>
+                      No clients yet
+                    </FxDropdownMenuItem>
+                  ) : (
+                    clients.map((client) => (
+                      <FxDropdownMenuItem
+                        key={client.id}
+                        onClick={() => setClientOrgId(client.id)}
+                      >
+                        {client.name}
+                      </FxDropdownMenuItem>
+                    ))
+                  )}
+                </FxDropdownMenuContent>
+              </DropdownMenu>
+              <p className="text-muted-foreground text-xs">
+                {hasClient
+                  ? 'The client is fixed once set — invoices and portal access already point at it.'
+                  : 'Naming a client is permanent. It decides whose portal this project appears in.'}
+              </p>
             </FxField>
 
             {/* Status Dropdown */}

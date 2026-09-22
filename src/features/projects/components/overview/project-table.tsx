@@ -36,6 +36,11 @@ import type { Project, ProjectStatus } from '../../types'
 interface ProjectTableProps {
   initialProjects?: Project[]
   orgSlug?: string
+  /**
+   * Where a project name links to. Defaults to the staff route; the portal passes its own
+   * because `/{org}/projects/{id}` would bounce a client back out of the portal.
+   */
+  basePath?: string
   page?: number
   totalPages?: number
   totalCount?: number
@@ -91,6 +96,7 @@ function formatDueDate(dueDate?: string | null): string {
 export function ProjectTable({
   initialProjects = [],
   orgSlug = '',
+  basePath,
   page = 1,
   totalPages = 1,
   totalCount = 0,
@@ -174,9 +180,11 @@ export function ProjectTable({
                             <h3 className="group-hover:text-primary text-foreground duration-fast w-full truncate text-left text-sm leading-snug font-semibold transition-colors">
                               <Link
                                 href={
-                                  orgSlug
-                                    ? `/${orgSlug}/projects/${project.id}`
-                                    : '#'
+                                  basePath
+                                    ? `${basePath}/${project.id}`
+                                    : orgSlug
+                                      ? `/${orgSlug}/projects/${project.id}`
+                                      : '#'
                                 }
                               >
                                 {project.name}

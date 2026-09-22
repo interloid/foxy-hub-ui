@@ -1,6 +1,8 @@
 'use server'
 
+import { issueInvoiceAction } from '@/features/portal/actions'
 import { getWorkspace, isAdminRole } from '@/lib/dal'
+import { isBillingRole } from '@/lib/role'
 import { formatCurrency } from '@/lib/money'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
@@ -32,9 +34,14 @@ const createInvoiceSchema = z.object({
   notes: z.string().max(1000, 'Notes are too long').optional(),
 })
 
-export async function createInvoiceAction(
-  rawParams: unknown
-): Promise<ActionResult<{ invoiceId: string }>> {
+export async function createInvoiceAction(rawParams: unknown): Promise<
+  ActionResult<{
+    invoiceId: string
+    /** False when Stripe refused — the invoice exists but has no payable link yet. */
+    issued: boolean
+    paymentUrl: string | null
+  }>
+> {
   const parsed = createInvoiceSchema.safeParse(rawParams)
   if (!parsed.success) {
     return {
@@ -50,11 +57,15 @@ export async function createInvoiceAction(
     return { ok: false, error: 'Workspace not found or access denied.' }
   }
 
-  const isAdmin = await isAdminRole(workspace.role)
-  if (!isAdmin) {
+  // isBillingRole, NOT isAdminRole: `manager` is an admin role for everything
+  // except billing, and `create_invoice_with_entries` refuses it with 42501. A
+  // check here that were wider than the RPC's would turn that into a raw
+  // database error instead of this message.
+  if (!isBillingRole(workspace.role)) {
     return {
       ok: false,
-      error: 'Unauthorized: Only administrators can generate invoices.',
+      error:
+        'Unauthorized: Only a primary admin or admin can generate invoices.',
     }
   }
 
@@ -143,11 +154,33 @@ export async function createInvoiceAction(
     }
   }
 
+  /**
+   * Issue it with Stripe straight away, so the invoice exists as a document the moment the
+   * app says it was raised — with a due date, a PDF and a payable link.
+   *
+   * Deliberately NOT fatal. The row is committed and the hours are claimed; a Stripe
+   * outage must not roll that back or report a failure for work that was billed. The
+   * invoice simply has no `invoice_url` until someone retries, and `issueInvoiceAction` is
+   * safe to call again for exactly that.
+   */
+  const issued = await issueInvoiceAction(invoiceId)
+
+  if (!issued.ok) {
+    console.error(`invoice ${invoiceId} saved but not issued:`, issued.error)
+  }
+
   revalidatePath(`/${orgSlug}/projects/${projectId}`)
   revalidatePath(`/${orgSlug}`)
   revalidatePath(`/${orgSlug}/invoices`)
 
-  return { ok: true, data: { invoiceId } }
+  return {
+    ok: true,
+    data: {
+      invoiceId,
+      issued: issued.ok,
+      paymentUrl: issued.ok ? issued.data.url : null,
+    },
+  }
 }
 
 const endAllocationSchema = z.object({
@@ -249,6 +282,30 @@ export async function createMilestone(input: CreateMilestoneInput) {
 
   revalidatePath(`/${input.orgSlug}/projects/${input.projectId}`)
   return newMilestone
+}
+
+export async function approveDeliveryAction(
+  deliveryId: string,
+  projectId: string,
+  orgSlug: string
+): Promise<ActionResult> {
+  const supabase = await createClient()
+
+  const { error } = await supabase.rpc('update_delivery_status', {
+    p_status: 'approved',
+    p_delivery_id: deliveryId,
+    p_project_id: projectId,
+  })
+
+  if (error) {
+    console.error('Failed to approve delivery:', error.message)
+    return { ok: false, error: 'Could not approve this deliverable.' }
+  }
+
+  // Both places a client can be looking at it from.
+  revalidatePath(`/portal/${orgSlug}/projects/${projectId}`)
+  revalidatePath(`/portal/${orgSlug}`)
+  return { ok: true }
 }
 
 export async function submitDeliveryForApproval(
@@ -621,12 +678,37 @@ export async function updateProjectWithValidation(input: UpdateProjectInput) {
     }
   }
 
+  const clientPatch: { client_org_id?: string } = {}
+
+  if (input.clientOrgId) {
+    const { data: current, error: currentError } = await supabase
+      .from('projects')
+      .select('client_org_id')
+      .eq('id', input.projectId)
+      .single()
+
+    if (currentError || !current) {
+      throw new Error('Project not found.')
+    }
+
+    if (current.client_org_id && current.client_org_id !== input.clientOrgId) {
+      throw new Error(
+        'This project already has a client. Clients cannot be changed once set.'
+      )
+    }
+
+    if (!current.client_org_id) {
+      clientPatch.client_org_id = input.clientOrgId
+    }
+  }
+
   const { data: updatedProject, error: updateError } = await supabase
     .from('projects')
     .update({
       name: trimmedName,
       description: input.description?.trim() || null,
       status: input.status,
+      ...clientPatch,
       updated_at: new Date().toISOString(),
     })
     .eq('id', input.projectId)
@@ -639,6 +721,8 @@ export async function updateProjectWithValidation(input: UpdateProjectInput) {
   }
 
   revalidatePath(`/${input.orgSlug}/projects/${input.projectId}`)
+  // The list shows the client column, so it goes stale when one is attached here.
+  revalidatePath(`/${input.orgSlug}/projects`)
 
   return updatedProject
 }

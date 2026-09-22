@@ -12,7 +12,7 @@ create policy "staff_and_own_client_view_milestones"
       where p.id = milestones.project_id
         and (
           p.client_id = (select auth.uid())
-          or public.has_org_role(p.org_id, array['owner', 'admin', 'member']::public.user_role[])
+          or public.has_org_role(p.org_id, array['primary_admin', 'admin', 'manager', 'contributor']::public.user_role[])
         )
     )
   );
@@ -25,7 +25,7 @@ create policy "staff_insert_milestones"
       join public.memberships m on p.org_id = m.org_id
       where p.id     = milestones.project_id
         and m.user_id = (select auth.uid())
-        and m.role   in ('owner', 'admin', 'member')
+        and m.role   in ('primary_admin', 'admin', 'manager', 'contributor')
     )
   );
 
@@ -37,7 +37,7 @@ create policy "staff_update_milestones"
       join public.memberships m on p.org_id = m.org_id
       where p.id     = milestones.project_id
         and m.user_id = (select auth.uid())
-        and m.role   in ('owner', 'admin', 'member')
+        and m.role   in ('primary_admin', 'admin', 'manager', 'contributor')
     )
   );
 
@@ -49,6 +49,6 @@ create policy "staff_delete_milestones"
       join public.memberships m on p.org_id = m.org_id
       where p.id     = milestones.project_id
         and m.user_id = (select auth.uid())
-        and m.role   in ('owner', 'admin', 'member')
+        and m.role   in ('primary_admin', 'admin', 'manager', 'contributor')
     )
   );

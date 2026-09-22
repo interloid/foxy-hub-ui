@@ -67,7 +67,7 @@ export async function getDashboardData(
   }
 
   const org = membership.organization
-  const role: UserRole = (membership.role as UserRole) ?? 'member'
+  const role: UserRole = (membership.role as UserRole) ?? 'contributor'
 
   const metrics = await getDashboardMetrics(orgSlug)
   if (!metrics) {
@@ -97,7 +97,9 @@ export async function getDashboardData(
 
     supabase
       .from('deliveries')
-      .select('id, title, status, projects!inner(name, clients(name))')
+      .select(
+        'id, title, status, project_id, due_date, projects!inner(name, clients(name))'
+      )
       .eq('org_id', org.id)
       .in('status', ['pending', 'submitted'])
       .order('created_at', { ascending: false })
@@ -164,8 +166,9 @@ export async function getDashboardData(
       id: d.id,
       name: d.title,
       project: projObj?.name || 'General',
+      projectId: d.project_id,
       client: clientName,
-      ext: 'DEL',
+      dueDate: d.due_date,
     }
   })
 

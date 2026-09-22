@@ -19,7 +19,12 @@ export interface GetInvoicesResponse {
 // Internal type shapes for primary database query
 interface SupabaseProjectRelation {
   name: string
-  client_id: string | null
+  /**
+   * The client COMPANY. This used to read `client_id`, which points at `auth.users` — so
+   * the ids collected below were looked up in the `clients` table and never matched, and
+   * every invoice's client rendered as an em dash.
+   */
+  client_org_id: string | null
 }
 
 interface SupabaseInvoiceRow {
@@ -58,7 +63,7 @@ export async function getInvoices(
       status,
       projects (
         name,
-        client_id
+        client_org_id
       )
     `,
       { count: 'exact' }
@@ -74,7 +79,7 @@ export async function getInvoices(
 
   const invoiceRows = data as unknown as SupabaseInvoiceRow[]
 
-  // 2. Extract unique client_ids across fetched projects
+  // 2. Extract the distinct client companies across fetched projects
   const clientIds = Array.from(
     new Set(
       invoiceRows
@@ -82,7 +87,7 @@ export async function getInvoices(
           const rawProject = Array.isArray(inv.projects)
             ? inv.projects[0]
             : inv.projects
-          return rawProject?.client_id
+          return rawProject?.client_org_id
         })
         .filter((id): id is string => Boolean(id))
     )
@@ -116,7 +121,7 @@ export async function getInvoices(
       ? inv.projects[0]
       : inv.projects
 
-    const clientId = rawProject?.client_id || null
+    const clientId = rawProject?.client_org_id || null
     const clientName = clientId ? clientMap.get(clientId) || '—' : '—'
 
     return {

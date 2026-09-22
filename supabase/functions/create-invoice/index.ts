@@ -10,21 +10,37 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
  * Origin allowlist, comma separated:
  *   supabase secrets set ALLOWED_ORIGINS=https://app.example.com
  *
- * Falls back to `*` when unset so local development keeps working. Authentication here is
- * by Authorization header rather than cookie, so a wildcard is not itself a CSRF hole —
- * pinning the origin just removes a free layer of defence.
+ * CORS still falls back to `*` when unset so local development keeps working —
+ * authentication here is by Authorization header rather than cookie, so a wildcard is not
+ * itself a CSRF hole. The REDIRECT no longer falls back that way; see below.
+ *
+ * Entries are NORMALISED to a bare origin. They used to be compared by exact string, which
+ * made the variable unforgiving in both directions: `https://app.example.com/` with a
+ * trailing slash matched nothing, so every payment failed with "Invalid return URL", while
+ * a `returnUrl` carrying a path sailed past a list that happened to contain the same path.
+ * Comparing origins is the comparison that was always meant.
  */
+function toOrigin(value: string): string | null {
+  try {
+    const url = new URL(value.trim())
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+    return url.origin
+  } catch {
+    return null
+  }
+}
+
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
   .split(',')
-  .map((o) => o.trim())
-  .filter(Boolean)
+  .map(toOrigin)
+  .filter((o): o is string => Boolean(o))
 
 function corsHeadersFor(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') ?? ''
+  const origin = toOrigin(req.headers.get('Origin') ?? '') ?? ''
   const allow =
     ALLOWED_ORIGINS.length === 0
       ? '*'
-      : ALLOWED_ORIGINS.includes(origin)
+      : origin && ALLOWED_ORIGINS.includes(origin)
         ? origin
         : ''
   return {
@@ -76,42 +92,52 @@ serve(async (req) => {
     return json({ error: 'invoiceId is required' }, 400)
   }
 
-  // Determine base URL safely using ALLOWED_ORIGINS or caller-supplied returnUrl
+  // Where Stripe sends the payer afterwards. Reduced to an origin first — `toOrigin` is
+  // what rejects a relative path, a javascript: scheme or anything unparseable, so the
+  // separate validation that used to follow is no longer needed.
   const originHeader = req.headers.get('origin') ?? ''
   const requested =
     typeof returnUrl === 'string' && returnUrl ? returnUrl : originHeader
+  const requestedOrigin = toOrigin(requested)
 
-  const base =
-    ALLOWED_ORIGINS.length > 0
-      ? ALLOWED_ORIGINS.includes(requested)
-        ? requested
-        : ''
-      : requested
-
-  if (!base) {
-    console.error(`Rejected return URL "${requested}" — not in ALLOWED_ORIGINS`)
+  if (!requestedOrigin) {
+    console.error(`Rejected return URL "${requested}" — not an http(s) origin`)
     return json({ error: 'Invalid return URL' }, 400)
   }
 
-  let parsedBase: URL
-  try {
-    parsedBase = new URL(base)
-  } catch {
-    console.error(`Rejected return URL "${base}" — not a valid absolute URL`)
-    return json({ error: 'Invalid return URL' }, 400)
-  }
-  if (parsedBase.protocol !== 'http:' && parsedBase.protocol !== 'https:') {
+  // With no allowlist the caller's own origin is taken on trust. That is the local-dev
+  // fallback, and it is exactly what must not happen in production: a deployment that
+  // forgets the variable would let any authenticated caller choose where Stripe redirects
+  // after payment. So the fallback is refused whenever this is not a localhost origin.
+  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(
+    requestedOrigin
+  )
+
+  if (ALLOWED_ORIGINS.length === 0 && !isLocal) {
     console.error(
-      `Rejected return URL "${base}" — scheme "${parsedBase.protocol}" is not http(s)`
+      'ALLOWED_ORIGINS is not configured — refusing to trust a caller-supplied return URL'
+    )
+    return json({ error: 'Checkout is not configured' }, 500)
+  }
+
+  if (
+    ALLOWED_ORIGINS.length > 0 &&
+    !ALLOWED_ORIGINS.includes(requestedOrigin)
+  ) {
+    console.error(
+      `Rejected return URL "${requestedOrigin}" — not in ALLOWED_ORIGINS`
     )
     return json({ error: 'Invalid return URL' }, 400)
   }
 
-  // RLS decides visibility. Also fetch organization slug for proper routing.
+  const base = requestedOrigin
+
+  // RLS decides visibility. The organisation's slug routes the return URL; its name goes
+  // on the Stripe invoice, which otherwise names only this platform account.
   const { data: invoice, error: invoiceError } = await supabase
     .from('invoices')
     .select(
-      'id, amount, currency, status, invoice_number, description, organizations(slug), projects(client_id)'
+      'id, amount, currency, status, invoice_number, description, organizations(slug, name), projects(client_id, name)'
     )
     .eq('id', invoiceId)
     .maybeSingle()
@@ -135,43 +161,140 @@ serve(async (req) => {
     return json({ error: 'Invoice amount is not chargeable' }, 409)
   }
 
-  const clientId = (invoice.projects as { client_id: string | null } | null)
-    ?.client_id
-  const customerEmail = clientId === user.id ? user.email : undefined
+  const project = invoice.projects as unknown as {
+    client_id: string | null
+    name: string | null
+  } | null
 
-  const orgSlug = (invoice.organizations as unknown as { slug: string } | null)
-    ?.slug
+  const clientId = project?.client_id
+  const isClient = Boolean(clientId) && clientId === user.id
+  const customerEmail = isClient ? user.email : undefined
+
+  const organization = invoice.organizations as unknown as {
+    slug: string
+    name: string | null
+  } | null
+
+  const orgSlug = organization?.slug
   const orgPrefix = orgSlug ? `/${orgSlug}` : ''
 
+  /**
+   * Where Stripe drops the payer afterwards.
+   *
+   * This used to be `{org}/invoices/{id}` for everyone, which is a route that does not
+   * exist: a client bounced off the `[org]` gate into the portal with no word about the
+   * payment, and staff got a plain 404. The two apps need two destinations, and the
+   * function already knows which one the payer is standing in.
+   *
+   * The client's page reads the invoice and copes with the row still being `due`, because
+   * the webhook that flips it is a separate request that may not have landed yet.
+   */
+  const returnPath = isClient
+    ? `/portal/${orgSlug}/invoices/${invoice.id}`
+    : `${orgPrefix}/invoices`
+  const orgName = organization?.name?.trim() || 'your agency'
+
+  /**
+   * What the payer sees on the Stripe invoice besides the amount.
+   *
+   * This is a single platform account, so every agency's client is billed by the same
+   * merchant name — without these the document gives no clue WHO the work was for, and
+   * `invoice_number` survives only inside a line-item string. The template's own custom
+   * fields cannot do this: those are static text, identical on every invoice.
+   *
+   * Stripe caps custom fields at 4, with a 30-character name and 30-character value, and
+   * rejects the whole request on an empty string — hence the truncation and the filter.
+   */
+  const customFields = [
+    { name: 'Agency', value: orgName },
+    { name: 'Reference', value: invoice.invoice_number ?? '' },
+    { name: 'Project', value: project?.name ?? '' },
+  ]
+    .map((field) => ({
+      name: field.name.slice(0, 30),
+      value: field.value.trim().slice(0, 30),
+    }))
+    .filter((field) => field.value.length > 0)
+
   try {
-    const session = await stripe.checkout.sessions.create({
-      ...(customerEmail ? { customer_email: customerEmail } : {}),
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: invoice.currency,
-            product_data: {
-              name: `Invoice ${invoice.invoice_number}`,
-              ...(invoice.description
-                ? { description: invoice.description }
-                : {}),
+    const session = await stripe.checkout.sessions.create(
+      {
+        ...(customerEmail ? { customer_email: customerEmail } : {}),
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: invoice.currency,
+              product_data: {
+                name: `Invoice ${invoice.invoice_number}`,
+                ...(invoice.description
+                  ? { description: invoice.description }
+                  : {}),
+              },
+              unit_amount: minorUnits,
             },
-            unit_amount: minorUnits,
+            quantity: 1,
           },
-          quantity: 1,
+        ],
+        mode: 'payment',
+        invoice_creation: {
+          enabled: true,
+          invoice_data: {
+            description: `${orgName} — ${invoice.invoice_number}`,
+            footer: `Paid to ${orgName} via Foxy Hub. Questions about this work should go to ${orgName} directly.`,
+            custom_fields: customFields,
+            // Mirrors the session metadata, so the invoice object carries the same
+            // reference as the event the webhook reads.
+            metadata: { invoice_id: invoice.id },
+          },
         },
-      ],
-      mode: 'payment',
-      invoice_creation: { enabled: true },
-      metadata: { invoice_id: invoice.id },
-      success_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=success`,
-      cancel_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=cancelled`,
-    })
+        metadata: { invoice_id: invoice.id },
+        success_url: `${base}${returnPath}?payment=success`,
+        cancel_url: `${base}${returnPath}?payment=cancelled`,
+      },
+      {
+        // Keyed on the invoice and its amount, so a double click, a retry or a second tab
+        // all get the SAME session back rather than a second payable one. Without it a
+        // client could pay twice; the second webhook would then collide on the unique
+        // `payment_intent` and leave a real Stripe charge with nothing recording it.
+        //
+        // The amount is in the key so that a cancelled-and-reissued invoice at a different
+        // total is a different session, rather than reusing one priced at the old figure.
+        // The `v2` is a payload version, and it must be bumped whenever the session
+        // arguments above change shape. Stripe rejects a key replayed with DIFFERENT
+        // parameters — "keys for idempotent requests can only be used with the same
+        // parameters they were first used with" — so without this, editing the return
+        // URL or the invoice data breaks payment for every invoice already attempted,
+        // until the key ages out 24 hours later.
+        idempotencyKey: `invoice:v2:${invoice.id}:${minorUnits}`,
+      }
+    )
 
     return json({ url: session.url }, 200)
   } catch (error) {
-    console.error('stripe session create failed:', (error as Error).message)
-    return json({ error: 'Could not start checkout' }, 502)
+    // Stripe's own wording, passed through. The generic string this used to return meant
+    // the only copy of the reason sat in the Supabase dashboard logs, so a failure in the
+    // app gave the caller nothing to act on. Stripe's messages describe the request, not
+    // the account, and no key or secret appears in them.
+    const stripeError = error as {
+      message?: string
+      code?: string
+      type?: string
+    }
+
+    console.error('stripe session create failed:', {
+      message: stripeError.message,
+      code: stripeError.code,
+      type: stripeError.type,
+    })
+
+    return json(
+      {
+        error: 'Could not start checkout',
+        detail: stripeError.message ?? String(error),
+        code: stripeError.code ?? stripeError.type ?? null,
+      },
+      502
+    )
   }
 })

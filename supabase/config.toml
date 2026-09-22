@@ -452,6 +452,16 @@ entrypoint = "./functions/create-invoice/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/create-invoice/*.html" ]
 
+[functions.issue-invoice]
+enabled = true
+# Must stay true. The function writes `stripe_invoice_id` and `invoice_url` through the
+# caller's own token, so `owners_admins_update_invoices` is what authorises issuing a bill.
+# Without a real user token those writes would be refused — or, worse, would need the
+# service-role key and lose the check entirely.
+verify_jwt = true
+import_map = "./functions/issue-invoice/deno.json"
+entrypoint = "./functions/issue-invoice/index.ts"
+
 [functions.invoice-overdue-handler]
 enabled = true
 verify_jwt = false

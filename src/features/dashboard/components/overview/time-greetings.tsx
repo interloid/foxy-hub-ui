@@ -22,7 +22,13 @@ function useClientGreeting() {
   )
 }
 
-export function TimeGreeting({ userName }: { userName: string | null }) {
+export function TimeGreeting({
+  userName,
+  subtitle = 'Here is what’s happening across your workspace today.',
+}: {
+  userName: string | null
+  subtitle?: string
+}) {
   const greeting = useClientGreeting()
   const firstName = userName?.trim().split(/\s+/)[0]
 
@@ -32,9 +38,7 @@ export function TimeGreeting({ userName }: { userName: string | null }) {
         {greeting}
         {firstName ? `, ${firstName}` : ''}
       </h1>
-      <p className="text-muted-foreground mt-0.5">
-        Here is what’s happening across your workspace today.
-      </p>
+      <p className="text-muted-foreground mt-0.5">{subtitle}</p>
     </div>
   )
 }

@@ -34,7 +34,6 @@ import { toast } from 'sonner'
 import { uploadDeliveryAssets } from '../../actions'
 import type { ProjectDelivery } from '../../types'
 
-// Allowed MIME types
 const ALLOWED_MIME_TYPES = [
   'image/jpeg',
   'image/png',
@@ -47,7 +46,6 @@ const ALLOWED_MIME_TYPES = [
   'application/x-zip-compressed',
 ] as const
 
-// Extension fallbacks when MIME type is missing/generic in some OS environments
 const ALLOWED_EXTENSIONS = [
   'jpg',
   'jpeg',
@@ -84,6 +82,8 @@ interface DeliverableFileSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmitForApproval?: (deliveryId: string) => void
+  /** The client's sign-off. Only ever called from the portal — see the footer. */
+  onApprove?: (deliveryId: string) => void
   onViewFile?: (filePath: string) => void
   onDownloadFile?: (filePath: string) => void
   onSuccessUpload?: () => void
@@ -94,6 +94,7 @@ export function DeliverableFileSheet({
   open,
   onOpenChange,
   onSubmitForApproval,
+  onApprove,
   onViewFile,
   onDownloadFile,
   onSuccessUpload,
@@ -104,12 +105,15 @@ export function DeliverableFileSheet({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null)
-  const { orgSlug } = useWorkspace()
+  const [isApproving, setIsApproving] = useState(false)
+  const { orgSlug, userRole } = useWorkspace()
 
   if (!delivery) return null
 
   const isPending = delivery.status === 'pending'
   const isApproved = delivery.status === 'approved'
+
+  const canApprove = userRole === 'client' && delivery.status === 'submitted'
 
   const getFileName = (path: string) => {
     return path.split('/').pop() || path
@@ -120,7 +124,6 @@ export function DeliverableFileSheet({
   const remainingSlots =
     MAX_TOTAL_FILES - existingAssetsCount - selectedFiles.length
 
-  // Helper function to check valid MIME type or fallback extension
   const isValidFileType = (file: File): boolean => {
     if (
       ALLOWED_MIME_TYPES.includes(
@@ -501,7 +504,35 @@ export function DeliverableFileSheet({
 
         {/* Footer Actions */}
         <FxSheetFooter className="justify-end">
-          {isPending ? (
+          {canApprove ? (
+            <FxButton
+              type="button"
+              variant="default"
+              disabled={isApproving}
+              onClick={async () => {
+                setIsApproving(true)
+                try {
+                  await onApprove?.(delivery.id)
+                } catch (error) {
+                  console.error('Failed to approve:', error)
+                } finally {
+                  setIsApproving(false)
+                }
+              }}
+            >
+              {isApproving ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Approving...
+                </>
+              ) : (
+                <>
+                  <Check className="mr-2 size-4" />
+                  Approve
+                </>
+              )}
+            </FxButton>
+          ) : isPending ? (
             <FxButton
               type="button"
               variant="default"

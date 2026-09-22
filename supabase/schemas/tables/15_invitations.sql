@@ -41,9 +41,11 @@ create table public.invitations (
   accepted_at timestamptz,
   accepted_by uuid                    references auth.users(id) on delete set null,
 
-  -- 'owner' is not invitable. It is set exactly once, on the user who creates the org.
+  -- 'primary_admin' is not invitable. It is set exactly once, on the user who creates the org.
+  -- Every other role is, including 'manager' — omitting it here would make the role
+  -- assignable only by a direct UPDATE on memberships, never through the invite flow.
   constraint invitations_role_check
-    check (role in ('admin', 'member', 'client')),
+    check (role in ('admin', 'manager', 'contributor', 'client')),
 
   -- A client invitation MAY name a project, and `handle_new_user_signup` hands that
   -- project's `client_id` to them when they accept — that is what portal access is.

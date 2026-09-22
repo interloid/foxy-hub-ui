@@ -151,8 +151,10 @@ serve(async (req) => {
         ],
         mode: 'payment',
         customer_email: user.email,
-        success_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=success`,
-        cancel_url: `${base}${orgPrefix}/invoices/${invoice.id}?payment=canceled`,
+        // `{org}/invoices/{id}` has no route — this landed on a 404. The list page is
+        // real, and `InvoicePaidBanner` there reads the query param.
+        success_url: `${base}${orgPrefix}/invoices?payment=success`,
+        cancel_url: `${base}${orgPrefix}/invoices?payment=cancelled`,
         metadata: {
           invoice_id: invoice.id,
           org_id: org?.id || '',

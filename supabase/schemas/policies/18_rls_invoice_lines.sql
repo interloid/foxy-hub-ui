@@ -20,7 +20,7 @@ create policy "view_invoice_lines_with_invoice"
           p.client_id = (select auth.uid())
           or public.has_org_role(
             p.org_id,
-            array['owner', 'admin', 'member']::public.user_role[]
+            array['primary_admin', 'admin', 'manager', 'contributor']::public.user_role[]
           )
         )
     )
@@ -37,7 +37,7 @@ create policy "owners_admins_insert_invoice_lines"
       where i.id = invoice_lines.invoice_id
         and public.has_org_role(
           i.org_id,
-          array['owner', 'admin']::public.user_role[]
+          array['primary_admin', 'admin']::public.user_role[]
         )
     )
   );

@@ -1,4 +1,11 @@
-export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'client'
+import type { UserRole } from '@/lib/role'
+
+/**
+ * Derived from the generated enum rather than hand-listed, so a role added in
+ * the database cannot silently miss this file — which is what would leave
+ * `ROLE_BADGE` below without a key for it.
+ */
+export type WorkspaceRole = UserRole
 
 export interface PersonRow {
   membershipId: string

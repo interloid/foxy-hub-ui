@@ -46,6 +46,17 @@ create table public.clients (
   -- has no third unknown state.
   status        boolean     not null default true,
 
+  -- The Stripe Customer this company bills through.
+  --
+  -- Without it every invoice created a throwaway customer from `customer_email`, so a client
+  -- with six invoices was six unrelated customers in Stripe — no payment history, no saved
+  -- card, and nothing to reconcile a refund against. Held here rather than on `invoices`
+  -- because the customer belongs to the company, not to one bill.
+  --
+  -- Nullable: it is minted the first time an invoice is issued, and a client who has never
+  -- been billed has no reason to exist in Stripe at all.
+  stripe_customer_id text unique,
+
   created_at    timestamptz not null default now(),
 
   -- Two companies with one name inside one workspace are a data-entry slip, not two clients.

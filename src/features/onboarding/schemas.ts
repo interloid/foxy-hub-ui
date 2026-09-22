@@ -43,7 +43,7 @@ export const teamInviteSchema = z.object({
     .trim()
     .pipe(z.union([z.literal(''), z.email('Enter a valid email address.')]))
     .transform((value) => value.toLowerCase()),
-  role: z.enum(['Admin', 'Member']),
+  role: z.enum(['Admin', 'Manager', 'Contributor']),
 })
 
 export const MAX_SIGNUP_INVITES = 10

@@ -22,6 +22,8 @@ export default async function OrgLayout({
     redirect(`/unauthorized?org=${encodeURIComponent(org)}`)
   }
 
+  if (account.role === 'client') redirect(`/portal/${org}`)
+
   const [workspace, unpaidInvoices] = await Promise.all([
     getWorkspace(org),
     getUnpaidInvoiceCount(org),

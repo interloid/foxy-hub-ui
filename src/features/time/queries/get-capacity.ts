@@ -2,9 +2,10 @@ import { toISODate } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 
 const ROLE_ORDER: Record<string, number> = {
-  owner: 1,
+  primary_admin: 1,
   admin: 2,
-  member: 3,
+  manager: 3,
+  contributor: 4,
 }
 export async function getTeamCapacityData(orgId: string) {
   const supabase = await createClient()

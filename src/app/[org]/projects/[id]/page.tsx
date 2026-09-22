@@ -78,6 +78,7 @@ export default async function ProjectDetailPage({
   if (!project) {
     notFound()
   }
+  console.log(project)
 
   const workspace = await getWorkspace(org)
   const canManageAllocations = workspace ? isAdminRole(workspace.role) : false

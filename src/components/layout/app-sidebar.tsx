@@ -20,6 +20,16 @@ export type NavEntry = {
   icon: NavIconName
   href: string
   count?: number
+  /**
+   * Highlight only on an exact path match, never on a prefix.
+   *
+   * A section's landing page is a prefix of every page under it, so without this the
+   * dashboard stays lit while you are on one of its children. This used to be handled by
+   * comparing against `/{workspace.org}`, which only recognised the staff app's dashboard
+   * — the portal's sits at `/portal/{org}` and so was matched as a prefix of
+   * `/portal/{org}/projects`, lighting both rows at once.
+   */
+  exact?: boolean
 }
 
 export type NavSection = {
@@ -171,7 +181,7 @@ export function AppSidebar({
             {section.items.map((item) => {
               const isActive =
                 item.href === activeHref ||
-                (item.href !== `/${workspace.org}` &&
+                (!item.exact &&
                   item.href !== '/' &&
                   activeHref.startsWith(`${item.href}/`))
 
