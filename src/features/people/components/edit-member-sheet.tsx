@@ -46,6 +46,7 @@ interface EditMemberSheetProps {
   viewerRole: UserRole | null
   viewerId: string | null
   open: boolean
+  canManage: boolean
   onOpenChange: (open: boolean) => void
 }
 
@@ -62,6 +63,7 @@ function EditMemberSheetForm({
   viewerRole,
   viewerId,
   open,
+  canManage,
   onOpenChange,
 }: EditMemberSheetProps & { member: PersonRow }) {
   const [fullName, setFullName] = useState(member.fullName)
@@ -175,7 +177,7 @@ function EditMemberSheetForm({
           <FxSheetBody className="space-y-1">
             <FxField>
               <FxLabel htmlFor="edit-member-name">
-                Full name{' '}
+                Full name
                 <span className="text-muted-foreground font-normal">
                   (optional)
                 </span>
@@ -183,6 +185,7 @@ function EditMemberSheetForm({
               <FxInput
                 id="edit-member-name"
                 maxLength={80}
+                disabled={!canManage}
                 value={fullName}
                 aria-invalid={touched.fullName && nameError !== null}
                 onChange={(e) => setFullName(e.target.value)}
@@ -203,6 +206,7 @@ function EditMemberSheetForm({
               <FxInput
                 id="edit-member-job-title"
                 maxLength={60}
+                disabled={!canManage}
                 placeholder="Product Designer"
                 value={jobTitle}
                 aria-invalid={touched.jobTitle && jobTitleError !== null}
@@ -214,49 +218,51 @@ function EditMemberSheetForm({
               )}
             </FxField>
 
-            <FxField className="pb-2">
-              <FxLabel htmlFor="edit-member-role">Role</FxLabel>
-              {isPrimary ? (
-                <p className="text-muted-foreground border-border rounded-lg border p-3 text-xs">
-                  The primary admin&apos;s role cannot be changed here. Hand it
-                  to another admin from their row instead — the workspace always
-                  has exactly one.
-                </p>
-              ) : (
-                <Select
-                  value={role}
-                  onValueChange={(v) => setRole(v as UserRole)}
-                >
-                  <SelectTrigger
-                    id="edit-member-role"
-                    className="bg-muted border-border text-md h-11! w-full cursor-pointer p-2"
+            {canManage && (
+              <FxField className="pb-2">
+                <FxLabel htmlFor="edit-member-role">Role</FxLabel>
+                {isPrimary ? (
+                  <p className="text-muted-foreground border-border rounded-lg border p-3 text-xs">
+                    The primary admin&apos;s role cannot be changed here. Hand
+                    it to another admin from their row instead — the workspace
+                    always has exactly one.
+                  </p>
+                ) : (
+                  <Select
+                    value={role}
+                    onValueChange={(v) => setRole(v as UserRole)}
                   >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent
-                    position="popper"
-                    align="start"
-                    sideOffset={6}
-                    className="p-1"
-                  >
-                    {ROLE_CHOICES.map((r) => (
-                      <SelectItem
-                        key={r}
-                        value={r}
-                        className="cursor-pointer p-2.5"
-                      >
-                        {roleLabel(r)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </FxField>
+                    <SelectTrigger
+                      id="edit-member-role"
+                      className="bg-muted border-border text-md h-11! w-full cursor-pointer p-2"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent
+                      position="popper"
+                      align="start"
+                      sideOffset={6}
+                      className="p-1"
+                    >
+                      {ROLE_CHOICES.map((r) => (
+                        <SelectItem
+                          key={r}
+                          value={r}
+                          className="cursor-pointer p-2.5"
+                        >
+                          {roleLabel(r)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </FxField>
+            )}
           </FxSheetBody>
 
           <FxSheetFooter className="justify-between">
             <div className="flex items-center gap-2">
-              {showDeactivate && (
+              {showDeactivate && canManage && (
                 <FxButton
                   type="button"
                   variant="secondary"
@@ -290,14 +296,16 @@ function EditMemberSheetForm({
               >
                 Close
               </FxButton>
-              <FxButton
-                type="submit"
-                disabled={isSaving || hasErrors || !isDirty}
-                className="gap-1.5"
-              >
-                <Check className="size-4" />
-                {isSaving ? 'Saving…' : 'Save changes'}
-              </FxButton>
+              {canManage && (
+                <FxButton
+                  type="submit"
+                  disabled={isSaving || hasErrors || !isDirty}
+                  className="gap-1.5"
+                >
+                  <Check className="size-4" />
+                  {isSaving ? 'Saving…' : 'Save changes'}
+                </FxButton>
+              )}
             </div>
           </FxSheetFooter>
         </form>

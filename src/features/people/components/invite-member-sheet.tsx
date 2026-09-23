@@ -282,8 +282,8 @@ export function InviteMemberSheet({
             </FxField>
 
             <p className="text-muted-foreground text-xs">
-              Only the Owner can hand over ownership, and only Admins see
-              billing.
+              Only the Primary Admin can hand over ownership, and only Admins
+              see billing.
             </p>
           </FxSheetBody>
 

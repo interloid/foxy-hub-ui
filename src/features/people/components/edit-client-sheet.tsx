@@ -31,6 +31,7 @@ interface EditClientSheetProps {
   orgSlug: string
   client: ClientCompanyRow | null
   open: boolean
+  canManage: boolean
   onOpenChange: (open: boolean) => void
 }
 
@@ -51,6 +52,7 @@ export function EditClientSheet({ client, ...props }: EditClientSheetProps) {
 function EditClientSheetForm({
   orgSlug,
   client,
+  canManage,
   open,
   onOpenChange,
 }: EditClientSheetProps & { client: ClientCompanyRow }) {
@@ -172,6 +174,7 @@ function EditClientSheetForm({
               <FxInput
                 id="edit-client-name"
                 required
+                disabled={!canManage}
                 maxLength={80}
                 value={name}
                 aria-invalid={touched.name && nameError !== null}
@@ -200,6 +203,7 @@ function EditClientSheetForm({
               <FxInput
                 id="edit-client-contact-name"
                 maxLength={80}
+                disabled={!canManage}
                 placeholder="Erik Lund"
                 value={contactName}
                 aria-invalid={touched.contactName && contactNameError !== null}
@@ -221,6 +225,7 @@ function EditClientSheetForm({
             <label className="border-border bg-muted flex cursor-pointer items-center gap-3 rounded-lg border p-3">
               <Switch
                 checked={portal}
+                disabled={!canManage}
                 onCheckedChange={setPortal}
                 aria-label="Portal access"
               />
@@ -237,14 +242,16 @@ function EditClientSheetForm({
           </FxSheetBody>
 
           <FxSheetFooter className="justify-between">
-            <FxButton
-              type="button"
-              variant="secondary"
-              disabled={isTogglingStatus}
-              onClick={() => setShowStatusConfirm(true)}
-            >
-              {client.isActive ? 'Deactivate' : 'Reactivate'}
-            </FxButton>
+            {canManage && (
+              <FxButton
+                type="button"
+                variant="secondary"
+                disabled={isTogglingStatus}
+                onClick={() => setShowStatusConfirm(true)}
+              >
+                {client.isActive ? 'Deactivate' : 'Reactivate'}
+              </FxButton>
+            )}
 
             <div className="flex items-center gap-2">
               <FxButton
@@ -254,14 +261,16 @@ function EditClientSheetForm({
               >
                 Close
               </FxButton>
-              <FxButton
-                type="submit"
-                disabled={isSaving || hasErrors || !isDirty}
-                className="gap-1.5"
-              >
-                <Check className="size-4" />
-                {isSaving ? 'Saving…' : 'Save changes'}
-              </FxButton>
+              {canManage && (
+                <FxButton
+                  type="submit"
+                  disabled={isSaving || hasErrors || !isDirty}
+                  className="gap-1.5"
+                >
+                  <Check className="size-4" />
+                  {isSaving ? 'Saving…' : 'Save changes'}
+                </FxButton>
+              )}
             </div>
           </FxSheetFooter>
         </form>

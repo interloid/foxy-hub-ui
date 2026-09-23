@@ -622,6 +622,7 @@ export function MembersClientsView({
 
       <EditMemberSheet
         orgSlug={orgSlug}
+        canManage={canManage}
         member={editingMember}
         viewerRole={viewerRole}
         viewerId={viewerId}
@@ -633,6 +634,7 @@ export function MembersClientsView({
         orgSlug={orgSlug}
         client={editingClient}
         open={isEditOpen}
+        canManage={canManage}
         onOpenChange={setIsEditOpen}
       />
 

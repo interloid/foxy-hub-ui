@@ -9,7 +9,7 @@ export const STAFF_ROLES = [
   'contributor',
 ] as const satisfies readonly UserRole[]
 
-const ADMIN_ROLES = ['primary_admin', 'admin', 'manager'] as const
+const ADMIN_ROLES = ['primary_admin', 'admin'] as const
 
 const BILLING_ROLES = ['primary_admin', 'admin'] as const
 
