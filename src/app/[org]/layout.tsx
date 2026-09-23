@@ -29,7 +29,7 @@ export default async function OrgLayout({
     getUnpaidInvoiceCount(org),
   ])
 
-  const sections = withInvoiceCount(unpaidInvoices, org)
+  const sections = withInvoiceCount(unpaidInvoices, org, account.role)
 
   return (
     <WorkspaceProvider

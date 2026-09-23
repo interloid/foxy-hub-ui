@@ -1,5 +1,6 @@
 import type { FooterProps } from '@/components/layout/app-footer'
 import type { NavSection } from '@/components/layout/app-sidebar'
+import type { UserRole } from '@/lib/role'
 
 export function getNavSections(org: string): NavSection[] {
   const prefix = org ? `/${org}` : ''
@@ -86,8 +87,39 @@ export function getClientFooter(org: string, orgName?: string): FooterProps {
   }
 }
 
-export function withInvoiceCount(count: number = 0, org: string): NavSection[] {
-  const sections = getNavSections(org)
+const CONTRIBUTOR_NAV = ['Dashboard', 'Projects', 'Time'] as const
+
+const MANAGER_HIDDEN_NAV = ['Reports'] as const
+
+export function filterNavForRole(
+  sections: NavSection[],
+  role: UserRole | string | null | undefined
+): NavSection[] {
+  const normalized = role?.toLowerCase().trim()
+
+  const isVisible =
+    normalized === 'contributor'
+      ? (label: string) =>
+          (CONTRIBUTOR_NAV as readonly string[]).includes(label)
+      : normalized === 'manager'
+        ? (label: string) =>
+            !(MANAGER_HIDDEN_NAV as readonly string[]).includes(label)
+        : () => true
+
+  return sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => isVisible(item.label)),
+    }))
+    .filter((section) => section.items.length > 0)
+}
+
+export function withInvoiceCount(
+  count: number = 0,
+  org: string,
+  role?: UserRole | string | null
+): NavSection[] {
+  const sections = filterNavForRole(getNavSections(org), role)
   if (!count) return sections
 
   return sections.map((section) => ({
