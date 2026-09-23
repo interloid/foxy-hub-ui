@@ -33,6 +33,12 @@ create table public.invitations (
   project_id  uuid,
   email       text        not null,
   role        public.user_role not null,
+
+  -- Carried on the invitation so it can reach the membership. `handle_new_user_signup`
+  -- builds the membership row from THIS row and nothing else — the signup payload is
+  -- untrusted — so a title that is not here cannot be on the membership when the invitee
+  -- accepts. Same text-not-enum reasoning as memberships.job_title.
+  job_title   text            check (job_title is null or char_length(job_title) between 2 and 60),
   -- SHA-256 of the token, hex encoded. Never the token itself.
   token_hash  text        not null unique,
   invited_by  uuid                    references auth.users(id) on delete set null,

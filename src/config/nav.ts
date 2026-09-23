@@ -25,9 +25,9 @@ export function getNavSections(org: string): NavSection[] {
       items: [
         { label: 'Billing & plan', icon: 'billing', href: `#` },
         {
-          label: 'Members & clients',
+          label: 'People',
           icon: 'user',
-          href: `${prefix}/members-clients`,
+          href: `${prefix}/people`,
         },
         { label: 'Settings', icon: 'settings', href: `${prefix}/settings` },
         { label: 'Auth & demo', icon: 'auth', href: '/sign-in' },
@@ -36,10 +36,6 @@ export function getNavSections(org: string): NavSection[] {
   ]
 }
 
-/**
- * The portal's sidebar. A separate list rather than a filter over `getNavSections`,
- * because the hrefs live under `/portal/{org}` and the screens behind them are their own.
- */
 export function getClientNavSections(org: string): NavSection[] {
   const prefix = org ? `/portal/${org}` : '/portal'
 
@@ -58,10 +54,6 @@ export function getClientNavSections(org: string): NavSection[] {
   ]
 }
 
-/**
- * `getFooter` links into the staff app — every one of those hrefs would bounce a client
- * back out through the `[org]` gate, so the portal gets its own short list.
- */
 export function getClientFooter(org: string, orgName?: string): FooterProps {
   const prefix = org ? `/portal/${org}` : '/portal'
   const staff = getFooter(org, orgName)

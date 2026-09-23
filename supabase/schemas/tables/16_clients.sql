@@ -46,6 +46,23 @@ create table public.clients (
   -- has no third unknown state.
   status        boolean     not null default true,
 
+  -- ── Whether this client gets a portal ────────────────────────────────────────────────
+  --
+  -- Distinct from `status`, which is access to the WORKSPACE (deactivation frees the seat
+  -- and hides the row). `portal` is whether this company is meant to have a client-facing
+  -- portal at all: some clients are billing-only records behind an invoice and never get a
+  -- login.
+  --
+  -- Also distinct from the New client form's "Email them a portal invite" checkbox. That
+  -- one is an ACTION taken once — send a mail now. This is the durable intent, which is
+  -- what the Clients list and the "with portal access" count need to read later.
+  --
+  -- NOT NULL with `default true` because that is what the form defaults to, and because a
+  -- flag that gates a surface has no meaningful third "unknown" state. Every existing row
+  -- becomes portal-enabled on migration, which matches how they were created — there was
+  -- no way to opt out before this column existed.
+  portal        boolean     not null default true,
+
   -- The Stripe Customer this company bills through.
   --
   -- Without it every invoice created a throwaway customer from `customer_email`, so a client

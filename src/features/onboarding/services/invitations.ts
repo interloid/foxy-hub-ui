@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { after } from 'next/server'
 import 'server-only'
 import type { InviteOutcome, TeamInvite } from '../types'
 
@@ -34,6 +35,7 @@ export async function sendInvitations(
       email: invite.email.trim().toLowerCase(),
       role: invite.role.toLowerCase(),
       fullName: invite.fullName?.trim() || null,
+      jobTitle: invite.jobTitle?.trim() || null,
       projectId: invite.projectId || null,
     }))
     .filter((invite) => invite.email.length > 0)
@@ -57,6 +59,7 @@ export async function sendInvitations(
           project_id: invite.projectId,
           email: invite.email,
           role: invite.role,
+          job_title: invite.jobTitle,
           token_hash: tokenHash,
           invited_by: params.invitedBy,
         })
@@ -83,36 +86,43 @@ export async function sendInvitations(
       // `invite_token` is what makes handle_new_user_signup take its INVITED branch —
       // without it the trigger reads org_name/slug and builds a whole new workspace.
       // `user_name` is what it writes into profiles.full_name.
-      const { error: mailError } = await admin.auth.admin.inviteUserByEmail(
-        invite.email,
-        {
-          data: {
-            invite_token: rawToken,
-            org_id: params.orgId,
-            ...(invite.fullName ? { user_name: invite.fullName } : {}),
-          },
-          redirectTo: landingFor(invite.role),
-        }
-      )
-
-      if (mailError) {
-        console.error(
-          `Invite email failed for ${invite.email}:`,
-          mailError.message
+      //
+      // NOT awaited. `after()` runs this once the response has been flushed, so the
+      // caller gets its answer as soon as the invitation row exists rather than waiting
+      // on SMTP. That wait is the whole delay: a measured Gmail handshake is ~2.45s to
+      // connect + EHLO + STARTTLS + EHLO, before AUTH or the message itself — so the
+      // "Invite sent" toast was arriving several seconds after the click.
+      //
+      // The row is the source of truth and is already committed above, so a slow or
+      // failed send never costs us the invitation. What it does cost is the old
+      // delete-on-failure path: the response is gone by the time we know, so a failure
+      // now leaves a row that shows up under Pending invites with no mail delivered.
+      // That is the trade — it is logged loudly, and re-inviting replaces the row.
+      after(async () => {
+        const { error: mailError } = await admin.auth.admin.inviteUserByEmail(
+          invite.email,
+          {
+            data: {
+              invite_token: rawToken,
+              org_id: params.orgId,
+              ...(invite.fullName ? { user_name: invite.fullName } : {}),
+            },
+            redirectTo: landingFor(invite.role),
+          }
         )
 
-        await supabase.from('invitations').delete().eq('id', row.id)
-
-        return {
-          email: invite.email,
-          created: false,
-          emailed: false,
+        if (mailError) {
+          console.error(
+            `Invite email failed for ${invite.email} (invitation ${row.id} left pending):`,
+            mailError.message
+          )
         }
-      }
+      })
 
       return {
         email: invite.email,
         created: true,
+        // "handed to the mailer", not "accepted by the SMTP server" — see above.
         emailed: true,
       }
     })

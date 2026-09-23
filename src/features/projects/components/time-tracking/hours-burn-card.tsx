@@ -10,9 +10,6 @@ interface HoursBurnCardProps {
   isError?: boolean
 }
 
-/**
- * Calculates working days (Monday-Friday if daysPerWeek === 5) within a date range
- */
 function getWorkingDaysInRange(
   startDate: Date,
   endDate: Date,
@@ -38,9 +35,6 @@ function getWorkingDaysInRange(
   return workingDays
 }
 
-/**
- * Calculates total allocated monthly capacity based on active allocations
- */
 function calculateMonthlyAllocatedHours(
   allocations: ProjectAllocationItem[],
   projectEndDate?: string | Date | null
@@ -57,7 +51,6 @@ function calculateMonthlyAllocatedHours(
       ? new Date(alloc.effectiveTo)
       : defaultEndDate
 
-    // Find overlapping date range with the current calendar month
     const effectiveStart = allocStart > monthStart ? allocStart : monthStart
     const effectiveEnd = allocEnd < monthEnd ? allocEnd : monthEnd
 
@@ -94,7 +87,6 @@ export function HoursBurnCard({
 
   const remainingHours = Math.max(0, totalAllocatedHours - loggedHours)
 
-  // Format helper to strip unnecessary trailing zeros (e.g. 6.5h vs 6h)
   const formatHours = (val: number) =>
     Number.isInteger(val) ? val.toString() : val.toFixed(1)
 
@@ -133,7 +125,6 @@ export function HoursBurnCard({
             </span>
           </div>
 
-          {/* Progress Bar Track */}
           <FxProgress
             value={percentage}
             variant="default"
@@ -141,7 +132,6 @@ export function HoursBurnCard({
             className="mt-3.5"
           />
 
-          {/* Footer / Remaining Hours */}
           <p className="text-subtle-foreground mt-3 text-xs font-normal">
             {formatHours(remainingHours)}h remaining this month
           </p>

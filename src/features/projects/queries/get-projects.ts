@@ -24,12 +24,6 @@ import {
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
 
-/**
- * Project ids a given user is allocated to, scoped to the org. Resolved as a
- * separate id lookup (rather than an inner-join filter on the main paginated
- * query) to keep the main query's shape — and its `QueryData`-inferred type —
- * stable regardless of which filters are active.
- */
 async function getAllocatedProjectIds(
   supabase: SupabaseServerClient,
   orgId: string,
@@ -49,12 +43,6 @@ async function getAllocatedProjectIds(
   return Array.from(new Set(data.map((row) => row.project_id)))
 }
 
-/**
- * Burn-against-delivery health for a page of projects, in one round trip.
- * Budget reads the same way the detail view's HealthBurnCard does: a retainer
- * burns its `retainer_hours` bucket within the current month, everything else
- * burns `estimated_hours` over the project's whole life.
- */
 async function getProjectHealthSummaries(
   supabase: SupabaseServerClient,
   projects: Project[]
@@ -184,8 +172,6 @@ export async function getProjectsData({
 
   const orgId = orgData.id
 
-  // "Mine" is needed both for the tab count (always) and, when selected, to
-  // scope the main query — resolve it once and reuse.
   const mineProjectIds = user
     ? await getAllocatedProjectIds(supabase, orgId, user.id)
     : []
@@ -249,10 +235,6 @@ export async function getProjectsData({
     projectsQuery = projectsQuery.ilike('name', `%${search.trim()}%`)
   }
 
-  // `client_org_id`, not `client_id`. The filter pill's options come from `getClientsForOrg`,
-  // which lists `clients` rows — so this compared a `clients.id` against a column holding an
-  // `auth.users.id`. Both are uuid, so Postgres accepted it and matched nothing: picking a
-  // client emptied the table instead of filtering it.
   if (clientId && clientId !== 'all') {
     projectsQuery = projectsQuery.eq('client_org_id', clientId)
   }
@@ -277,15 +259,12 @@ export async function getProjectsData({
     projectsQuery = projectsQuery.in('id', allocationFilterIds)
   }
 
-  // Apply ordering and range bounds
   projectsQuery = projectsQuery
     .order('updated_at', { ascending: false })
     .range(from, to)
 
   type RawProjectsResponse = QueryData<typeof projectsQuery>
 
-  // An empty allocation allow-list means "no matches" — skip the round trip
-  // rather than sending `.in('id', [])`, which Postgres can't evaluate.
   const skipMainQuery = allocationFilterIds?.length === 0
 
   const {

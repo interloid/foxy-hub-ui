@@ -615,9 +615,6 @@ export async function hasInvoiceForProject(
   const supabase = await createClient()
 
   if (engagement === 'fixed') {
-    // Fixed projects bill in two stages now, so "already invoiced" only means fully invoiced —
-    // one existing invoice still leaves the second stage open once the project reaches
-    // `pending-approval`.
     const { data, error } = await supabase
       .from('invoices')
       .select('id')

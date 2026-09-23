@@ -8,6 +8,20 @@ create table public.projects (
   start_date  date,
   start_from  text,
   due_date    timestamptz,
+  -- ── Who opened this project ───────────────────────────────────────────────────────────
+  --
+  -- Backs the "Owns N" figure on the People screen. There was no notion of project
+  -- ownership at all before this: the table could say who was ALLOCATED to a project
+  -- (`project_allocations`) but not whose project it was.
+  --
+  -- `on delete set null` rather than cascade — deleting the person must not delete the
+  -- project. A null here reads as "opened by someone no longer in the system", which is
+  -- also the honest value for every project created before this column existed.
+  --
+  -- Set by `create_project_with_allocations` from `auth.uid()`, never from the payload:
+  -- a caller-supplied creator is a caller-supplied lie.
+  created_by uuid references auth.users(id) on delete set null,
+
   created_at  timestamptz           not null    default now(),
   updated_at  timestamptz,
 

@@ -7,6 +7,14 @@
   sent but never accepted. Handling it in the browser instead would need a browser auth
   client, which decisions.md D016 forbids.
 
+  `next` carries `{{ .RedirectTo }}`, which is the per-role landing URL `landingFor()`
+  computes in features/onboarding/services/invitations.ts — the portal for a client,
+  the workspace for staff. It used to be hardcoded to `/`, which made that function
+  dead code: every invitee landed on `/` and was then bounced by RootPage and the
+  [org] layout guard, two redirects to reach the page the invite already knew about.
+  `toSafePath` in /auth/confirm accepts a same-origin absolute URL and keeps only its
+  path, so an off-site value cannot ride in here.
+
   `{{ .TokenHash }}` lets `/auth/confirm` redeem the token server-side with
   `verifyOtp({ token_hash, type })`, which writes cookies. See decisions.md D023.
 
@@ -26,7 +34,7 @@
 </p>
 
 <p>
-  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/"
+  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next={{ .RedirectTo }}"
     >Accept the invitation</a
   >
 </p>

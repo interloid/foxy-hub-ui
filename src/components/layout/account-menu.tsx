@@ -10,15 +10,15 @@ import {
   FxDropdownMenuItem,
 } from '@/components/shared/fx-menu'
 import { signOut } from '@/features/auth/actions'
-import { cn } from '@/lib/utils'
 import { roleLabel } from '@/lib/role'
+import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
 import { notifyOtherTabsOnLogout } from '../common/tab-session-sync'
+import { FxBadge } from '../shared/fx-badge'
 import { FxSpinner } from '../shared/fx-loader'
 import { NAV_ICONS } from './nav-icons'
-import { FxBadge } from '../shared/fx-badge'
 
 export function AccountMenu({
   account,
@@ -58,7 +58,7 @@ export function AccountMenu({
         <div className="text-foreground dash:inline hidden text-sm font-medium">
           <div>{account.name}</div>
           <div className="text-info text-start text-[11px] font-semibold uppercase">
-            {account.role}
+            {account.role.replaceAll('_', ' ')}
           </div>
         </div>
         <NAV_ICONS.chevron

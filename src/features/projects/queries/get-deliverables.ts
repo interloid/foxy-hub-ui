@@ -93,11 +93,6 @@ export async function getProjectDeliveries(
   projectId: string,
   page = 1,
   pageSize = 5,
-  /**
-   * Narrows the list to these statuses. The portal passes `['submitted']`, and the filter
-   * belongs in the query rather than the component so `totalCount` and the page ranges
-   * describe what is actually shown.
-   */
   statuses?: ProjectDelivery['status'][]
 ): Promise<GetProjectDeliveriesResult> {
   const supabase = await createClient()

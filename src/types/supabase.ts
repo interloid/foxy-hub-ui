@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: '14.5'
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -104,6 +99,7 @@ export type Database = {
           id: string
           name: string
           org_id: string
+          portal: boolean
           status: boolean
           stripe_customer_id: string | null
         }
@@ -114,6 +110,7 @@ export type Database = {
           id?: string
           name: string
           org_id: string
+          portal?: boolean
           status?: boolean
           stripe_customer_id?: string | null
         }
@@ -124,6 +121,7 @@ export type Database = {
           id?: string
           name?: string
           org_id?: string
+          portal?: boolean
           status?: boolean
           stripe_customer_id?: string | null
         }
@@ -249,6 +247,7 @@ export type Database = {
           expires_at: string
           id: string
           invited_by: string | null
+          job_title: string | null
           org_id: string
           project_id: string | null
           role: Database['public']['Enums']['user_role']
@@ -262,6 +261,7 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string | null
+          job_title?: string | null
           org_id: string
           project_id?: string | null
           role: Database['public']['Enums']['user_role']
@@ -275,6 +275,7 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string | null
+          job_title?: string | null
           org_id?: string
           project_id?: string | null
           role?: Database['public']['Enums']['user_role']
@@ -422,6 +423,7 @@ export type Database = {
           created_at: string
           default_rate: number | null
           id: string
+          job_title: string | null
           org_id: string
           role: Database['public']['Enums']['user_role']
           status: boolean
@@ -432,6 +434,7 @@ export type Database = {
           created_at?: string
           default_rate?: number | null
           id?: string
+          job_title?: string | null
           org_id: string
           role: Database['public']['Enums']['user_role']
           status?: boolean
@@ -442,6 +445,7 @@ export type Database = {
           created_at?: string
           default_rate?: number | null
           id?: string
+          job_title?: string | null
           org_id?: string
           role?: Database['public']['Enums']['user_role']
           status?: boolean
@@ -644,6 +648,7 @@ export type Database = {
           client_org_id: string | null
           contract_value: number | null
           created_at: string
+          created_by: string | null
           description: string | null
           due_date: string | null
           engagement: Database['public']['Enums']['engagement_model']
@@ -666,6 +671,7 @@ export type Database = {
           client_org_id?: string | null
           contract_value?: number | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           engagement?: Database['public']['Enums']['engagement_model']
@@ -689,6 +695,7 @@ export type Database = {
           client_org_id?: string | null
           contract_value?: number | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           engagement?: Database['public']['Enums']['engagement_model']
@@ -944,11 +951,24 @@ export type Database = {
         Returns: undefined
       }
       submit_time_entry: { Args: { entry_id: string }; Returns: undefined }
+      transfer_primary_admin: {
+        Args: { target_membership_id: string }
+        Returns: undefined
+      }
       update_delivery_status: {
         Args: {
           p_delivery_id: string
           p_project_id: string
           p_status: Database['public']['Enums']['delivery_status']
+        }
+        Returns: undefined
+      }
+      update_membership_details: {
+        Args: {
+          new_full_name: string
+          new_job_title: string
+          new_role: Database['public']['Enums']['user_role']
+          target_membership_id: string
         }
         Returns: undefined
       }

@@ -18,25 +18,25 @@ import {
   FxToggleGroup,
   FxToggleGroupItem,
 } from '@/components/shared/fx-toggle-group'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { TableBody } from '@/components/ui/table'
 import { isAdminRole } from '@/lib/role'
 import { cn } from '@/lib/utils'
 
-import { deactivateClientAction, deactivateMembershipAction } from '../actions'
+import { FxConfirmDialog } from '@/components/shared/fx-confirm-dialog'
+import { AccountDTO } from '@/lib/dal'
+import { roleLabel } from '@/lib/role'
+import {
+  deactivateClientAction,
+  deactivateMembershipAction,
+  setClientStatusAction,
+} from '../actions'
+import { canDeactivateMember } from '../lib/can-deactivate-member'
+import { clientStatusCopy } from '../lib/client-copy'
 import type { ClientCompanyRow, MembersClientsData, PersonRow } from '../types'
+import { EditClientSheet } from './edit-client-sheet'
+import { EditMemberSheet } from './edit-member-sheet'
 import { InviteMemberSheet } from './invite-member-sheet'
 import { NewClientSheet } from './new-client-sheet'
-import { roleLabel } from '@/lib/role'
 
 const AVATAR_COLORS = [
   'bg-primary',
@@ -48,9 +48,9 @@ const AVATAR_COLORS = [
 ]
 
 const ROLE_BADGE: Record<PersonRow['role'], string> = {
-  primary_admin: 'bg-warning-subtle text-warning',
+  primary_admin: 'bg-primary-subtle text-primary',
   admin: 'bg-info-subtle text-info',
-  manager: 'bg-primary-subtle text-primary',
+  manager: 'bg-warning-subtle text-warning',
   contributor: 'bg-success-subtle text-success',
   client: 'bg-muted text-muted-foreground',
 }
@@ -81,13 +81,15 @@ function MetricCard({
   return (
     <FxCard>
       <FxCardContent className="space-y-1.5 p-5">
-        <p className="text-muted-foreground text-[13px] font-medium">{label}</p>
+        <p className="text-muted-foreground text-[12.5px] font-medium">
+          {label}
+        </p>
         <p
-          className={`text-foreground text-2xl font-bold ${valueClassName ?? ''}`}
+          className={`text-foreground text-[24px] font-bold ${valueClassName ?? ''}`}
         >
           {value}
         </p>
-        <p className="text-muted-foreground text-xs">{caption}</p>
+        <p className="text-muted-foreground text-[12px]">{caption}</p>
       </FxCardContent>
     </FxCard>
   )
@@ -95,42 +97,61 @@ function MetricCard({
 
 function StatusCell({ isActive = true }: { isActive?: boolean }) {
   return (
-    <span
+    <FxBadge
+      dot
+      shape="pill"
       className={cn(
-        'inline-flex items-center gap-1.5 text-[13px] font-medium',
-        isActive ? 'text-success' : 'text-muted-foreground'
+        isActive
+          ? 'bg-success-subtle text-success'
+          : 'bg-muted text-muted-foreground'
       )}
     >
-      <span
-        className={cn(
-          'size-1.5 rounded-full',
-          isActive ? 'bg-success' : 'bg-muted-foreground'
-        )}
-      />
       {isActive ? 'Active' : 'Deactivated'}
-    </span>
+    </FxBadge>
   )
 }
+
+function PortalCell({ hasPortal }: { hasPortal: boolean }) {
+  return (
+    <FxBadge
+      shape="pill"
+      className={cn(
+        hasPortal
+          ? 'bg-success-subtle text-success'
+          : 'bg-muted text-muted-foreground'
+      )}
+    >
+      {hasPortal ? 'Portal on' : 'Portal off'}
+    </FxBadge>
+  )
+}
+
+const DEACTIVATED_ROW = 'opacity-55 [&_button]:opacity-100'
 
 function MemberTable({
   rows,
   viewerRole,
+  viewerId,
+  onEdit,
   onDeactivate,
 }: {
   rows: PersonRow[]
   viewerRole: MembersClientsData['viewerRole']
+  viewerId: string | null
+  onEdit: (row: PersonRow) => void
   onDeactivate: (row: PersonRow) => void
 }) {
-  const canDeactivate = viewerRole === 'primary_admin'
+  const canDeactivate = isAdminRole(viewerRole)
 
   return (
     <FxCard className="overflow-hidden p-0">
       <div className="w-full overflow-x-auto">
-        <FxTable className="w-full min-w-160">
+        <FxTable className="w-full min-w-180">
           <FxTableHeader>
             <FxTableRow className="bg-secondary/30 hover:bg-secondary/30">
               <FxTableHead>Person</FxTableHead>
               <FxTableHead>Work email</FxTableHead>
+              <FxTableHead>Projects</FxTableHead>
               <FxTableHead>Role</FxTableHead>
               <FxTableHead>Status</FxTableHead>
               <FxTableHead className="text-right">Manage</FxTableHead>
@@ -141,7 +162,7 @@ function MemberTable({
             {rows.length === 0 && (
               <FxTableRow>
                 <FxTableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-muted-foreground py-10 text-center text-sm"
                 >
                   Nobody here yet.
@@ -150,14 +171,30 @@ function MemberTable({
             )}
 
             {rows.map((row, index) => {
-              const showDeactivate =
-                canDeactivate &&
-                row.isActive &&
-                row.role !== 'admin' &&
-                row.role !== 'primary_admin'
+              const showDeactivate = canDeactivateMember(
+                canDeactivate,
+                viewerId,
+                row
+              )
 
               return (
-                <FxTableRow key={row.membershipId}>
+                <FxTableRow
+                  key={row.membershipId}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open ${row.fullName}`}
+                  className={cn(
+                    'hover:bg-secondary/20 cursor-pointer',
+                    !row.isActive && DEACTIVATED_ROW
+                  )}
+                  onClick={() => onEdit(row)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onEdit(row)
+                    }
+                  }}
+                >
                   <FxTableCell>
                     <div className="flex items-center gap-3">
                       <div
@@ -191,7 +228,25 @@ function MemberTable({
                   </FxTableCell>
 
                   <FxTableCell>
-                    <FxBadge className={ROLE_BADGE[row.role]} shape="pill">
+                    <div className="flex flex-col">
+                      <span className="text-foreground text-[13px]">
+                        {row.ownedProjectCount > 0
+                          ? `Owns ${row.ownedProjectCount}`
+                          : 'Owns none'}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {row.allocatedProjectCount > 0
+                          ? `Works on ${row.allocatedProjectCount}`
+                          : 'Not allocated'}
+                      </span>
+                    </div>
+                  </FxTableCell>
+
+                  <FxTableCell>
+                    <FxBadge
+                      className={`${ROLE_BADGE[row.role]} whitespace-nowrap`}
+                      shape="pill"
+                    >
                       {roleLabel(row.role)}
                     </FxBadge>
                   </FxTableCell>
@@ -204,10 +259,9 @@ function MemberTable({
                     <div className="flex items-center justify-end gap-2">
                       <FxButton
                         variant="secondary"
+                        className="bg-muted"
                         size="xs"
-                        onClick={() =>
-                          toast.info('Member profiles are coming soon.')
-                        }
+                        onClick={() => onEdit(row)}
                       >
                         View
                       </FxButton>
@@ -215,7 +269,11 @@ function MemberTable({
                         <FxButton
                           variant="secondary"
                           size="xs"
-                          onClick={() => onDeactivate(row)}
+                          className="hover:text-destructive hover:border-destructive hover:bg-transparent"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDeactivate(row)
+                          }}
                         >
                           Deactivate
                         </FxButton>
@@ -235,11 +293,13 @@ function MemberTable({
 function ClientTable({
   rows,
   canManage,
-  onDeactivate,
+  onEdit,
+  onToggleStatus,
 }: {
   rows: ClientCompanyRow[]
   canManage: boolean
-  onDeactivate: (row: ClientCompanyRow) => void
+  onEdit: (row: ClientCompanyRow) => void
+  onToggleStatus: (row: ClientCompanyRow) => void
 }) {
   return (
     <FxCard className="overflow-hidden p-0">
@@ -249,6 +309,7 @@ function ClientTable({
             <FxTableRow className="bg-secondary/30 hover:bg-secondary/30">
               <FxTableHead>Client</FxTableHead>
               <FxTableHead>Primary contact</FxTableHead>
+              <FxTableHead>Portal</FxTableHead>
               <FxTableHead>Status</FxTableHead>
               <FxTableHead className="text-right">Manage</FxTableHead>
             </FxTableRow>
@@ -258,7 +319,7 @@ function ClientTable({
             {rows.length === 0 && (
               <FxTableRow>
                 <FxTableCell
-                  colSpan={4}
+                  colSpan={5}
                   className="text-muted-foreground py-10 text-center text-sm"
                 >
                   No clients yet.
@@ -267,7 +328,23 @@ function ClientTable({
             )}
 
             {rows.map((row, index) => (
-              <FxTableRow key={row.id}>
+              <FxTableRow
+                key={row.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open ${row.name}`}
+                className={cn(
+                  'hover:bg-secondary/20 cursor-pointer',
+                  !row.isActive && DEACTIVATED_ROW
+                )}
+                onClick={() => onEdit(row)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onEdit(row)
+                  }
+                }}
+              >
                 <FxTableCell>
                   <div className="flex items-center gap-3">
                     <div
@@ -303,6 +380,10 @@ function ClientTable({
                 </FxTableCell>
 
                 <FxTableCell>
+                  <PortalCell hasPortal={row.hasPortal} />
+                </FxTableCell>
+
+                <FxTableCell>
                   <StatusCell isActive={row.isActive} />
                 </FxTableCell>
 
@@ -311,19 +392,26 @@ function ClientTable({
                     <FxButton
                       variant="secondary"
                       size="xs"
-                      onClick={() =>
-                        toast.info('Client profiles are coming soon.')
-                      }
+                      onClick={() => onEdit(row)}
                     >
                       View
                     </FxButton>
-                    {canManage && row.isActive && (
+                    {canManage && (
                       <FxButton
                         variant="secondary"
+                        className={cn(
+                          'hover:bg-transparent',
+                          row.isActive
+                            ? 'hover:text-destructive hover:border-destructive'
+                            : 'hover:text-success hover:border-success'
+                        )}
                         size="xs"
-                        onClick={() => onDeactivate(row)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onToggleStatus(row)
+                        }}
                       >
-                        Deactivate
+                        {row.isActive ? 'Deactivate' : 'Reactivate'}
                       </FxButton>
                     )}
                   </div>
@@ -340,17 +428,36 @@ function ClientTable({
 export function MembersClientsView({
   data,
   orgSlug,
+  account,
 }: {
   data: MembersClientsData
   orgSlug: string
+  account: AccountDTO | null
 }) {
   const { metrics, members, clients, projectOptions, viewerRole } = data
+  const viewerId = account?.id ?? null
 
   const [tab, setTab] = useState<'members' | 'clients'>('members')
   const [isInviteOpen, setIsInviteOpen] = useState(false)
   const [isNewClientOpen, setIsNewClientOpen] = useState(false)
   const [pendingDeactivate, setPendingDeactivate] =
     useState<PendingDeactivate | null>(null)
+  const [editingClient, setEditingClient] = useState<ClientCompanyRow | null>(
+    null
+  )
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [editingMember, setEditingMember] = useState<PersonRow | null>(null)
+  const [isMemberEditOpen, setIsMemberEditOpen] = useState(false)
+
+  const openMember = (row: PersonRow) => {
+    setEditingMember(row)
+    setIsMemberEditOpen(true)
+  }
+
+  const openClient = (row: ClientCompanyRow) => {
+    setEditingClient(row)
+    setIsEditOpen(true)
+  }
   const [isPending, startTransition] = useTransition()
 
   const canManage = isAdminRole(viewerRole)
@@ -379,10 +486,10 @@ export function MembersClientsView({
     <div className="flex w-full flex-col gap-5 p-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="space-y-1">
-          <h1 className="text-foreground text-[22px] font-medium tracking-tight">
-            Members &amp; clients
+          <h1 className="text-foreground text-[24px] font-medium tracking-tight">
+            People
           </h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-[14px]">
             Everyone with access to this workspace — your team on seats, your
             clients on portals.
           </p>
@@ -429,7 +536,7 @@ export function MembersClientsView({
         <MetricCard
           label="Active clients"
           value={String(metrics.activeClients)}
-          caption={`${metrics.activeClients} with portal access`}
+          caption={`${metrics.clientsWithPortal} with portal access`}
         />
       </div>
 
@@ -446,7 +553,7 @@ export function MembersClientsView({
           density="cycle-product"
           className="cursor-pointer"
         >
-          Members · {members.length}
+          Team · {members.length}
         </FxToggleGroupItem>
         <FxToggleGroupItem
           value="clients"
@@ -461,6 +568,8 @@ export function MembersClientsView({
         <MemberTable
           rows={members}
           viewerRole={viewerRole}
+          viewerId={viewerId}
+          onEdit={openMember}
           onDeactivate={(row) =>
             setPendingDeactivate({
               kind: 'member',
@@ -473,12 +582,23 @@ export function MembersClientsView({
         <ClientTable
           rows={clients}
           canManage={canManage}
-          onDeactivate={(row) =>
-            setPendingDeactivate({
-              kind: 'client',
-              label: row.name,
-              clientId: row.id,
-            })
+          onEdit={openClient}
+          onToggleStatus={(row) =>
+            row.isActive
+              ? setPendingDeactivate({
+                  kind: 'client',
+                  label: row.name,
+                  clientId: row.id,
+                })
+              : startTransition(async () => {
+                  const result = await setClientStatusAction(
+                    orgSlug,
+                    row.id,
+                    true
+                  )
+                  if (!result.ok) toast.error(result.error)
+                  else toast.success(`${row.name} was reactivated.`)
+                })
           }
         />
       )}
@@ -500,33 +620,46 @@ export function MembersClientsView({
         onOpenChange={setIsNewClientOpen}
       />
 
-      <AlertDialog
-        open={pendingDeactivate !== null}
-        onOpenChange={(open) => !open && setPendingDeactivate(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Deactivate {pendingDeactivate?.label}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingDeactivate?.kind === 'client'
-                ? 'This removes the client from your list. Their projects, invoices and time entries stay intact.'
-                : 'This removes their access and frees the seat. Every timesheet, invoice and comment they left stays intact.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={handleConfirmDeactivate}
-              disabled={isPending}
-            >
-              {isPending ? 'Deactivating…' : 'Deactivate'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <EditMemberSheet
+        orgSlug={orgSlug}
+        member={editingMember}
+        viewerRole={viewerRole}
+        viewerId={viewerId}
+        open={isMemberEditOpen}
+        onOpenChange={setIsMemberEditOpen}
+      />
+
+      <EditClientSheet
+        orgSlug={orgSlug}
+        client={editingClient}
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+      />
+
+      {pendingDeactivate &&
+        (() => {
+          const copy =
+            pendingDeactivate.kind === 'client'
+              ? clientStatusCopy(pendingDeactivate.label, true)
+              : {
+                  title: `Deactivate ${pendingDeactivate.label}?`,
+                  description:
+                    'This removes their access and frees the seat. Every timesheet, invoice and comment they left stays intact.',
+                  confirmLabel: 'Deactivate',
+                  pendingLabel: 'Deactivating…',
+                  destructive: true,
+                }
+
+          return (
+            <FxConfirmDialog
+              open
+              onOpenChange={(open) => !open && setPendingDeactivate(null)}
+              isPending={isPending}
+              onConfirm={handleConfirmDeactivate}
+              {...copy}
+            />
+          )
+        })()}
     </div>
   )
 }

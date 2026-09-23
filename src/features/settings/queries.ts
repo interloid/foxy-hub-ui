@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { getSeatUsage } from '@/features/members-clients/queries'
+import { getSeatUsage } from '@/features/people/queries'
 import { getWorkspace } from '@/lib/dal'
 import { createClient } from '@/lib/supabase/server'
 

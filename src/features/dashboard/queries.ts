@@ -325,8 +325,6 @@ export async function getTeamMembersForOrg(
 
   return memberships.map((item) => {
     const fullName = profileMap.get(item.user_id) || 'Unnamed Teammate'
-    // Not `charAt(0).toUpperCase()`: that renders 'primary_admin' as
-    // "Primary_admin".
     const role = roleLabel(item.role) || 'Contributor'
 
     return {
