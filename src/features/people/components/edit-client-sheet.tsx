@@ -1,7 +1,7 @@
 'use client'
 
 import { Check } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { FxBadge } from '@/components/shared/fx-badge'
@@ -65,6 +65,7 @@ function EditClientSheetForm({
   const [touched, setTouched] = useState({ name: false, contactName: false })
   const [showDiscard, setShowDiscard] = useState(false)
   const [showStatusConfirm, setShowStatusConfirm] = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null)
 
   const nameError = fieldError(clientNameSchema, name)
   const contactNameError = fieldError(contactNameSchema, contactName)
@@ -155,15 +156,25 @@ function EditClientSheetForm({
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <FxSheetContent className="data-[side=right]:sm:max-w-165">
+      <FxSheetContent
+        className="data-[side=right]:sm:max-w-165"
+        onOpenAutoFocus={(e) => {
+          // Radix focuses the first input with its text selected; put the caret at the end instead.
+          const input = nameRef.current
+          if (!input || input.disabled) return
+          e.preventDefault()
+          input.focus()
+          input.setSelectionRange(input.value.length, input.value.length)
+        }}
+      >
         <FxSheetHeader>
           <div className="flex items-start gap-3">
-            <span
+            {/* <span
               aria-hidden="true"
               className="text-brand-white bg-info flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold"
             >
               {initialsOf(client.name)}
-            </span>
+            </span> */}
             <div className="min-w-0 space-y-0.5">
               <div className="flex items-center gap-2">
                 <span className="text-foreground truncate text-[15px] font-semibold">
@@ -193,6 +204,7 @@ function EditClientSheetForm({
                 Client name <span className="text-destructive">*</span>
               </FxLabel>
               <FxInput
+                ref={nameRef}
                 id="edit-client-name"
                 required
                 disabled={!canManage}
@@ -217,9 +229,6 @@ function EditClientSheetForm({
             <FxField>
               <FxLabel htmlFor="edit-client-contact-name">
                 Primary contact
-                <span className="text-muted-foreground font-normal">
-                  (optional)
-                </span>
               </FxLabel>
               <FxInput
                 id="edit-client-contact-name"
@@ -304,7 +313,7 @@ function EditClientSheetForm({
         onOpenChange={setShowDiscard}
         destructive={false}
         title="Discard your changes?"
-        description="Nothing is saved until you press Save changes — closing now loses what you edited."
+        description="Nothing is saved until you press Save changes - closing now loses what you edited."
         confirmLabel="Discard changes"
         onConfirm={close}
       />

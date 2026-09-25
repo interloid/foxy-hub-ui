@@ -1,7 +1,7 @@
 'use client'
 
 import { Check } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { FxBadge } from '@/components/shared/fx-badge'
@@ -40,6 +40,7 @@ import {
   canDeactivateMember,
   canReactivateMember,
 } from '../lib/can-deactivate-member'
+import { canEditMember } from '../lib/can-edit-member'
 import { memberReactivateCopy } from '../lib/client-copy'
 import { NETWORK_ERROR } from '../lib/network-error'
 import { fieldError, fullNameSchema, jobTitleSchema } from '../schemas'
@@ -76,6 +77,7 @@ function EditMemberSheetForm({
   // Edits the stored name (empty when there is none), never the display placeholder.
   const [fullName, setFullName] = useState(member.savedName ?? '')
   const [jobTitle, setJobTitle] = useState(member.jobTitle ?? '')
+  const nameRef = useRef<HTMLInputElement>(null)
   const [role, setRole] = useState<UserRole>(member.role)
   const [isSaving, setIsSaving] = useState(false)
   const [isWorking, setIsWorking] = useState(false)
@@ -87,6 +89,9 @@ function EditMemberSheetForm({
   const [showResetMfa, setShowResetMfa] = useState(false)
 
   const isPrimary = member.role === 'primary_admin'
+  const isSelf = member.userId === viewerId
+  // Primary admin edits anyone; an admin edits themselves, managers and contributors.
+  const canEdit = canManage && canEditMember(viewerRole, viewerId, member)
   const showDeactivate = canDeactivateMember(viewerRole, viewerId, member)
   const showReactivate = canReactivateMember(viewerRole, viewerId, member)
   const nameError = fieldError(fullNameSchema, fullName)
@@ -187,7 +192,16 @@ function EditMemberSheetForm({
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <FxSheetContent className="data-[side=right]:sm:max-w-140">
+      <FxSheetContent
+        className="data-[side=right]:sm:max-w-140"
+        onOpenAutoFocus={(e) => {
+          const input = nameRef.current
+          if (!input || input.disabled) return
+          e.preventDefault()
+          input.focus()
+          input.setSelectionRange(input.value.length, input.value.length)
+        }}
+      >
         <FxSheetHeader>
           <div className="min-w-0 space-y-0.5">
             <div className="flex items-center gap-2">
@@ -216,16 +230,12 @@ function EditMemberSheetForm({
         <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col">
           <FxSheetBody className="space-y-1">
             <FxField>
-              <FxLabel htmlFor="edit-member-name">
-                Full name
-                <span className="text-muted-foreground font-normal">
-                  (optional)
-                </span>
-              </FxLabel>
+              <FxLabel htmlFor="edit-member-name">Full name</FxLabel>
               <FxInput
+                ref={nameRef}
                 id="edit-member-name"
                 maxLength={80}
-                disabled={!canManage}
+                disabled={!canEdit}
                 value={fullName}
                 placeholder="Unnamed teammate"
                 aria-invalid={touched.fullName && nameError !== null}
@@ -238,16 +248,11 @@ function EditMemberSheetForm({
             </FxField>
 
             <FxField>
-              <FxLabel htmlFor="edit-member-job-title">
-                Job title{' '}
-                <span className="text-muted-foreground font-normal">
-                  (optional)
-                </span>
-              </FxLabel>
+              <FxLabel htmlFor="edit-member-job-title">Job title</FxLabel>
               <FxInput
                 id="edit-member-job-title"
                 maxLength={60}
-                disabled={!canManage}
+                disabled={!canEdit}
                 placeholder="Product Designer"
                 value={jobTitle}
                 aria-invalid={touched.jobTitle && jobTitleError !== null}
@@ -259,7 +264,13 @@ function EditMemberSheetForm({
               )}
             </FxField>
 
-            {canManage && (
+            {canManage && !canEdit && (
+              <p className="text-muted-foreground border-border rounded-lg border p-3 text-xs">
+                Only the primary admin can edit another admin.
+              </p>
+            )}
+
+            {canEdit && (
               <FxField className="pb-2">
                 <FxLabel htmlFor="edit-member-role">Role</FxLabel>
                 {isPrimary ? (
@@ -267,6 +278,11 @@ function EditMemberSheetForm({
                     The primary admin&apos;s role cannot be changed here. Hand
                     it to another admin from their row instead — the workspace
                     always has exactly one.
+                  </p>
+                ) : isSelf ? (
+                  <p className="text-muted-foreground border-border rounded-lg border p-3 text-xs">
+                    You can&apos;t change your own role. Ask the primary admin
+                    if it needs to change.
                   </p>
                 ) : (
                   <Select
@@ -361,7 +377,7 @@ function EditMemberSheetForm({
               >
                 Close
               </FxButton>
-              {canManage && (
+              {canEdit && (
                 <FxButton
                   type="submit"
                   disabled={isSaving || hasErrors || !isDirty}

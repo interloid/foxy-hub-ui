@@ -43,7 +43,7 @@ export const CHANGE_PASSWORD = {
   current: 'Current password',
   next: 'New password',
   confirm: 'Confirm new password',
-  cancel: 'Cancel',
+  cancel: 'Clear',
   submit: 'Update password',
   saved: 'Password updated successfully.',
   tips: {

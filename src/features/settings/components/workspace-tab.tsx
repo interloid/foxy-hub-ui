@@ -230,7 +230,7 @@ export function WorkspaceTab({
 
             {account.role !== null && ROLE.includes(account.role) && (
               <FxButton
-                size="sm"
+                size="default"
                 onClick={handleSave}
                 disabled={!isDirty || isSaving}
               >

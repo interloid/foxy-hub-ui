@@ -1068,6 +1068,20 @@ begin
     raise exception 'Not authorized to edit this teammate' using errcode = '42501';
   end if;
 
+  -- An admin edits themselves, managers and contributors — not other admins or the
+  -- primary admin, so admins cannot rewrite each other. The primary admin edits anyone.
+  if not public.has_org_role(v_org_id, array['primary_admin']::public.user_role[])
+     and v_user_id is distinct from auth.uid()
+     and v_role not in ('manager', 'contributor') then
+    raise exception 'Admins can only edit themselves, managers and contributors'
+      using errcode = '42501';
+  end if;
+
+  -- Nobody changes their own role here.
+  if v_user_id = auth.uid() and new_role <> v_role then
+    raise exception 'You cannot change your own role' using errcode = '42501';
+  end if;
+
   if new_role is null then
     raise exception 'Choose a role' using errcode = '22023';
   end if;

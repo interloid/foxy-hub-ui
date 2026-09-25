@@ -1,10 +1,11 @@
 'use client'
 
 import { Check } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { FxButton } from '@/components/shared/fx-button'
+import { FxConfirmDialog } from '@/components/shared/fx-confirm-dialog'
 import { FxField, FxInput, FxLabel } from '@/components/shared/fx-field'
 import {
   FxSheetBody,
@@ -38,9 +39,26 @@ export function EditWorkspaceSheet({
 }: EditWorkspaceSheetProps) {
   const [name, setName] = useState(currentName)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showDiscard, setShowDiscard] = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null)
+
+  const isDirty = name.trim() !== currentName
+
+  const close = () => {
+    setName(currentName)
+    setShowDiscard(false)
+    onOpenChange(false)
+  }
 
   const handleOpenChange = (next: boolean) => {
-    if (!next) setName(currentName)
+    if (!next && isDirty) {
+      setShowDiscard(true)
+      return
+    }
+    if (!next) {
+      close()
+      return
+    }
     onOpenChange(next)
   }
 
@@ -63,7 +81,16 @@ export function EditWorkspaceSheet({
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <FxSheetContent>
+      <FxSheetContent
+        onOpenAutoFocus={(e) => {
+          // Radix focuses the first input with its text selected; put the caret at the end instead.
+          e.preventDefault()
+          const input = nameRef.current
+          if (!input) return
+          input.focus()
+          input.setSelectionRange(input.value.length, input.value.length)
+        }}
+      >
         <FxSheetHeader>
           <FxSheetTitle>Edit workspace</FxSheetTitle>
           <FxSheetDescription>
@@ -78,6 +105,7 @@ export function EditWorkspaceSheet({
                 Workspace name <span className="text-destructive">*</span>
               </FxLabel>
               <FxInput
+                ref={nameRef}
                 id="workspace-name"
                 required
                 value={name}
@@ -115,6 +143,17 @@ export function EditWorkspaceSheet({
           </FxSheetFooter>
         </form>
       </FxSheetContent>
+
+      <FxConfirmDialog
+        nested
+        open={showDiscard}
+        onOpenChange={setShowDiscard}
+        destructive={false}
+        title="Discard your changes?"
+        description="Nothing is saved until you press Save - closing now loses what you edited."
+        confirmLabel="Discard changes"
+        onConfirm={close}
+      />
     </Sheet>
   )
 }

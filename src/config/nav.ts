@@ -24,7 +24,7 @@ export function getNavSections(org: string): NavSection[] {
     {
       label: 'Workspace',
       items: [
-        { label: 'Billing & plan', icon: 'billing', href: `#` },
+        { label: 'Billing & plan', icon: 'billing', href: `${prefix}/billing` },
         {
           label: 'People',
           icon: 'user',
@@ -89,7 +89,7 @@ export function getClientFooter(org: string, orgName?: string): FooterProps {
 
 const CONTRIBUTOR_NAV = ['Dashboard', 'Projects', 'Time'] as const
 
-const MANAGER_HIDDEN_NAV = ['Reports'] as const
+const MANAGER_HIDDEN_NAV = ['Reports', 'Billing & plan'] as const
 
 export function filterNavForRole(
   sections: NavSection[],
@@ -159,7 +159,7 @@ export function getFooter(org: string, orgName?: string): FooterProps {
       {
         title: 'Workspace',
         items: [
-          { label: 'Billing & plan', href: `#` },
+          { label: 'Billing & plan', href: `${prefix}/billing` },
           { label: 'Settings', href: `#` },
           { label: 'Profile', href: `#` },
           { label: 'AI updates', href: `#` },

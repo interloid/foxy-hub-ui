@@ -415,6 +415,7 @@ function ClientTable({
                     <FxButton
                       variant="secondary"
                       size="xs"
+                      className="bg-muted"
                       onClick={() => onEdit(row)}
                     >
                       View

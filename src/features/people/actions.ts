@@ -19,6 +19,7 @@ import {
   newClientSchema,
 } from './schemas'
 import { canDeactivateRole } from './lib/can-deactivate-member'
+import { canEditRole } from './lib/can-edit-member'
 import type { WorkspaceRole } from './types'
 
 import { getClientUsage, getSeatUsage } from './queries'
@@ -500,7 +501,11 @@ export async function updateMemberAction(
     }
   }
 
-  const role = assignableRoleSchema.safeParse(input?.role)
+  // `primary_admin` passes here only so the primary admin can save their own details
+  // unchanged; handing the role over is `makePrimaryAdminAction`, checked below.
+  const role = assignableRoleSchema
+    .or(z.literal('primary_admin'))
+    .safeParse(input?.role)
   if (!role.success) {
     return {
       ok: false,
@@ -525,10 +530,15 @@ export async function updateMemberAction(
   }
 
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { ok: false, error: 'You need to be signed in.' }
 
   const { data: target } = await supabase
     .from('memberships')
-    .select('role')
+    .select('role, user_id')
     .eq('id', membershipId)
     .eq('org_id', workspace.id)
     .maybeSingle()
@@ -536,6 +546,23 @@ export async function updateMemberAction(
   if (!target) return { ok: false, error: 'That person was not found.' }
   if (target.role === 'client') {
     return { ok: false, error: 'Clients are managed on the Clients tab.' }
+  }
+
+  const isSelf = target.user_id === user.id
+  if (!canEditRole(workspace.role, target.role, isSelf)) {
+    return {
+      ok: false,
+      error: 'Admins can only edit themselves, managers and contributors.',
+    }
+  }
+  if (isSelf && role.data !== target.role) {
+    return { ok: false, error: 'You cannot change your own role.' }
+  }
+  if (role.data === 'primary_admin' && target.role !== 'primary_admin') {
+    return {
+      ok: false,
+      error: 'Use Make primary admin to hand over that role.',
+    }
   }
 
   const { error } = await supabase.rpc('update_membership_details', {

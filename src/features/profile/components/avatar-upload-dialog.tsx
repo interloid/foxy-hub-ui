@@ -268,6 +268,7 @@ export function AvatarUploadDialog({
                 {COPY.steps.map((label, index) => {
                   const number = index + 1
                   const active = number === step
+                  const done = number < step
                   return (
                     <li key={label} className="flex items-center gap-2">
                       {index > 0 && (
@@ -279,9 +280,11 @@ export function AvatarUploadDialog({
                       <span
                         className={cn(
                           'flex size-5 items-center justify-center rounded-full text-[11px]',
-                          active
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-muted-foreground'
+                          done
+                            ? 'bg-success text-brand-white'
+                            : active
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted text-muted-foreground'
                         )}
                       >
                         {number}
@@ -307,6 +310,7 @@ export function AvatarUploadDialog({
             type="button"
             variant="secondary"
             size="icon-sm"
+            className="border-transparent hover:border-transparent"
             aria-label="Close"
             disabled={pending}
             onClick={() => handleOpenChange(false)}
