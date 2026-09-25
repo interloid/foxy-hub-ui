@@ -5,8 +5,15 @@ import type {
   ActivityEvent,
   PendingApproval,
 } from '@/features/dashboard/types'
+import { getFormatter, getUserTimeZone } from '@/lib/dal'
+import {
+  shiftISODate,
+  startOfDayInstantIn,
+  startOfMonthIn,
+  todayIn,
+} from '@/lib/date'
+import type { Formatter } from '@/lib/format'
 import { initialsOf } from '@/lib/initials'
-import { formatCurrency } from '@/lib/money'
 import { createClient } from '@/lib/supabase/server'
 
 export interface PortalInvoice {
@@ -95,15 +102,10 @@ export async function getPortalMetrics(
 ): Promise<PortalMetrics> {
   const supabase = await createClient()
 
-  const today = new Date().toISOString().split('T')[0]
-  const startOfMonth = new Date(
-    new Date().getFullYear(),
-    new Date().getMonth(),
-    1
-  ).toISOString()
-  const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split('T')[0]
+  const timeZone = await getUserTimeZone()
+  const today = todayIn(timeZone)
+  const startOfMonth = startOfDayInstantIn(timeZone, startOfMonthIn(timeZone))
+  const nextWeek = shiftISODate(today, 7)
 
   const [openProjects, addedThisMonth, pending, dueThisWeek, unpaid] =
     await Promise.all([
@@ -170,14 +172,14 @@ const STATUS_PROGRESS_MAP: Record<string, string> = {
   cancelled: '0',
 }
 
-function relativeTime(value: string): string {
+function relativeTime(value: string, fmt: Formatter): string {
   const created = new Date(value)
   const diffHours = Math.floor((Date.now() - created.getTime()) / 3_600_000)
 
   if (diffHours < 24) return `${Math.max(diffHours, 0)}h ago`
   if (diffHours < 48) return 'Yesterday'
 
-  return created.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return fmt.date(created, 'day')
 }
 
 export interface PortalDashboard {
@@ -200,6 +202,7 @@ export async function getPortalDashboard(
   currency: string
 ): Promise<PortalDashboard> {
   const supabase = await createClient()
+  const fmt = await getFormatter()
 
   const [deliveriesRes, projectsRes, updatesRes] = await Promise.all([
     supabase
@@ -260,7 +263,7 @@ export async function getPortalDashboard(
       client: clientName,
       status: p.status,
       progress: STATUS_PROGRESS_MAP[p.status] ?? '0',
-      value: value > 0 ? formatCurrency(value, currency) : '—',
+      value: value > 0 ? fmt.currency(value, currency) : '—',
     }
   })
 
@@ -291,7 +294,7 @@ export async function getPortalDashboard(
       id: `update-${u.id}`,
       initials: initialsOf(author, null),
       text: `${author} posted an update on ${project?.name ?? 'a project'}`,
-      time: relativeTime(u.created_at),
+      time: relativeTime(u.created_at, fmt),
       at: u.created_at,
     }
   })
@@ -305,7 +308,7 @@ export async function getPortalDashboard(
       id: `delivery-${d.id}`,
       initials: initialsOf(d.title, null),
       text: `${d.title} was sent for your approval on ${project?.name ?? 'a project'}`,
-      time: relativeTime(d.created_at),
+      time: relativeTime(d.created_at, fmt),
       at: d.created_at,
     }
   })

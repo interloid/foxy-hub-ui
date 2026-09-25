@@ -22,7 +22,6 @@ import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { formatCurrency } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { ProjectsLoadingSkeleton } from '@/skeleton/projects-overview'
-import { format, parseISO } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -32,6 +31,8 @@ import {
 } from '../../constants'
 import { PROJECT_HEALTH_VARIANT } from '../../lib/project-health'
 import type { Project, ProjectStatus } from '../../types'
+import { useFormatter, useLocale } from '@/context/locale-provider'
+import type { Formatter } from '@/lib/format'
 
 interface ProjectTableProps {
   initialProjects?: Project[]
@@ -83,14 +84,12 @@ const statusBadgeVariant: Record<
   cancelled: 'destructive',
 }
 
-function formatDueDate(dueDate?: string | null): string {
+function formatDueDate(
+  dueDate: string | null | undefined,
+  fmt: Formatter
+): string {
   if (!dueDate) return '—'
-
-  try {
-    return format(parseISO(dueDate), 'MMM d')
-  } catch {
-    return '—'
-  }
+  return fmt.date(dueDate, 'day') || '—'
 }
 
 export function ProjectTable({
@@ -105,6 +104,8 @@ export function ProjectTable({
   onPageChange,
   onPageSizeChange,
 }: ProjectTableProps) {
+  const locale = useLocale()
+  const fmt = useFormatter()
   const handleNextPage = () => {
     if (page < totalPages && !isPending) {
       onPageChange?.(page + 1)
@@ -167,7 +168,8 @@ export function ProjectTable({
 
                     const formattedValue = formatCurrency(
                       numericValue,
-                      currency
+                      currency,
+                      { locale }
                     )
 
                     return (
@@ -267,7 +269,7 @@ export function ProjectTable({
                         </FxTableCell>
 
                         <FxTableCell className="text-muted-foreground text-center text-[12.5px] font-medium whitespace-nowrap">
-                          {formatDueDate(project.dueDate)}
+                          {formatDueDate(project.dueDate, fmt)}
                         </FxTableCell>
                       </FxTableRow>
                     )

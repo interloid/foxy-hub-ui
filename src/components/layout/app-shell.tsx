@@ -28,6 +28,7 @@ export function AppShell({
     email: string
     role: string
     initials: string
+    avatarUrl?: string | null
     org?: string
   }
   breadcrumb?: BreadcrumbNavItem[]

@@ -4,6 +4,7 @@ import { FxButton } from '@/components/shared/fx-button'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
 import { FxProgress } from '@/components/shared/fx-progress'
 import { StudioPlanInfo } from '../../types'
+import { useFormatter } from '@/context/locale-provider'
 
 interface StudioPlanCardProps {
   planInfo: StudioPlanInfo
@@ -16,6 +17,7 @@ export function StudioPlanCard({
   isAdmin,
   onManageClick,
 }: StudioPlanCardProps) {
+  const fmt = useFormatter()
   const usedSeats = planInfo.usedSeats ?? 0
   const totalSeats = planInfo.totalSeats || 1
   const pct = Math.min(Math.round((usedSeats / totalSeats) * 100), 100)
@@ -37,13 +39,7 @@ export function StudioPlanCard({
         <p className="text-muted-foreground text-[13px] font-normal">
           {usedSeats} of {totalSeats} seats used
           {planInfo.renewsAt
-            ? ` · renews ${new Date(planInfo.renewsAt).toLocaleDateString(
-                'en-US',
-                {
-                  month: 'short',
-                  day: '2-digit',
-                }
-              )}`
+            ? ` · renews ${fmt.date(planInfo.renewsAt, 'day')}`
             : ''}
         </p>
 

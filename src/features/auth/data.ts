@@ -46,6 +46,15 @@ export const CHANGE_PASSWORD = {
   cancel: 'Cancel',
   submit: 'Update password',
   saved: 'Password updated successfully.',
+  tips: {
+    title: 'What makes a password hold',
+    items: [
+      'Eight characters minimum, with letters and numbers mixed in.',
+      'Not reused from another tool — a leak elsewhere should not reach client work.',
+      'Changing it signs out every other device on this account.',
+    ],
+    note: 'Client portal contacts manage their own passwords from the portal, not here.',
+  },
 } as const
 
 export const AUTH_CARD_TAGLINE =

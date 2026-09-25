@@ -3,6 +3,9 @@
 import { AlertTriangle } from 'lucide-react'
 
 import { FxButton } from '@/components/shared/fx-button'
+import { useLocale } from '@/context/locale-provider'
+import { formatNumber } from '@/lib/format'
+import type { Locale } from '@/lib/locale'
 import type { PricingInsight } from '@/features/dashboard/pricing'
 
 interface PricingHintProps {
@@ -11,8 +14,8 @@ interface PricingHintProps {
   onUseSuggestion: (amount: number) => void
 }
 
-function money(value: number): string {
-  return `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+function money(value: number, locale: Locale): string {
+  return `$${formatNumber(value, { locale, maximumFractionDigits: 0 })}`
 }
 
 export function PricingHint({
@@ -20,6 +23,7 @@ export function PricingHint({
   hasValue,
   onUseSuggestion,
 }: PricingHintProps) {
+  const locale = useLocale()
   const { suggestion, burnRate, warnings } = insight
 
   if (!suggestion && !burnRate && warnings.length === 0) return null
@@ -31,7 +35,7 @@ export function PricingHint({
           <p className="text-muted-foreground text-[12px]">
             Suggested from staffing:{' '}
             <span className="text-foreground font-semibold">
-              {money(suggestion.amount)}
+              {money(suggestion.amount, locale)}
             </span>{' '}
             <span className="text-subtle-foreground">({suggestion.basis})</span>
           </p>
@@ -54,9 +58,10 @@ export function PricingHint({
         <p className="text-muted-foreground text-[12px]">
           At this staffing:{' '}
           <span className="text-foreground font-semibold">
-            {money(burnRate.perDay)}/day
+            {money(burnRate.perDay, locale)}/day
           </span>{' '}
-          · {money(burnRate.perWeek)}/week · {money(burnRate.perMonth)}/month
+          · {money(burnRate.perWeek, locale)}/week ·{' '}
+          {money(burnRate.perMonth, locale)}/month
         </p>
       )}
 

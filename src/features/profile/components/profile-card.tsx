@@ -5,11 +5,15 @@ import { FxButton } from '@/components/shared/fx-button'
 import { FxCard } from '@/components/shared/fx-card'
 import { FxField, FxInput, FxLabel } from '@/components/shared/fx-field'
 import type { AccountDTO } from '@/lib/dal'
+import { roleLabel } from '@/lib/role'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useState } from 'react'
 import { PROFILE } from '../data'
+import { AvatarUploadDialog } from './avatar-upload-dialog'
+import { EditableEmailField } from './editable-email-field'
 import { EditableNameField } from './editable-name-field'
+import { UserAvatar } from '@/components/shared/app/user-avatar'
 
 export function ProfileCard({ account }: { account: AccountDTO }) {
   const [fullName, setFullName] = useState<string | null>(account.fullName)
@@ -19,6 +23,16 @@ export function ProfileCard({ account }: { account: AccountDTO }) {
     setFullName(account.fullName)
   }
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(account.avatarUrl)
+  const [serverAvatarUrl, setServerAvatarUrl] = useState<string | null>(
+    account.avatarUrl
+  )
+  if (account.avatarUrl !== serverAvatarUrl) {
+    setServerAvatarUrl(account.avatarUrl)
+    setAvatarUrl(account.avatarUrl)
+  }
+  const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false)
+
   const name = fullName?.trim() || account.email?.split('@')[0]
   const initials = account.initials
   const params = useParams()
@@ -27,34 +41,51 @@ export function ProfileCard({ account }: { account: AccountDTO }) {
   return (
     <FxCard>
       <div className="border-border flex items-center gap-4 border-b px-5 py-5.5">
-        <span className="bg-brand-gradient text-primary-foreground flex size-16 shrink-0 items-center justify-center rounded-full text-3xl font-semibold">
-          {initials}
-        </span>
+        <UserAvatar
+          initials={initials}
+          avatarUrl={avatarUrl}
+          className="size-16 text-3xl"
+        />
         <div className="min-w-0">
           <div className="truncate text-xl font-semibold">{name}</div>
           <div className="text-subtle-foreground mb-2 truncate text-base">
             {account.email}
           </div>
           {account.role && (
-            <FxBadge variant="default" dot>
-              {account.role}
+            <FxBadge variant="default" dot className="uppercase">
+              {roleLabel(account.role)}
             </FxBadge>
           )}
         </div>
       </div>
 
       <div className="flex flex-col gap-3.5 p-5">
+        <FxField>
+          <FxLabel className="block leading-normal">
+            {PROFILE.photo.label}
+          </FxLabel>
+          <div className="flex flex-wrap items-center gap-3">
+            <FxButton type="button" onClick={() => setIsPhotoDialogOpen(true)}>
+              {avatarUrl ? PROFILE.photo.change : PROFILE.photo.upload}
+            </FxButton>
+            <span className="text-subtle-foreground text-xs">
+              {PROFILE.photo.hint}
+            </span>
+          </div>
+        </FxField>
+
         <EditableNameField fullName={fullName} onSaved={setFullName} />
 
-        <ReadOnlyField
-          id="email"
-          label={PROFILE.fields.email}
-          value={account.email ?? ''}
+        <EditableEmailField
+          key={account.email ?? ''}
+          email={account.email}
+          pendingEmail={account.pendingEmail}
+          orgSlug={org}
         />
         <ReadOnlyField
           id="role"
           label={PROFILE.fields.role}
-          value={account.role ?? ''}
+          value={roleLabel(account.role)}
         />
       </div>
 
@@ -65,6 +96,14 @@ export function ProfileCard({ account }: { account: AccountDTO }) {
           </Link>
         </FxButton>
       </div>
+
+      <AvatarUploadDialog
+        open={isPhotoDialogOpen}
+        onOpenChange={setIsPhotoDialogOpen}
+        initials={initials}
+        avatarUrl={avatarUrl}
+        onSaved={setAvatarUrl}
+      />
     </FxCard>
   )
 }

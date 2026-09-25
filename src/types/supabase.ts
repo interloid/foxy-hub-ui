@@ -7,6 +7,9 @@ export type Json =
   | Json[]
 
 export type Database = {
+  __InternalSupabase: {
+    PostgrestVersion: '14.5'
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -902,6 +905,77 @@ export type Database = {
           },
         ]
       }
+      user_preferences: {
+        Row: {
+          created_at: string
+          last_device_time_zone: string | null
+          locale: string
+          theme: string | null
+          time_zone: string | null
+          updated_at: string
+          user_id: string
+          weekly_digest: boolean
+        }
+        Insert: {
+          created_at?: string
+          last_device_time_zone?: string | null
+          locale?: string
+          theme?: string | null
+          time_zone?: string | null
+          updated_at?: string
+          user_id: string
+          weekly_digest?: boolean
+        }
+        Update: {
+          created_at?: string
+          last_device_time_zone?: string | null
+          locale?: string
+          theme?: string | null
+          time_zone?: string | null
+          updated_at?: string
+          user_id?: string
+          weekly_digest?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_preferences_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      user_sessions: {
+        Row: {
+          city: string | null
+          country: string | null
+          created_at: string
+          last_seen_at: string
+          session_id: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          last_seen_at?: string
+          session_id: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          last_seen_at?: string
+          session_id?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -939,7 +1013,23 @@ export type Database = {
       }
       is_org_member: { Args: { target_org_id: string }; Returns: boolean }
       is_slug_available: { Args: { candidate: string }; Returns: boolean }
+      list_my_sessions: {
+        Args: never
+        Returns: {
+          city: string
+          country: string
+          created_at: string
+          is_current: boolean
+          last_seen_at: string
+          session_id: string
+          user_agent: string
+        }[]
+      }
       reject_time_entry: { Args: { entry_id: string }; Returns: undefined }
+      revoke_my_session: {
+        Args: { target_session_id: string }
+        Returns: undefined
+      }
       revoke_user_sessions: { Args: { p_user_id: string }; Returns: undefined }
       set_member_rates: {
         Args: {
@@ -951,6 +1041,10 @@ export type Database = {
         Returns: undefined
       }
       submit_time_entry: { Args: { entry_id: string }; Returns: undefined }
+      touch_my_session: {
+        Args: { p_city: string; p_country: string; p_user_agent: string }
+        Returns: undefined
+      }
       transfer_primary_admin: {
         Args: { target_membership_id: string }
         Returns: undefined
@@ -965,10 +1059,21 @@ export type Database = {
       }
       update_membership_details: {
         Args: {
-          new_full_name: string
-          new_job_title: string
-          new_role: Database['public']['Enums']['user_role']
+          new_full_name?: string
+          new_job_title?: string
+          new_role?: Database['public']['Enums']['user_role']
           target_membership_id: string
+        }
+        Returns: undefined
+      }
+      update_workspace_settings: {
+        Args: {
+          new_currency?: string
+          new_daily_capacity_hours?: number
+          new_days_per_week?: number
+          new_name?: string
+          new_rounding_minutes?: number
+          target_org_id: string
         }
         Returns: undefined
       }

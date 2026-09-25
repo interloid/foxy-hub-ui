@@ -2,6 +2,7 @@
 
 import { isDemoModeEnabled, serverEnv } from '@/config/env.server'
 import { siteConfig } from '@/config/site'
+import { hasVerifiedFactor, MFA_VERIFY_PATH } from '@/lib/mfa'
 import { decodePassword } from '@/lib/password-encoding'
 import { rateLimit } from '@/lib/rate-limit'
 import { createClient } from '@/lib/supabase/server'
@@ -15,9 +16,16 @@ import {
   setPasswordSchema,
   signInSchema,
 } from './schemas'
+import { resolveLanding } from './landing'
 
 export type AuthResult =
-  | { ok: true; redirectTo?: string; role?: string }
+  | {
+      ok: true
+      redirectTo?: string
+      role?: string
+      /** Password accepted, but the account has 2FA — the code page comes next. */
+      mfaRequired?: boolean
+    }
   | { ok: false; error: string }
 
 export async function signInWithPassword(
@@ -55,45 +63,18 @@ export async function signInWithPassword(
     return { ok: false, error: 'That email and password do not match.' }
   }
 
-  const userId = data.user.id
-
-  // Every membership, not just the newest one: somebody deactivated at one agency may still
-  // be active at another, and they should land in the workspace they can still use.
-  // `view_own_membership` lets a user read their own rows whatever their status, so this
-  // needs no RPC — the flag is readable right here.
-  const { data: memberships, error: membershipError } = await supabase
-    .from('memberships')
-    .select('status, organizations(slug)')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-
-  if (membershipError) {
-    return { ok: true, redirectTo: '/onboard' }
-  }
-
-  const rows = memberships ?? []
-  const activeRows = rows.filter((row) => row.status)
-
-  // Memberships, but none of them live. Without this they would fall through to /onboard and
-  // be invited to create a fresh workspace, which is the opposite of being deactivated. The
-  // session is dropped too, since RLS would hand them an empty app rather than an explanation.
-  if (rows.length > 0 && activeRows.length === 0) {
-    await supabase.auth.signOut()
+  // Two-factor accounts stop here: the session is aal1 until the code, so memberships are
+  // not readable yet (restrictive MFA policy). The code page resolves the landing instead,
+  // and shows the "Logged in" toast once the code is accepted.
+  if (hasVerifiedFactor(data.user)) {
     return {
-      ok: false,
-      error: 'Your access to this workspace has been removed.',
+      ok: true,
+      mfaRequired: true,
+      redirectTo: `${MFA_VERIFY_PATH}?next=${encodeURIComponent('/')}`,
     }
   }
 
-  const orgSlug = activeRows
-    .map((row) => (row.organizations as { slug: string } | null)?.slug)
-    .find(Boolean)
-
-  if (!orgSlug) {
-    return { ok: true, redirectTo: '/onboard' }
-  }
-
-  return { ok: true, redirectTo: `/${orgSlug}` }
+  return resolveLanding(supabase, data.user.id)
 }
 
 export async function sendPasswordReset(
@@ -173,7 +154,12 @@ export async function setPassword(
   const { data: updateData, error: updateError } =
     await supabase.auth.updateUser({
       password: decodedPassword,
-      data: { password_set: true },
+      // Saved in the SAME call as the password, so the two can never disagree. Supabase
+      // does not record when a password changed; Settings → Security shows this.
+      data: {
+        password_set: true,
+        password_changed_at: new Date().toISOString(),
+      },
     })
 
   if (updateError) {
@@ -231,6 +217,7 @@ export async function changePassword(
   const { error } = await supabase.auth.updateUser({
     password: parsed.data.password,
     current_password: parsed.data.current,
+    data: { password_changed_at: new Date().toISOString() },
   })
 
   if (error) {
@@ -245,6 +232,15 @@ export async function changePassword(
             ? 'That current password is not correct.'
             : error.message,
     }
+  }
+
+  // The tips beside the form promise this: a new password ends every other session, so
+  // whoever knew the old one is logged out too. This session stays signed in.
+  const { error: signOutError } = await supabase.auth.signOut({
+    scope: 'others',
+  })
+  if (signOutError) {
+    console.error('sign out other sessions failed:', signOutError.message)
   }
 
   return { ok: true }

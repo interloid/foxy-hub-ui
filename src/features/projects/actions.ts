@@ -1,7 +1,7 @@
 'use server'
 
 import { issueInvoiceAction } from '@/features/portal/actions'
-import { getWorkspace, isAdminRole } from '@/lib/dal'
+import { getUserLocale, getWorkspace, isAdminRole } from '@/lib/dal'
 import { isBillingRole } from '@/lib/role'
 import { formatCurrency } from '@/lib/money'
 import { createClient } from '@/lib/supabase/server'
@@ -97,7 +97,9 @@ export async function createInvoiceAction(rawParams: unknown): Promise<
   }
 
   if (draft.amount <= 0) {
-    const zero = formatCurrency(0, draft.currency)
+    const zero = formatCurrency(0, draft.currency, {
+      locale: await getUserLocale(),
+    })
 
     return {
       ok: false,

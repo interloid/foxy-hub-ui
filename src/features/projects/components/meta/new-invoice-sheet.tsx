@@ -34,6 +34,7 @@ import {
   NewInvoiceSheetProps,
   ProjectInvoiceContext,
 } from '../../types/invoice'
+import { useLocale } from '@/context/locale-provider'
 
 const ENGAGEMENT_BADGE_CONFIG: Record<
   EngagementModel,
@@ -54,6 +55,7 @@ export function NewInvoiceSheet({
   isSubmitting = false,
   hasExistingInvoice = false,
 }: NewInvoiceSheetProps) {
+  const locale = useLocale()
   const [hasExistingInvoices, setHasExistingInvoice] = useState(false)
   const [isCheckingInvoice, startTransition] = useTransition()
   const { control, handleSubmit, setValue, getValues, watch } =
@@ -254,7 +256,7 @@ export function NewInvoiceSheet({
                         {line.rate}
                       </div>
                       <div className="text-foreground col-span-2 text-right text-[12.5px] font-bold">
-                        {formatCurrency(line.amount, currency)}
+                        {formatCurrency(line.amount, currency, { locale })}
                       </div>
                     </div>
                   ))
@@ -271,7 +273,7 @@ export function NewInvoiceSheet({
             <div className="border-border/80 flex items-center justify-between border-t pt-3 text-[15px]">
               <span className="text-muted-foreground font-bold">Total</span>
               <span className="text-foreground text-base font-bold">
-                {formatCurrency(totalAmount, currency)}
+                {formatCurrency(totalAmount, currency, { locale })}
               </span>
             </div>
 

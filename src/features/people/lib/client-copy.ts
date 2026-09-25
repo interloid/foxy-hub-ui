@@ -17,3 +17,15 @@ export function clientStatusCopy(name: string, isActive: boolean) {
         destructive: false,
       }
 }
+
+/** Confirm copy for bringing back a deactivated teammate (RISK-022). */
+export function memberReactivateCopy(name: string) {
+  return {
+    title: `Reactivate ${name}?`,
+    description:
+      'They get their access back and take a seat on your plan again. They sign in with their existing password.',
+    confirmLabel: 'Reactivate',
+    pendingLabel: 'Reactivating…',
+    destructive: false,
+  }
+}

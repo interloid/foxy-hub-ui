@@ -1,5 +1,7 @@
 import { BackLink } from '@/components/shared/app/back-link'
+import { EmailChangeBanner } from '@/features/profile/components/email-change-banner'
 import { ProfileCard } from '@/features/profile/components/profile-card'
+import { RoleAccessCard } from '@/features/profile/components/role-access-card'
 import { PROFILE } from '@/features/profile/data'
 import { getAccount } from '@/lib/dal'
 import { ProfileCardSkeleton } from '@/skeleton/profile-card'
@@ -20,7 +22,7 @@ export default async function ProfilePage({
   const { org } = await params
 
   return (
-    <div className="mx-auto w-full max-w-160">
+    <div className="w-full">
       <BackLink asChild className="mb-3.5">
         <Link href={`/${org}${PROFILE.back.href}`}>{PROFILE.back.label}</Link>
       </BackLink>
@@ -29,9 +31,15 @@ export default async function ProfilePage({
         {PROFILE.subtitle}
       </p>
 
-      <Suspense fallback={<ProfileCardSkeleton />}>
-        <AsyncProfileCard org={org} />
+      <Suspense fallback={null}>
+        <EmailChangeBanner />
       </Suspense>
+
+      <div className="grid items-start gap-5 lg:grid-cols-[1.3fr_1fr]">
+        <Suspense fallback={<ProfileCardSkeleton />}>
+          <AsyncProfileCard org={org} />
+        </Suspense>
+      </div>
     </div>
   )
 }
@@ -40,5 +48,10 @@ async function AsyncProfileCard({ org }: { org: string }) {
   const account = await getAccount(org)
   if (!account) redirect('/sign-in?error=session_expired')
 
-  return <ProfileCard account={account} />
+  return (
+    <>
+      <ProfileCard account={account} />
+      <RoleAccessCard role={account.role} orgName={account.orgName} />
+    </>
+  )
 }

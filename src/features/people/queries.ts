@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { getWorkspace } from '@/lib/dal'
+import { getFormatter, getUserTimeZone, getWorkspace } from '@/lib/dal'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -13,7 +13,24 @@ import type {
 } from './types'
 import { STAFF_ROLES } from '@/lib/role'
 
+import { canViewPeople } from './lib/can-view-people'
+
 const TEAM_ROLES = STAFF_ROLES
+
+/**
+ * For queries the page cannot work without (RISK-024). Reading only `data ?? []` turned a
+ * database or network failure into "Nobody here yet." — admins thought their team was
+ * gone. Throwing shows the workspace error screen (with Try again) and logs the cause.
+ */
+function required<T extends { error: { message: string } | null }>(
+  result: T,
+  what: string
+): T {
+  if (result.error) {
+    throw new Error(`Could not load ${what}: ${result.error.message}`)
+  }
+  return result
+}
 
 function projectCountLabel(count: number): string {
   if (count === 0) return 'No projects yet'
@@ -40,18 +57,20 @@ export async function getMembersClientsData(
 
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return empty
+  // Second guard behind the page's check: any future caller of this query gets nothing
+  // for a contributor, rather than the full roster with emails.
+  if (!canViewPeople(workspace.role)) return empty
 
   const supabase = await createClient()
   const orgId = workspace.id
 
   const [
     membershipsRes,
-    subscriptionRes,
+    seatUsage,
     invitesRes,
     clientsRes,
     clientProjectsRes,
     allocationsRes,
-    clientMembershipsRes,
   ] = await Promise.all([
     supabase
       .from('memberships')
@@ -60,19 +79,14 @@ export async function getMembersClientsData(
       .in('role', TEAM_ROLES)
       .order('created_at', { ascending: true }),
 
-    supabase
-      .from('subscriptions')
-      .select('plan:plans(name, seats)')
-      .eq('org_id', orgId)
-      .eq('status', 'active')
-      .maybeSingle(),
+    // The SAME numbers the invite check uses, so the seat card can never disagree with
+    // "all seats are taken" (RISK-015): active staff + pending staff invites, against
+    // the plan's max_members.
+    getSeatUsage(orgId),
 
     supabase
-      // Rows, not just a count: the count still drives the Pending invites metric, but
-      // the Clients tab also needs to know which contact has an outstanding or redeemed
-      // invitation, so the edit sheet can offer invite / resend / nothing.
       .from('invitations')
-      .select('id, email, accepted_at, expires_at')
+      .select('id, role, accepted_at, expires_at')
       .eq('org_id', orgId),
 
     supabase
@@ -91,17 +105,13 @@ export async function getMembersClientsData(
       .from('project_allocations')
       .select('project_id, user_id, effective_to, projects!inner(org_id)')
       .eq('projects.org_id', orgId),
-
-    // Client memberships. `TEAM_ROLES` deliberately excludes them, so without this the
-    // Clients tab has no way to know a contact already signed in — which is exactly how
-    // a client with portal access ended up being offered a "Send invite" button that
-    // `check_email_exists` then refuses.
-    supabase
-      .from('memberships')
-      .select('user_id')
-      .eq('org_id', orgId)
-      .eq('role', 'client'),
   ])
+
+  required(membershipsRes, 'team members')
+  required(invitesRes, 'invitations')
+  required(clientsRes, 'clients')
+  required(clientProjectsRes, 'projects')
+  required(allocationsRes, 'project allocations')
 
   const memberships = membershipsRes.data ?? []
   const userIds = memberships.map((m) => m.user_id)
@@ -110,6 +120,7 @@ export async function getMembersClientsData(
     supabase.from('profiles').select('id, full_name').in('id', userIds),
     getAuthProfiles(userIds),
   ])
+  required(profilesRes, 'profiles')
 
   const profileMap = new Map(
     (profilesRes.data ?? []).map((p) => [p.id, p.full_name])
@@ -126,8 +137,6 @@ export async function getMembersClientsData(
     set.add(row.project_id)
   }
 
-  // user_id -> projects they opened. Same source as the client project counts, so this
-  // costs no extra query.
   const ownedProjects = new Map<string, number>()
   for (const row of clientProjectsRes.data ?? []) {
     if (!row.created_by) continue
@@ -137,18 +146,27 @@ export async function getMembersClientsData(
     )
   }
 
+  const [fmt, timeZone] = await Promise.all([getFormatter(), getUserTimeZone()])
+
   const members: PersonRow[] = memberships.map((membership) => {
-    const fullName = profileMap.get(membership.user_id) || 'Unnamed teammate'
+    // The placeholder is for display only. It used to be the form's starting value too,
+    // so saving any change wrote "Unnamed teammate" into the real profile (RISK-006).
+    const savedName = profileMap.get(membership.user_id)?.trim() || null
     const auth = authProfiles.get(membership.user_id)
 
     return {
       membershipId: membership.id,
       userId: membership.user_id,
-      fullName,
+      fullName: savedName ?? 'Unnamed teammate',
+      savedName,
       email: auth?.email ?? null,
       role: membership.role as WorkspaceRole,
       isActive: membership.status,
-      lastActiveLabel: formatLastActive(auth?.lastSignInAt ?? null),
+      lastActiveLabel: formatLastActive(
+        auth?.lastSignInAt ?? null,
+        fmt,
+        timeZone
+      ),
       subtitle: projectCountLabel(
         allocatedProjects.get(membership.user_id)?.size ?? 0
       ),
@@ -173,37 +191,15 @@ export async function getMembersClientsData(
     name: p.name,
   }))
 
-  // lower(email) -> status. The unique index on (org_id, lower(email)) covers only
-  // UNACCEPTED rows, so one address can hold a live invite plus historic accepted ones —
-  // an accepted row therefore wins over a pending one.
   const now = Date.now()
-  const inviteByEmail = new Map<string, 'pending' | 'accepted'>()
-  for (const row of invitesRes.data ?? []) {
-    const key = row.email.trim().toLowerCase()
-    if (row.accepted_at) {
-      inviteByEmail.set(key, 'accepted')
-      continue
-    }
-    const live = new Date(row.expires_at).getTime() > now
-    if (live && inviteByEmail.get(key) !== 'accepted') {
-      inviteByEmail.set(key, 'pending')
-    }
-  }
 
+  // Staff invites only — client invites do not take a seat (same filter as getSeatUsage).
   const pendingInvites = (invitesRes.data ?? []).filter(
-    (row) => !row.accepted_at && new Date(row.expires_at).getTime() > now
+    (row) =>
+      (TEAM_ROLES as readonly string[]).includes(row.role) &&
+      !row.accepted_at &&
+      new Date(row.expires_at).getTime() > now
   ).length
-
-  // Anyone holding a client membership is in, whatever route they took. Seeded clients
-  // and clients invited from another workspace have no `invitations` row in this org, so
-  // the invite table alone reports them as never invited.
-  const clientUserIds = (clientMembershipsRes.data ?? []).map((m) => m.user_id)
-  const clientAuth = await getAuthProfiles(clientUserIds)
-  const onboardedEmails = new Set(
-    [...clientAuth.values()]
-      .map((a) => a.email?.trim().toLowerCase())
-      .filter((email): email is string => Boolean(email))
-  )
 
   const clients: ClientCompanyRow[] = (clientsRes.data ?? []).map((client) => ({
     id: client.id,
@@ -213,21 +209,13 @@ export async function getMembersClientsData(
     projectCount: projectCounts.get(client.id) ?? 0,
     isActive: client.status,
     hasPortal: client.portal,
-    inviteStatus: resolveInviteStatus(
-      client.contact_email,
-      onboardedEmails,
-      inviteByEmail
-    ),
   }))
-
-  const plan = subscriptionRes.data?.plan
-  const planRow = Array.isArray(plan) ? plan[0] : plan
 
   return {
     metrics: {
-      seatsUsed: members.length,
-      seatsTotal: planRow?.seats ?? null,
-      planName: planRow?.name || 'Free',
+      seatsUsed: seatUsage.used,
+      seatsTotal: seatUsage.maxMembers,
+      planName: seatUsage.planName,
       pendingInvites,
       activeClients: clients.filter((c) => c.isActive).length,
       clientsWithPortal: clients.filter((c) => c.isActive && c.hasPortal)
@@ -259,12 +247,15 @@ function toLimit(raw: unknown): number | null {
 async function getPlan(orgId: string) {
   const supabase = await createClient()
 
-  const { data } = await supabase
-    .from('subscriptions')
-    .select('plan:plans(name, features)')
-    .eq('org_id', orgId)
-    .eq('status', 'active')
-    .maybeSingle()
+  const { data } = required(
+    await supabase
+      .from('subscriptions')
+      .select('plan:plans(name, features)')
+      .eq('org_id', orgId)
+      .eq('status', 'active')
+      .maybeSingle(),
+    'the plan'
+  )
 
   const plan = data?.plan
   const planRow = Array.isArray(plan) ? plan[0] : plan
@@ -289,6 +280,8 @@ export async function getClientUsage(orgId: string): Promise<ClientUsage> {
       .eq('org_id', orgId)
       .eq('status', true),
   ])
+
+  required(clientsRes, 'the client count')
 
   return {
     planName: plan.name,
@@ -319,27 +312,14 @@ export async function getSeatUsage(orgId: string): Promise<SeatUsage> {
       .gt('expires_at', new Date().toISOString()),
   ])
 
+  required(membersRes, 'the seat count')
+  required(invitesRes, 'the pending invite count')
+
   return {
     planName: plan.name,
     maxMembers: toLimit(plan.features?.max_members),
     used: (membersRes.count ?? 0) + (invitesRes.count ?? 0),
   }
-}
-
-/**
- * A membership beats an invitation row. Someone can hold client access with no invite on
- * file (seeded, or created directly), and an expired invite does not undo access they
- * already have — so the account check comes first.
- */
-function resolveInviteStatus(
-  contactEmail: string | null,
-  onboarded: Set<string>,
-  invites: Map<string, 'pending' | 'accepted'>
-): ClientCompanyRow['inviteStatus'] {
-  if (!contactEmail) return 'none'
-  const key = contactEmail.trim().toLowerCase()
-  if (onboarded.has(key)) return 'accepted'
-  return invites.get(key) ?? 'none'
 }
 
 async function getAuthProfiles(

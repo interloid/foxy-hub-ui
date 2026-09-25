@@ -15,9 +15,10 @@ create policy "staff_view_clients"
     public.has_org_role(clients.org_id, array['primary_admin', 'admin', 'manager', 'contributor']::public.user_role[])
   );
 
--- Primary admins, admins and managers write. Contributors may READ the client list — they work
--- on the projects — but
--- creating or renaming a client is a commercial act, the same division
+-- Primary admins and admins write. Managers and contributors may READ the client list — they
+-- work on the projects — but creating, renaming or deactivating a client is a commercial act.
+-- Managers were allowed here while the app refused them, so a manager could do through the
+-- API what the People page deliberately does not let them (RISK-030). The same division
 -- `owners_admins_insert_projects` and `owners_admins_write_project_allocations` already draw.
 --
 -- `for all` covers insert/update/delete in one policy: they answer identically here, and three
@@ -27,8 +28,8 @@ create policy "staff_view_clients"
 create policy "owners_admins_write_clients"
   on public.clients for all to authenticated
   using (
-    public.has_org_role(clients.org_id, array['primary_admin', 'admin', 'manager']::public.user_role[])
+    public.has_org_role(clients.org_id, array['primary_admin', 'admin']::public.user_role[])
   )
   with check (
-    public.has_org_role(clients.org_id, array['primary_admin', 'admin', 'manager']::public.user_role[])
+    public.has_org_role(clients.org_id, array['primary_admin', 'admin']::public.user_role[])
   );

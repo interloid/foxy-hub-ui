@@ -55,6 +55,8 @@ import {
   TeamAllocationSection,
 } from './team-allocation-section'
 import { NewProjectFormValues } from './types'
+import { useFormatter } from '@/context/locale-provider'
+import { numericDatePlaceholder } from '@/lib/format'
 
 interface NewProjectSheetProps {
   open: boolean
@@ -68,6 +70,7 @@ interface TeammateCapacityResponse {
 }
 
 export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
+  const fmt = useFormatter()
   const todayStr = toISODate(new Date())
   const { orgSlug } = useWorkspace()
   const {
@@ -429,12 +432,8 @@ export function NewProjectSheet({ open, onOpenChange }: NewProjectSheetProps) {
     !projectName.trim() || (isOverCommitted && !overrideReason?.trim())
 
   const formattedTargetDate = targetDate
-    ? targetDate.toLocaleDateString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric',
-      })
-    : 'MM/DD/YYYY'
+    ? fmt.date(toISODate(targetDate), 'numeric')
+    : numericDatePlaceholder(fmt.locale)
 
   const handleAddTeammate = () => {
     const defaultMember = teamMembers[0] || {

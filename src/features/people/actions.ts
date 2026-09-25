@@ -1,8 +1,9 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 
-import { inviteTeam } from '@/features/onboarding/actions'
+import { inviteTeam } from '@/features/onboarding/services/invite-team'
 import type { ActionResult, InviteOutcome } from '@/features/onboarding/types'
 import { getWorkspace } from '@/lib/dal'
 import { isAdminRole, type InvitableStaffRole } from '@/lib/role'
@@ -17,9 +18,40 @@ import {
   jobTitleSchema,
   newClientSchema,
 } from './schemas'
+import { canDeactivateRole } from './lib/can-deactivate-member'
 import type { WorkspaceRole } from './types'
 
 import { getClientUsage, getSeatUsage } from './queries'
+
+const peoplePath = (orgSlug: string) => `/${orgSlug}/people`
+
+const refreshWorkspace = (orgSlug: string) =>
+  revalidatePath(`/${orgSlug}`, 'layout')
+
+async function orNull<T>(promise: Promise<T>): Promise<T | null> {
+  try {
+    return await promise
+  } catch (err) {
+    console.error((err as Error).message)
+    return null
+  }
+}
+
+const PLAN_CHECK_FAILED = 'Could not check your plan just now. Try again.'
+
+const assignableRoleSchema = z.enum(['admin', 'manager', 'contributor'], {
+  message: 'Choose admin, manager or contributor.',
+})
+
+function membershipError(
+  error: { code?: string; message: string },
+  fallback: string
+): string {
+  if (error.code === '22023') return error.message
+  if (error.code === '42501') return 'You do not have permission to do that.'
+  console.error('membership update failed:', error.code, error.message)
+  return fallback
+}
 
 export async function inviteMemberAction(
   orgSlug: string,
@@ -37,9 +69,6 @@ export async function inviteMemberAction(
     return { ok: false, error: 'Only an owner or admin can invite teammates.' }
   }
 
-  // The same schema the invite sheet validates against, so a bypassed form cannot store
-  // a title past the 1..60 bound the column checks, or an address the sheet would have
-  // rejected.
   const parsed = inviteMemberSchema.safeParse({
     email: input.email,
     fullName: input.fullName ?? '',
@@ -53,16 +82,34 @@ export async function inviteMemberAction(
     }
   }
 
-  // Both round trips at once. They do not depend on each other — the seat count needs
-  // the org, the address check needs the email — and running them in sequence added a
-  // needless round trip to every invite.
   const supabase = await createClient()
-  const [seats, emailCheck] = await Promise.all([
-    getSeatUsage(workspace.id),
-    supabase.rpc('check_email_exists', { p_email: parsed.data.email }),
+  const email = parsed.data.email.trim().toLowerCase()
+  const [seats, emailCheck, existingInvite] = await Promise.all([
+    orNull(getSeatUsage(workspace.id)),
+    // Server-only function (RISK-021) — the admin client, behind the admin check above.
+    createAdminClient().rpc('check_email_exists', {
+      p_email: parsed.data.email,
+    }),
+    supabase
+      .from('invitations')
+      .select('id')
+      .eq('org_id', workspace.id)
+      .eq('email', email)
+      .in('role', ['admin', 'manager', 'contributor'])
+      .is('accepted_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .limit(1)
+      .maybeSingle(),
   ])
 
-  if (seats.maxMembers !== null && seats.used >= seats.maxMembers) {
+  if (!seats) return { ok: false, error: PLAN_CHECK_FAILED }
+
+  const isResend = Boolean(existingInvite.data)
+  if (
+    !isResend &&
+    seats.maxMembers !== null &&
+    seats.used >= seats.maxMembers
+  ) {
     return {
       ok: false,
       error: `Your ${seats.planName} plan covers ${seats.maxMembers} ${
@@ -71,8 +118,6 @@ export async function inviteMemberAction(
     }
   }
 
-  // The parsed address was used above: trimmed and lowercased. Checking the raw input
-  // would let " Erik@x.com " past a lookup that stores and compares the normalised form.
   if (emailCheck.error) {
     return { ok: false, error: 'Could not check that email. Try again.' }
   }
@@ -89,13 +134,11 @@ export async function inviteMemberAction(
       email: parsed.data.email,
       role: parsed.data.role,
       fullName: parsed.data.fullName ?? undefined,
-      // `?? undefined` because TeamInvite marks both optional; the schema yields null
-      // for an empty field and null is not assignable to an optional property.
       jobTitle: parsed.data.jobTitle ?? undefined,
     },
   ])
 
-  if (result.ok) revalidatePath(`/${orgSlug}/members-clients`)
+  if (result.ok) revalidatePath(peoplePath(orgSlug))
   return result
 }
 
@@ -138,7 +181,8 @@ export async function createClientAction(
     }
   }
 
-  const usage = await getClientUsage(workspace.id)
+  const usage = await orNull(getClientUsage(workspace.id))
+  if (!usage) return { ok: false, error: PLAN_CHECK_FAILED }
   if (usage.maxClients !== null && usage.used >= usage.maxClients) {
     return {
       ok: false,
@@ -187,22 +231,24 @@ export async function createClientAction(
       error:
         error.code === '23505'
           ? 'A client with this name already exists.'
-          : 'Failed to add client. Please try again.',
+          : error.code === 'P0001'
+            ? error.message
+            : 'Failed to add client. Please try again.',
     }
   }
 
   const reactivated = Boolean(existing)
-  revalidatePath(`/${orgSlug}/members-clients`)
+  revalidatePath(peoplePath(orgSlug))
 
   const email = contactEmail
-  if (!input.invite || !email) {
+  if (!parsed.data.invite || !portal || !email) {
     return { ok: true, data: { invited: false, reactivated } }
   }
 
   const inviteError = await invitePortalClient(workspace.id, {
     email,
-    fullName: input.contactName,
-    projectId: input.projectId,
+    fullName: contactName ?? undefined,
+    projectId: parsed.data.projectId,
   })
 
   return {
@@ -215,12 +261,12 @@ async function invitePortalClient(
   orgId: string,
   input: { email: string; fullName?: string; projectId?: string }
 ): Promise<string | undefined> {
-  const supabase = await createClient()
-
-  const { data: emailExists, error: emailError } = await supabase.rpc(
-    'check_email_exists',
-    { p_email: input.email }
-  )
+  // Server-only function (RISK-021). Every caller has already checked the viewer is an
+  // admin of this workspace.
+  const { data: emailExists, error: emailError } =
+    await createAdminClient().rpc('check_email_exists', {
+      p_email: input.email,
+    })
 
   if (emailError) return 'Could not check that email, so no invite was sent.'
   if (emailExists) return `${input.email} already has an account.`
@@ -251,7 +297,7 @@ export async function updateClientAction(
   if (!isAdminRole(workspace.role)) {
     return {
       ok: false,
-      error: 'Only a primary admin, admin or manager can edit clients.',
+      error: 'Only a primary admin or admin can edit clients.',
     }
   }
 
@@ -297,7 +343,7 @@ export async function updateClientAction(
     return { ok: false, error: 'Could not find this client.' }
   }
 
-  revalidatePath(`/${orgSlug}/members-clients`)
+  revalidatePath(peoplePath(orgSlug))
   return { ok: true }
 }
 
@@ -312,7 +358,7 @@ export async function inviteClientAction(
   if (!isAdminRole(workspace.role)) {
     return {
       ok: false,
-      error: 'Only a primary admin, admin or manager can invite clients.',
+      error: 'Only a primary admin or admin can invite clients.',
     }
   }
 
@@ -333,9 +379,6 @@ export async function inviteClientAction(
     }
   }
 
-  // Both guards exist because the invite creates a LOGIN. Mailing a portal link to a
-  // company whose portal is switched off, or one you have deactivated, would hand out
-  // access the client list says they should not have.
   if (!client.portal) {
     return {
       ok: false,
@@ -358,15 +401,10 @@ export async function inviteClientAction(
 
   if (inviteError) return { ok: false, error: inviteError }
 
-  revalidatePath(`/${orgSlug}/members-clients`)
+  revalidatePath(peoplePath(orgSlug))
   return { ok: true, data: { email: client.contact_email } }
 }
 
-/**
- * Deactivate or reactivate, in one action because they are the same write with a
- * different boolean and the same authorisation. Two actions would be two places for the
- * org scoping to drift.
- */
 export async function setClientStatusAction(
   orgSlug: string,
   clientId: string,
@@ -378,12 +416,10 @@ export async function setClientStatusAction(
   if (!isAdminRole(workspace.role)) {
     return {
       ok: false,
-      error: 'Only a primary admin, admin or manager can change client status.',
+      error: 'Only a primary admin or admin can change client status.',
     }
   }
 
-  // Reactivating can collide: the name is unique per org, and another live client may
-  // have taken it while this one was deactivated.
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('clients')
@@ -398,7 +434,9 @@ export async function setClientStatusAction(
       error:
         error.code === '23505'
           ? 'Another client is already using this name.'
-          : `Failed to ${active ? 'reactivate' : 'deactivate'}. Please try again.`,
+          : error.code === 'P0001'
+            ? error.message
+            : `Failed to ${active ? 'reactivate' : 'deactivate'}. Please try again.`,
     }
   }
 
@@ -406,7 +444,7 @@ export async function setClientStatusAction(
     return { ok: false, error: 'Could not find this client.' }
   }
 
-  revalidatePath(`/${orgSlug}/members-clients`)
+  revalidatePath(peoplePath(orgSlug))
   return { ok: true }
 }
 
@@ -420,12 +458,10 @@ export async function deactivateClientAction(
   if (!isAdminRole(workspace.role)) {
     return {
       ok: false,
-      error: 'Only a primary admin, admin or manager can remove clients.',
+      error: 'Only a primary admin or admin can remove clients.',
     }
   }
 
-  // A soft flag, not a delete: `projects.client_org_id` is `on delete set null`, so
-  // removing the row would strip the company's name off every project it ever paid for.
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('clients')
@@ -445,11 +481,10 @@ export async function deactivateClientAction(
     }
   }
 
-  revalidatePath(`/${orgSlug}/members-clients`)
+  revalidatePath(peoplePath(orgSlug))
   return { ok: true }
 }
 
-/** Edit a teammate's name, role and job title. */
 export async function updateMemberAction(
   orgSlug: string,
   membershipId: string,
@@ -461,7 +496,15 @@ export async function updateMemberAction(
   if (!isAdminRole(workspace.role)) {
     return {
       ok: false,
-      error: 'Only a primary admin, admin or manager can edit people.',
+      error: 'Only a primary admin or admin can edit people.',
+    }
+  }
+
+  const role = assignableRoleSchema.safeParse(input?.role)
+  if (!role.success) {
+    return {
+      ok: false,
+      error: role.error.issues[0]?.message ?? 'Choose a role.',
     }
   }
 
@@ -481,34 +524,39 @@ export async function updateMemberAction(
     }
   }
 
-  // SECURITY DEFINER, because `13_rls_profiles` lets nobody but you rename you — an admin
-  // editing a teammate's name is impossible through the table policies.
   const supabase = await createClient()
+
+  const { data: target } = await supabase
+    .from('memberships')
+    .select('role')
+    .eq('id', membershipId)
+    .eq('org_id', workspace.id)
+    .maybeSingle()
+
+  if (!target) return { ok: false, error: 'That person was not found.' }
+  if (target.role === 'client') {
+    return { ok: false, error: 'Clients are managed on the Clients tab.' }
+  }
+
   const { error } = await supabase.rpc('update_membership_details', {
     target_membership_id: membershipId,
-    // `supabase gen types` renders nullable `text` parameters as non-nullable `string`,
-    // so these casts restore what the function actually accepts. Null is meaningful on
-    // both: a null name makes the function SKIP the profiles write (you cleared the box,
-    // you did not rename them to ''), and a null title clears job_title. Coercing to ''
-    // would write an empty name and an empty title instead.
-    new_full_name: fullName.data as unknown as string,
-    new_job_title: jobTitle.data as unknown as string,
-    new_role: input.role,
+    // Left out = NULL in SQL: keep the name, clear the job title (RISK-025).
+    new_full_name: fullName.data ?? undefined,
+    new_job_title: jobTitle.data ?? undefined,
+    new_role: role.data,
   })
 
-  if (error) return { ok: false, error: error.message }
+  if (error) {
+    return {
+      ok: false,
+      error: membershipError(error, 'Could not save these changes. Try again.'),
+    }
+  }
 
-  revalidatePath(`/${orgSlug}/members-clients`)
+  refreshWorkspace(orgSlug)
   return { ok: true }
 }
 
-/**
- * Hand the primary_admin role to an admin.
- *
- * The swap itself is a database function: the row policy forbids both halves by design,
- * and doing it in two client-side writes would leave a window with two primary admins —
- * which the partial unique index would reject anyway, mid-transfer.
- */
 export async function makePrimaryAdminAction(
   orgSlug: string,
   membershipId: string
@@ -528,9 +576,14 @@ export async function makePrimaryAdminAction(
     target_membership_id: membershipId,
   })
 
-  if (error) return { ok: false, error: error.message }
+  if (error) {
+    return {
+      ok: false,
+      error: membershipError(error, 'Could not hand over the role. Try again.'),
+    }
+  }
 
-  revalidatePath(`/${orgSlug}/members-clients`)
+  refreshWorkspace(orgSlug)
   return { ok: true }
 }
 
@@ -548,10 +601,33 @@ export async function deactivateMembershipAction(
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return { ok: false, error: 'Workspace not found.' }
 
-  if (workspace.role !== 'primary_admin') {
+  if (workspace.role !== 'primary_admin' && workspace.role !== 'admin') {
     return {
       ok: false,
-      error: 'Only the workspace primary admin can deactivate people.',
+      error: 'Only a primary admin or admin can deactivate people.',
+    }
+  }
+
+  const { data: target } = await supabase
+    .from('memberships')
+    .select('role, user_id')
+    .eq('id', membershipId)
+    .eq('org_id', workspace.id)
+    .maybeSingle()
+
+  if (!target) {
+    return { ok: false, error: 'That person was not found.' }
+  }
+  if (target.user_id === user.id) {
+    return { ok: false, error: 'You cannot deactivate yourself.' }
+  }
+  if (!canDeactivateRole(workspace.role, target.role)) {
+    return {
+      ok: false,
+      error:
+        target.role === 'primary_admin'
+          ? 'The primary admin cannot be deactivated.'
+          : 'Only the primary admin can deactivate another admin.',
     }
   }
 
@@ -576,7 +652,66 @@ export async function deactivateMembershipAction(
 
   await revokeSessions(data[0]!.user_id)
 
-  revalidatePath(`/${orgSlug}/members-clients`)
+  revalidatePath(peoplePath(orgSlug))
+  return { ok: true }
+}
+
+export async function reactivateMembershipAction(
+  orgSlug: string,
+  membershipId: string
+): Promise<ActionResult> {
+  const workspace = await getWorkspace(orgSlug)
+  if (!workspace) return { ok: false, error: 'Workspace not found.' }
+
+  if (workspace.role !== 'primary_admin' && workspace.role !== 'admin') {
+    return {
+      ok: false,
+      error: 'Only a primary admin or admin can reactivate people.',
+    }
+  }
+
+  const supabase = await createClient()
+  const { data: target } = await supabase
+    .from('memberships')
+    .select('role, status')
+    .eq('id', membershipId)
+    .eq('org_id', workspace.id)
+    .maybeSingle()
+
+  if (!target) return { ok: false, error: 'That person was not found.' }
+  if (target.status) return { ok: false, error: 'They are already active.' }
+  if (!canDeactivateRole(workspace.role, target.role)) {
+    return {
+      ok: false,
+      error: 'Only the primary admin can reactivate another admin.',
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('memberships')
+    .update({ status: true })
+    .eq('id', membershipId)
+    .eq('org_id', workspace.id)
+    .eq('status', false)
+    .select('id')
+
+  if (error) {
+    // P0001 is the plan-limit trigger's own message ("Your plan's seats are all taken…").
+    if (error.code === 'P0001') return { ok: false, error: error.message }
+    return {
+      ok: false,
+      error: membershipError(error, 'Failed to reactivate. Please try again.'),
+    }
+  }
+
+  if (!data || data.length === 0) {
+    return {
+      ok: false,
+      error: 'Could not reactivate this person — they may already be active.',
+    }
+  }
+
+  revalidatePath(peoplePath(orgSlug))
   return { ok: true }
 }
 
@@ -593,4 +728,95 @@ async function revokeSessions(userId: string): Promise<void> {
   } catch (err) {
     console.error('could not revoke sessions:', (err as Error).message)
   }
+}
+
+export async function resetMemberMfaAction(
+  orgSlug: string,
+  membershipId: string
+): Promise<ActionResult> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'You need to be signed in.' }
+
+  const workspace = await getWorkspace(orgSlug)
+  if (!workspace) return { ok: false, error: 'Workspace not found.' }
+
+  if (!isAdminRole(workspace.role)) {
+    return {
+      ok: false,
+      error: 'Only an admin can reset two-factor authentication.',
+    }
+  }
+
+  const { data: membership } = await supabase
+    .from('memberships')
+    .select('user_id, role')
+    .eq('id', membershipId)
+    .eq('org_id', workspace.id)
+    .maybeSingle()
+
+  if (!membership) return { ok: false, error: 'That person was not found.' }
+
+  if (membership.user_id === user.id) {
+    return {
+      ok: false,
+      error: 'Turn your own two-factor authentication off from Settings.',
+    }
+  }
+
+  if (
+    membership.role === 'primary_admin' &&
+    workspace.role !== 'primary_admin'
+  ) {
+    return {
+      ok: false,
+      error: 'Only the primary admin can reset their own two-factor settings.',
+    }
+  }
+
+  try {
+    const admin = createAdminClient()
+
+    const { count: adminElsewhere, error: elsewhereError } = await admin
+      .from('memberships')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', membership.user_id)
+      .neq('org_id', workspace.id)
+      .in('role', ['primary_admin', 'admin'])
+    if (elsewhereError) throw elsewhereError
+    if (adminElsewhere) {
+      return {
+        ok: false,
+        error:
+          "They are an admin in another workspace, so their two-factor authentication can't be reset from here.",
+      }
+    }
+
+    const { data: factors, error: listError } =
+      await admin.auth.admin.mfa.listFactors({ userId: membership.user_id })
+
+    if (listError) throw listError
+    if (!factors?.factors.length) {
+      return {
+        ok: false,
+        error: 'They do not have two-factor authentication turned on.',
+      }
+    }
+
+    for (const factor of factors.factors) {
+      const { error } = await admin.auth.admin.mfa.deleteFactor({
+        id: factor.id,
+        userId: membership.user_id,
+      })
+      if (error) throw error
+    }
+  } catch (err) {
+    console.error('reset member mfa failed:', (err as Error).message)
+    return { ok: false, error: 'Could not reset two-factor authentication.' }
+  }
+
+  revalidatePath(peoplePath(orgSlug))
+  return { ok: true }
 }

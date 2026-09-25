@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { AlertCircle } from 'lucide-react'
 import { useRealtimeUpdates } from '../../hooks/use-realtime-updates'
 import type { ProjectUpdate } from '../../types'
+import { useFormatter } from '@/context/locale-provider'
+import type { Formatter } from '@/lib/format'
 
 interface LatestUpdatesCardProps {
   updates: ProjectUpdate[]
@@ -19,6 +21,7 @@ export function LatestUpdatesCard({
   isOverview = false,
   isError = false,
 }: LatestUpdatesCardProps) {
+  const fmt = useFormatter()
   // Hook handles realtime updates and limits display to top 5
   const updates = useRealtimeUpdates(initialUpdates, projectId, 5)
 
@@ -85,7 +88,7 @@ export function LatestUpdatesCard({
                         dateTime={update.createdAt}
                         className="text-muted-foreground text-xs"
                       >
-                        {formatRelativeTime(update.createdAt)}
+                        {formatRelativeTime(update.createdAt, fmt)}
                       </time>
                     </div>
                     <p
@@ -108,7 +111,7 @@ export function LatestUpdatesCard({
   )
 }
 
-function formatRelativeTime(dateString: string): string {
+function formatRelativeTime(dateString: string, fmt: Formatter): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
@@ -127,5 +130,5 @@ function formatRelativeTime(dateString: string): string {
   if (diffInSeconds < 172800) {
     return 'Yesterday'
   }
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return fmt.date(date, 'day')
 }

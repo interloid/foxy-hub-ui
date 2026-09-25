@@ -62,7 +62,12 @@ export function SignInForm({ initialError }: { initialError?: string }) {
   const hasErrors = Object.keys(form.formState.errors).length > 0
 
   const run = (
-    fn: () => Promise<{ ok: boolean; error?: string; redirectTo?: string }>
+    fn: () => Promise<{
+      ok: boolean
+      error?: string
+      redirectTo?: string
+      mfaRequired?: boolean
+    }>
   ) => {
     startTransition(async () => {
       try {
@@ -71,7 +76,8 @@ export function SignInForm({ initialError }: { initialError?: string }) {
           toast.error(result.error ?? 'An error occurred')
           return
         }
-        toast.success('Logged in successfully')
+        // With 2FA the sign-in is not finished yet — the code page shows this toast.
+        if (!result.mfaRequired) toast.success('Logged in successfully')
         if (result.redirectTo) {
           router.push(result.redirectTo)
         }

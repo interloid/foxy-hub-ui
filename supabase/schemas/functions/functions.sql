@@ -13,6 +13,11 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Two-factor: an aal1 session of a user with 2FA may not act (see mfa_satisfied).
+  if not public.mfa_satisfied() then
+    raise exception 'Two-factor verification required' using errcode = '42501';
+  end if;
+
   if exists (
     select 1 from public.time_entries
     where id = entry_id
@@ -106,6 +111,11 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Two-factor: an aal1 session of a user with 2FA may not act (see mfa_satisfied).
+  if not public.mfa_satisfied() then
+    raise exception 'Two-factor verification required' using errcode = '42501';
+  end if;
+
   -- The caller must be the client OF THIS PROJECT, not merely a client somewhere in the
   -- org. The previous test was `memberships.role = 'client'` for the delivery's org, which
   -- let any one of an agency's clients change the status of every other client's
@@ -328,6 +338,37 @@ grant execute on function public.is_slug_available(text) to anon, authenticated;
 -- `status` is filtered in all three. Every policy in schemas/policies keys off one of
 -- these, so a deactivated membership stops granting access everywhere at once rather
 -- than each policy having to remember the check.
+-- ---------------------------------------------------------------------
+-- Two-factor gate for the database
+--
+-- True when this request may act on data: the session passed the code
+-- (`aal2`), or the user has no verified authenticator at all. False only
+-- for an aal1 session of a user WITH 2FA — someone holding the password
+-- but not the phone, who could otherwise skip the app's code page and
+-- call the API directly with the public anon key.
+--
+-- Used three ways: the restrictive `require_mfa_when_enrolled` policy on
+-- every table, the membership helpers below (so every RPC that authorises
+-- through them is covered), and an explicit guard in the few definer
+-- functions that only check auth.uid().
+--
+-- SECURITY DEFINER because auth.mfa_factors is not readable by the API
+-- roles. No uid (anon, service_role) → no factors → true.
+-- ---------------------------------------------------------------------
+create or replace function public.mfa_satisfied()
+returns boolean
+language sql
+security definer
+stable
+set search_path = ''
+as $$
+  select coalesce(auth.jwt() ->> 'aal', 'aal1') = 'aal2'
+      or not exists (
+        select 1 from auth.mfa_factors f
+        where f.user_id = auth.uid() and f.status = 'verified'
+      );
+$$;
+
 create or replace function public.current_user_orgs()
 returns setof uuid
 language sql
@@ -336,7 +377,8 @@ stable
 set search_path = ''
 as $$
   select org_id from public.memberships
-  where user_id = auth.uid() and status;
+  where user_id = auth.uid() and status
+    and public.mfa_satisfied();
 $$;
 
 create or replace function public.is_org_member(target_org_id uuid)
@@ -349,7 +391,7 @@ as $$
   select exists (
     select 1 from public.memberships
     where user_id = auth.uid() and org_id = target_org_id and status
-  );
+  ) and public.mfa_satisfied();
 $$;
 
 create or replace function public.has_org_role(target_org_id uuid, allowed_roles public.user_role[])
@@ -365,7 +407,7 @@ as $$
       and org_id  = target_org_id
       and role    = any(allowed_roles)
       and status
-  );
+  ) and public.mfa_satisfied();
 $$;
 
 -- ---------------------------------------------------------------------
@@ -847,6 +889,13 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Server-only (invite flows, via the service-role key). Checked HERE, not only by
+  -- grant: open to anon it let anyone with the public key test unlimited addresses to
+  -- find who has an account (RISK-021).
+  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then
+    raise exception 'Not allowed' using errcode = '42501';
+  end if;
+
   -- Reject malformed inputs immediately
   if p_email is null or length(p_email) < 3 or position('@' in p_email) = 0 then
     raise exception 'Invalid email format' using errcode = '22023';
@@ -860,7 +909,8 @@ begin
 end;
 $$;
 
-grant execute on function public.check_email_exists(text) to service_role, authenticated, anon;
+revoke execute on function public.check_email_exists(text) from public, anon, authenticated;
+grant  execute on function public.check_email_exists(text) to service_role;
 
 -- ---------------------------------------------------------------------
 -- Revoke every session a user holds (called when they are deactivated)
@@ -873,6 +923,13 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- Server-only (deactivation, via the service-role key). Checked HERE, not only by
+  -- grant: grants.sql grants every routine to anon/authenticated, which silently undid the
+  -- revoke below and let anyone with the public anon key sign any user out everywhere.
+  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then
+    raise exception 'Not allowed' using errcode = '42501';
+  end if;
+
   if p_user_id is null then
     raise exception 'A user id is required' using errcode = '22023';
   end if;
@@ -971,12 +1028,18 @@ grant execute on function public.transfer_primary_admin(uuid) to authenticated;
 -- here changes their name in every workspace they belong to. That is the existing shape
 -- of the table, not a decision made here — `job_title` sits on `memberships` precisely so
 -- it does not behave this way.
+--
+-- NULL (or leaving the argument out) means different things per argument (RISK-025):
+--   new_full_name — keep the current name
+--   new_job_title — clear the job title
+--   new_role      — required; the default exists only because Postgres allows no
+--                   argument without a default after one that has one
 -- ---------------------------------------------------------------------
 create or replace function public.update_membership_details(
   target_membership_id uuid,
-  new_full_name        text,
-  new_job_title        text,
-  new_role             public.user_role
+  new_full_name        text             default null,
+  new_job_title        text             default null,
+  new_role             public.user_role default null
 )
 returns void
 language plpgsql
@@ -997,10 +1060,16 @@ begin
     raise exception 'Membership not found' using errcode = '42501';
   end if;
 
+  -- Primary admins and admins only (RISK-002). With managers allowed, a manager could
+  -- set any role — their own included — through this definer function.
   if not public.has_org_role(
-       v_org_id, array['primary_admin', 'admin', 'manager']::public.user_role[]
+       v_org_id, array['primary_admin', 'admin']::public.user_role[]
      ) then
     raise exception 'Not authorized to edit this teammate' using errcode = '42501';
+  end if;
+
+  if new_role is null then
+    raise exception 'Choose a role' using errcode = '22023';
   end if;
 
   -- The two guards `owners_admins_update_member_role` enforces, restated because a
@@ -1033,3 +1102,361 @@ end;
 $$;
 
 grant execute on function public.update_membership_details(uuid, text, text, public.user_role) to authenticated;
+
+-- =====================================================================
+-- Devices — Settings → Security
+--
+-- All three are SECURITY DEFINER because auth.sessions is owned by
+-- supabase_auth_admin and not exposed to the API roles. Each one scopes
+-- itself to `auth.uid()`, and "this device" is the `session_id` claim of
+-- the caller's own access token.
+-- =====================================================================
+
+-- Records or refreshes this session's device details. Called by proxy.ts
+-- at most every few minutes; the `last_seen_at` guard keeps a burst of
+-- requests from rewriting the row on every one.
+create or replace function public.touch_my_session(
+  p_user_agent text,
+  p_city       text,
+  p_country    text
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user_id    uuid := auth.uid();
+  v_session_id uuid := nullif(auth.jwt() ->> 'session_id', '')::uuid;
+begin
+  if v_user_id is null or v_session_id is null or not public.mfa_satisfied() then
+    return;
+  end if;
+
+  -- The session must really be the caller's; the FK alone would accept any id.
+  if not exists (
+    select 1 from auth.sessions s
+    where s.id = v_session_id and s.user_id = v_user_id
+  ) then
+    return;
+  end if;
+
+  insert into public.user_sessions (session_id, user_id, user_agent, city, country)
+  values (
+    v_session_id,
+    v_user_id,
+    left(nullif(trim(p_user_agent), ''), 512),
+    left(nullif(trim(p_city), ''), 120),
+    left(nullif(trim(p_country), ''), 2)
+  )
+  on conflict (session_id) do update
+     set user_agent   = coalesce(excluded.user_agent, public.user_sessions.user_agent),
+         city         = coalesce(excluded.city, public.user_sessions.city),
+         country      = coalesce(excluded.country, public.user_sessions.country),
+         last_seen_at = now()
+   where public.user_sessions.last_seen_at < now() - interval '2 minutes';
+end;
+$$;
+
+-- Every live session of the caller, newest activity first. Starts from
+-- auth.sessions (the source of truth) so sessions with no recorded
+-- details — signed in before this shipped — still appear.
+create or replace function public.list_my_sessions()
+returns table (
+  session_id   uuid,
+  user_agent   text,
+  city         text,
+  country      text,
+  created_at   timestamptz,
+  last_seen_at timestamptz,
+  is_current   boolean
+)
+language sql
+security definer
+stable
+set search_path = ''
+as $$
+  select
+    s.id,
+    u.user_agent,
+    u.city,
+    u.country,
+    s.created_at,
+    greatest(
+      u.last_seen_at,
+      s.refreshed_at at time zone 'utc',
+      s.updated_at,
+      s.created_at
+    ) as last_seen_at,
+    s.id = nullif(auth.jwt() ->> 'session_id', '')::uuid as is_current
+  from auth.sessions s
+  left join public.user_sessions u on u.session_id = s.id
+  where s.user_id = auth.uid()
+    and (s.not_after is null or s.not_after > now())
+    and public.mfa_satisfied()
+  order by is_current desc, last_seen_at desc;
+$$;
+
+-- Signs ONE other device out. Deleting the auth.sessions row cascades to
+-- its refresh tokens (it can never renew) and to its user_sessions row.
+-- The current session is refused — that is what the normal sign-out is for.
+create or replace function public.revoke_my_session(target_session_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_user_id uuid := auth.uid();
+begin
+  if v_user_id is null then
+    raise exception 'Not signed in' using errcode = '42501';
+  end if;
+
+  -- Two-factor: an aal1 session of a user with 2FA may not act (see mfa_satisfied).
+  if not public.mfa_satisfied() then
+    raise exception 'Two-factor verification required' using errcode = '42501';
+  end if;
+
+  if target_session_id = nullif(auth.jwt() ->> 'session_id', '')::uuid then
+    raise exception 'Use sign out for this device' using errcode = '22023';
+  end if;
+
+  delete from auth.sessions
+   where id = target_session_id
+     and user_id = v_user_id;
+
+  if not found then
+    raise exception 'Session not found' using errcode = 'P0002';
+  end if;
+end;
+$$;
+
+-- ---------------------------------------------------------------------
+-- Workspace settings — Settings → Workspace (name, working day, billing)
+--
+-- Primary admins AND admins may change these; the profile page's Admin
+-- access card promises it. The row policy `org_owner_can_update` stays
+-- owner-only on purpose: row security cannot limit WHICH columns change,
+-- so widening it to admins would let an admin rewrite
+-- `organizations.user_id` and take the workspace. This function is the
+-- admin door instead, and it can only ever touch the columns below.
+--
+-- Every argument but the org is optional: NULL keeps the current value,
+-- so the rename sheet and the working-day card each send only their own
+-- fields. The table's CHECK constraints still validate the numbers.
+-- ---------------------------------------------------------------------
+create or replace function public.update_workspace_settings(
+  target_org_id            uuid,
+  new_name                 text     default null,
+  new_currency             text     default null,
+  new_daily_capacity_hours smallint default null,
+  new_days_per_week        smallint default null,
+  new_rounding_minutes     smallint default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_name     text := nullif(trim(new_name), '');
+  v_currency text := upper(nullif(trim(new_currency), ''));
+begin
+  -- has_org_role also carries the two-factor gate (mfa_satisfied).
+  if not public.has_org_role(
+       target_org_id, array['primary_admin', 'admin']::public.user_role[]
+     ) then
+    raise exception 'Only a primary admin or admin can change workspace settings'
+      using errcode = '42501';
+  end if;
+
+  if new_name is not null and (v_name is null or char_length(v_name) > 80) then
+    raise exception 'Workspace name must be 1 to 80 characters' using errcode = '22023';
+  end if;
+
+  if v_currency is not null and v_currency !~ '^[A-Z]{3}$' then
+    raise exception 'Currency must be a three-letter code' using errcode = '22023';
+  end if;
+
+  update public.organizations
+     set name                 = coalesce(v_name, name),
+         currency             = coalesce(v_currency, currency),
+         daily_capacity_hours = coalesce(new_daily_capacity_hours, daily_capacity_hours),
+         days_per_week        = coalesce(new_days_per_week, days_per_week),
+         rounding_minutes     = coalesce(new_rounding_minutes, rounding_minutes)
+   where id = target_org_id;
+
+  if not found then
+    raise exception 'Workspace not found' using errcode = 'P0002';
+  end if;
+end;
+$$;
+
+-- ---------------------------------------------------------------------
+-- Membership change rules a policy cannot express (RISK-002)
+--
+-- Row policies see only the NEW row on UPDATE, so they cannot say "this
+-- column may not change". This BEFORE UPDATE trigger does:
+--
+--   * `status` (deactivate / reactivate) — the primary admin for anyone;
+--     an admin for managers and contributors only, never another admin
+--     (RISK-005).
+--   * `user_id` and `org_id` never change: moving a seat to another
+--     person or workspace is not an edit, it is a new membership.
+--
+-- Runs only for real users. The service role and internal work (sign-up,
+-- invite acceptance) have no auth.uid() and are not blocked; SECURITY
+-- DEFINER functions such as transfer_primary_admin keep the caller's
+-- uid, never touch these columns, and so pass as well.
+-- ---------------------------------------------------------------------
+create or replace function public.guard_membership_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if (select auth.uid()) is null then
+    return new;
+  end if;
+
+  if new.user_id is distinct from old.user_id
+     or new.org_id is distinct from old.org_id then
+    raise exception 'A membership cannot be moved to another person or workspace'
+      using errcode = '42501';
+  end if;
+
+  -- Primary admin: anyone. Admin: managers and contributors only, never another admin,
+  -- so admins cannot lock each other out (RISK-005; same rule as canDeactivateRole in
+  -- features/people/lib/can-deactivate-member.ts).
+  if new.status is distinct from old.status
+     and not (
+       public.has_org_role(old.org_id, array['primary_admin']::public.user_role[])
+       or (
+         public.has_org_role(old.org_id, array['admin']::public.user_role[])
+         and old.role in ('manager', 'contributor')
+       )
+     ) then
+    raise exception 'Only the primary admin, or an admin for managers and contributors, can deactivate or reactivate people'
+      using errcode = '42501';
+  end if;
+
+  return new;
+end;
+$$;
+
+
+-- ---------------------------------------------------------------------
+-- Plan limits, enforced where two requests cannot both slip through
+-- (RISK-017)
+--
+-- The app checks seats / clients BEFORE inserting, but read-then-write
+-- has a gap: two admins inviting at the same moment both see the last
+-- free seat and both succeed. This trigger closes it:
+--
+--   * a transaction-scoped advisory lock per workspace + limit makes
+--     concurrent inserts for the SAME workspace run one after another
+--     (other workspaces are not held up);
+--   * it then counts exactly what the app counts (getSeatUsage /
+--     getClientUsage) and refuses the row when the plan is full.
+--
+--   invitations (staff roles) → active staff + pending staff invites vs
+--                               plans.features.max_members
+--   clients (new, or reactivated) → active clients vs max_clients
+--
+-- No active subscription, or a limit of -1 / missing, means unlimited —
+-- the same as the app's toLimit().
+--
+-- Real users only. Internal work — the Stripe webhook creating the
+-- invitations chosen at sign-up, with the service role — has no
+-- auth.uid() and is not blocked here: a refusal there would fail the
+-- webhook and make Stripe retry the whole event.
+-- ---------------------------------------------------------------------
+create or replace function public.enforce_plan_limits()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_key   text;
+  v_limit integer;
+  v_used  integer;
+begin
+  if (select auth.uid()) is null then
+    return new;
+  end if;
+
+  if tg_table_name = 'invitations' then
+    if new.role not in ('primary_admin', 'admin', 'manager', 'contributor') then
+      return new;  -- client invites do not take a seat
+    end if;
+    v_key := 'max_members';
+  elsif tg_table_name = 'memberships' then
+    -- Reactivating a teammate takes a seat back (RISK-022): only a staff membership
+    -- going from deactivated to active counts.
+    if not new.status or old.status then
+      return new;
+    end if;
+    if new.role not in ('primary_admin', 'admin', 'manager', 'contributor') then
+      return new;
+    end if;
+    v_key := 'max_members';
+  else  -- clients: only a client becoming active counts
+    if not new.status then
+      return new;
+    end if;
+    if tg_op = 'UPDATE' and old.status then
+      return new;
+    end if;
+    v_key := 'max_clients';
+  end if;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended('plan-limit:' || v_key || ':' || new.org_id::text, 0)
+  );
+
+  select nullif(p.features ->> v_key, '')::integer
+    into v_limit
+    from public.subscriptions s
+    join public.plans p on p.id = s.plan_id
+   where s.org_id = new.org_id
+     and s.status = 'active'
+   limit 1;
+
+  if v_limit is null or v_limit < 0 then
+    return new;
+  end if;
+
+  if v_key = 'max_members' then
+    select
+      (select count(*) from public.memberships m
+        where m.org_id = new.org_id and m.status
+          and m.role in ('primary_admin', 'admin', 'manager', 'contributor'))
+      +
+      (select count(*) from public.invitations i
+        where i.org_id = new.org_id
+          and i.accepted_at is null
+          and i.expires_at > now()
+          and i.role in ('primary_admin', 'admin', 'manager', 'contributor'))
+      into v_used;
+
+    if v_used >= v_limit then
+      raise exception 'Your plan''s seats are all taken. Upgrade the plan or deactivate someone first.'
+        using errcode = 'P0001';
+    end if;
+  else
+    select count(*) into v_used
+      from public.clients c
+     where c.org_id = new.org_id and c.status;
+
+    if v_used >= v_limit then
+      raise exception 'Your plan''s client limit is reached. Upgrade the plan or deactivate a client first.'
+        using errcode = 'P0001';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;

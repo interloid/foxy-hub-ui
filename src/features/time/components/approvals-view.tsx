@@ -12,14 +12,12 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { updateTimeEntriesStatus } from '../action'
 import { ApprovalsViewProps } from '../types'
+import { useFormatter } from '@/context/locale-provider'
+import type { Formatter } from '@/lib/format'
 
-function formatDateLabel(dateString: string): string {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date)
+function formatDateLabel(value: string, fmt: Formatter): string {
+  if (!value) return ''
+  return fmt.date(value, 'day')
 }
 
 function getInitials(name: string): string {
@@ -33,6 +31,7 @@ function getInitials(name: string): string {
 }
 
 export function ApprovalsView({ approvals, className }: ApprovalsViewProps) {
+  const fmt = useFormatter()
   const [activeTarget, setActiveTarget] = useState<string | null>(null)
 
   const [removedEntryIds, setRemovedEntryIds] = useState<Set<string>>(new Set())
@@ -201,7 +200,7 @@ export function ApprovalsView({ approvals, className }: ApprovalsViewProps) {
                       className="hover:bg-muted/10 border-border/40"
                     >
                       <FxTableCell className="text-muted-foreground w-25 text-sm font-medium">
-                        {formatDateLabel(entry.workDate)}
+                        {formatDateLabel(entry.workDate, fmt)}
                       </FxTableCell>
 
                       <FxTableCell className="w-55">

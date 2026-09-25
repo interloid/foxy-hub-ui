@@ -1,6 +1,5 @@
 'use client'
 
-import { format, parseISO } from 'date-fns'
 import { Check, Loader2 } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState, useTransition } from 'react'
@@ -21,6 +20,8 @@ import { approveDeliveryAction } from '@/features/projects/actions'
 import { DeliverableFileSheet } from '@/features/projects/components/deliverables/deliverables-file-sheet'
 import { useFileActions } from '@/features/projects/hooks/use-file-actions'
 import type { ProjectDelivery } from '@/features/projects/types'
+import { useFormatter } from '@/context/locale-provider'
+import type { Formatter } from '@/lib/format'
 
 /** Mirrors `TableStatusPill` in the staff card, so the two tables read alike. */
 function StatusPill({ status }: { status: ProjectDelivery['status'] }) {
@@ -52,14 +53,9 @@ function StatusPill({ status }: { status: ProjectDelivery['status'] }) {
   }
 }
 
-function formatDate(value?: string | null): string {
+function formatDate(value: string | null | undefined, fmt: Formatter): string {
   if (!value) return '—'
-
-  try {
-    return format(parseISO(value), 'd MMM yyyy')
-  } catch {
-    return '—'
-  }
+  return fmt.date(value, 'date') || '—'
 }
 
 export function PortalDeliverables({
@@ -79,6 +75,7 @@ export function PortalDeliverables({
   totalPages?: number
   variant?: 'overview' | 'full'
 }) {
+  const fmt = useFormatter()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -91,7 +88,6 @@ export function PortalDeliverables({
 
   const { handleViewFile, handleDownloadFile } = useFileActions('deliverables')
 
-  // A new page arrives as a new prop, not a new component, so the local copy has to follow.
   const [prevDeliveries, setPrevDeliveries] = useState(deliveries)
   if (prevDeliveries !== deliveries) {
     setPrevDeliveries(deliveries)
@@ -176,7 +172,7 @@ export function PortalDeliverables({
                   }}
                 >
                   <FxTableCell className="text-muted-foreground text-[12.5px] whitespace-nowrap">
-                    {formatDate(delivery.createdAt)}
+                    {formatDate(delivery.createdAt, fmt)}
                   </FxTableCell>
 
                   <FxTableCell
@@ -204,7 +200,7 @@ export function PortalDeliverables({
 
                   {isFull && (
                     <FxTableCell className="text-muted-foreground text-[12.5px] whitespace-nowrap">
-                      {formatDate(delivery.dueDate)}
+                      {formatDate(delivery.dueDate, fmt)}
                     </FxTableCell>
                   )}
 

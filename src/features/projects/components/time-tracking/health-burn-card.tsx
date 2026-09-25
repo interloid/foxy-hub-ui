@@ -1,4 +1,5 @@
 import { FxBadge } from '@/components/shared/fx-badge'
+import { getFormatter } from '@/lib/dal'
 import { FxProgress } from '@/components/shared/fx-progress'
 import { AlertCircle } from 'lucide-react'
 import {
@@ -19,18 +20,6 @@ interface HealthBurnCardProps {
 
 function formatHours(value: number): string {
   return Number.isInteger(value) ? value.toString() : value.toFixed(1)
-}
-
-function formatDueDate(dueDate?: string | null): string | null {
-  if (!dueDate) return null
-
-  const date = new Date(dueDate)
-  if (isNaN(date.getTime())) return null
-
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date)
 }
 
 function BarStat({
@@ -62,7 +51,7 @@ function BarStat({
   )
 }
 
-export function HealthBurnCard({
+export async function HealthBurnCard({
   loggedHours,
   budgetHours,
   workDeliveredPercent,
@@ -91,7 +80,8 @@ export function HealthBurnCard({
     schedulePercent,
   })
 
-  const formattedDueDate = formatDueDate(dueDate)
+  const fmt = await getFormatter()
+  const formattedDueDate = dueDate ? fmt.date(dueDate, 'day') || null : null
 
   return (
     <section

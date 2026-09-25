@@ -1,14 +1,10 @@
 'use client'
 
-import * as React from 'react'
 import { Switch as SwitchPrimitive } from 'radix-ui'
+import * as React from 'react'
 
 import { cn } from '@/lib/utils'
 
-/**
- * Built on the unified `radix-ui` package's Switch, which this project already
- * depends on — no new package. Same import style as `ui/badge.tsx`.
- */
 function Switch({
   className,
   ...props

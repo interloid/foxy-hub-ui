@@ -1,5 +1,5 @@
-import { getWorkspace, isAdminRole } from '@/lib/dal'
-import { toISODate } from '@/lib/date'
+import { getUserTimeZone, getWorkspace, isAdminRole } from '@/lib/dal'
+import { todayIn } from '@/lib/date'
 import { roleLabel } from '@/lib/role'
 import { createClient } from '@/lib/supabase/server'
 
@@ -29,8 +29,6 @@ export async function getClientsForOrg(
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return []
 
-  // Deactivated companies stay in the table so old projects and invoices keep their
-  // name, but they must not be offered as a client for new work.
   const { data, error } = await supabase
     .from('clients')
     .select('id, name')
@@ -255,7 +253,7 @@ export async function getTeammateAllocatedHours(
 
   const maxDailyCapacity = orgData?.daily_capacity_hours ?? 8
   const maxDaysPerWk = orgData?.days_per_week ?? 5
-  const evalDate = targetDateStr || toISODate(new Date())
+  const evalDate = targetDateStr || todayIn(await getUserTimeZone())
 
   const { data: allocations, error } = await supabase
     .from('project_allocations')
@@ -345,7 +343,7 @@ async function getUserAllocatedProjects(userId: string): Promise<{
 } | null> {
   const supabase = await createClient()
 
-  const today = toISODate(new Date())
+  const today = todayIn(await getUserTimeZone())
 
   const { data: allocations, error } = await supabase
     .from('project_allocations')

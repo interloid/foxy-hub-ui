@@ -32,9 +32,16 @@ import { isAdminRole, roleLabel, type UserRole } from '@/lib/role'
 import {
   deactivateMembershipAction,
   makePrimaryAdminAction,
+  reactivateMembershipAction,
+  resetMemberMfaAction,
   updateMemberAction,
 } from '../actions'
-import { canDeactivateMember } from '../lib/can-deactivate-member'
+import {
+  canDeactivateMember,
+  canReactivateMember,
+} from '../lib/can-deactivate-member'
+import { memberReactivateCopy } from '../lib/client-copy'
+import { NETWORK_ERROR } from '../lib/network-error'
 import { fieldError, fullNameSchema, jobTitleSchema } from '../schemas'
 import type { PersonRow } from '../types'
 
@@ -66,7 +73,8 @@ function EditMemberSheetForm({
   canManage,
   onOpenChange,
 }: EditMemberSheetProps & { member: PersonRow }) {
-  const [fullName, setFullName] = useState(member.fullName)
+  // Edits the stored name (empty when there is none), never the display placeholder.
+  const [fullName, setFullName] = useState(member.savedName ?? '')
   const [jobTitle, setJobTitle] = useState(member.jobTitle ?? '')
   const [role, setRole] = useState<UserRole>(member.role)
   const [isSaving, setIsSaving] = useState(false)
@@ -74,27 +82,40 @@ function EditMemberSheetForm({
   const [touched, setTouched] = useState({ fullName: false, jobTitle: false })
   const [showDiscard, setShowDiscard] = useState(false)
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false)
+  const [showReactivateConfirm, setShowReactivateConfirm] = useState(false)
   const [showPromote, setShowPromote] = useState(false)
+  const [showResetMfa, setShowResetMfa] = useState(false)
 
   const isPrimary = member.role === 'primary_admin'
-  const showDeactivate = canDeactivateMember(
-    isAdminRole(viewerRole),
-    viewerId,
-    member
-  )
+  const showDeactivate = canDeactivateMember(viewerRole, viewerId, member)
+  const showReactivate = canReactivateMember(viewerRole, viewerId, member)
   const nameError = fieldError(fullNameSchema, fullName)
   const jobTitleError = fieldError(jobTitleSchema, jobTitle)
   const hasErrors = Boolean(nameError || jobTitleError)
 
   const isDirty =
-    fullName.trim() !== member.fullName ||
+    fullName.trim() !== (member.savedName ?? '') ||
     jobTitle.trim() !== (member.jobTitle ?? '') ||
     role !== member.role
+
+  // Lost-authenticator reset: admins only, never yourself, and the primary admin's own
+  // factors only by the primary admin (who is then resetting themselves — so never here).
+  const canResetMfa =
+    isAdminRole(viewerRole) &&
+    member.isActive &&
+    member.userId !== viewerId &&
+    !isPrimary
 
   const canPromote =
     viewerRole === 'primary_admin' && member.role === 'admin' && member.isActive
 
+  // The form stays mounted while the sheet is closed, so discarding puts the saved
+  // values back — otherwise reopening this person shows the discarded edits.
   const close = () => {
+    setFullName(member.savedName ?? '')
+    setJobTitle(member.jobTitle ?? '')
+    setRole(member.role)
+    setTouched({ fullName: false, jobTitle: false })
     setShowDiscard(false)
     onOpenChange(false)
   }
@@ -113,18 +134,28 @@ function EditMemberSheetForm({
     if (hasErrors) return
 
     setIsSaving(true)
-    const result = await updateMemberAction(orgSlug, member.membershipId, {
-      fullName,
-      jobTitle,
-      role,
-    })
-    setIsSaving(false)
+    // Only send the name when it changed. '' becomes null in the action and the
+    // database keeps the current name — so an unchanged or empty field writes nothing.
+    const nameChanged = fullName.trim() !== (member.savedName ?? '')
+    let result
+    try {
+      result = await updateMemberAction(orgSlug, member.membershipId, {
+        fullName: nameChanged ? fullName : '',
+        jobTitle,
+        role,
+      })
+    } catch {
+      toast.error(NETWORK_ERROR)
+      return
+    } finally {
+      setIsSaving(false)
+    }
 
     if (!result.ok) {
       toast.error(result.error)
       return
     }
-    toast.success(`${fullName.trim()} was updated.`)
+    toast.success(`${fullName.trim() || member.fullName} was updated.`)
     onOpenChange(false)
   }
 
@@ -133,10 +164,19 @@ function EditMemberSheetForm({
     success: string
   ) => {
     setIsWorking(true)
-    const result = await fn()
-    setIsWorking(false)
-    setShowDeactivateConfirm(false)
-    setShowPromote(false)
+    let result
+    try {
+      result = await fn()
+    } catch {
+      toast.error(NETWORK_ERROR)
+      return
+    } finally {
+      setIsWorking(false)
+      setShowDeactivateConfirm(false)
+      setShowReactivateConfirm(false)
+      setShowPromote(false)
+      setShowResetMfa(false)
+    }
     if (!result.ok) {
       toast.error(result.error ?? 'Something went wrong.')
       return
@@ -187,6 +227,7 @@ function EditMemberSheetForm({
                 maxLength={80}
                 disabled={!canManage}
                 value={fullName}
+                placeholder="Unnamed teammate"
                 aria-invalid={touched.fullName && nameError !== null}
                 onChange={(e) => setFullName(e.target.value)}
                 onBlur={() => setTouched((p) => ({ ...p, fullName: true }))}
@@ -275,6 +316,30 @@ function EditMemberSheetForm({
                 </FxButton>
               )}
 
+              {showReactivate && canManage && (
+                <FxButton
+                  type="button"
+                  variant="secondary"
+                  className="hover:text-success hover:border-success hover:bg-transparent"
+                  disabled={isWorking}
+                  onClick={() => setShowReactivateConfirm(true)}
+                >
+                  Reactivate
+                </FxButton>
+              )}
+
+              {canResetMfa && (
+                <FxButton
+                  type="button"
+                  variant="secondary"
+                  disabled={isWorking}
+                  title="For when they have lost their authenticator app."
+                  onClick={() => setShowResetMfa(true)}
+                >
+                  Reset 2FA
+                </FxButton>
+              )}
+
               {canPromote && (
                 <FxButton
                   type="button"
@@ -336,6 +401,38 @@ function EditMemberSheetForm({
           runAction(
             () => deactivateMembershipAction(orgSlug, member.membershipId),
             `${member.fullName} was deactivated.`
+          )
+        }
+      />
+
+      <FxConfirmDialog
+        nested
+        open={showReactivateConfirm}
+        onOpenChange={setShowReactivateConfirm}
+        isPending={isWorking}
+        {...memberReactivateCopy(member.fullName)}
+        onConfirm={() =>
+          runAction(
+            () => reactivateMembershipAction(orgSlug, member.membershipId),
+            `${member.fullName} was reactivated.`
+          )
+        }
+      />
+
+      <FxConfirmDialog
+        nested
+        open={showResetMfa}
+        onOpenChange={setShowResetMfa}
+        destructive={true}
+        isPending={isWorking}
+        title={`Reset two-factor authentication for ${member.fullName}?`}
+        description="Use this only when they have lost their authenticator app and you have confirmed it is really them. They will sign in with just their password until they turn two-factor on again."
+        confirmLabel="Reset 2FA"
+        pendingLabel="Resetting…"
+        onConfirm={() =>
+          runAction(
+            () => resetMemberMfaAction(orgSlug, member.membershipId),
+            `Two-factor authentication was reset for ${member.fullName}.`
           )
         }
       />

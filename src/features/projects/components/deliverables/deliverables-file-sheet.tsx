@@ -13,7 +13,6 @@ import {
   Sheet,
 } from '@/components/shared/fx-sheet'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
-import { format } from 'date-fns'
 import {
   AlertCircle,
   Check,
@@ -33,6 +32,8 @@ import { ChangeEvent, DragEvent, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { uploadDeliveryAssets } from '../../actions'
 import type { ProjectDelivery } from '../../types'
+import { useFormatter } from '@/context/locale-provider'
+import type { Formatter } from '@/lib/format'
 
 const ALLOWED_MIME_TYPES = [
   'image/jpeg',
@@ -99,6 +100,7 @@ export function DeliverableFileSheet({
   onDownloadFile,
   onSuccessUpload,
 }: DeliverableFileSheetProps) {
+  const fmt = useFormatter()
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -289,7 +291,7 @@ export function DeliverableFileSheet({
                 Due Date
               </span>
               <span className="text-foreground font-medium">
-                {delivery.dueDate ? formatDate(delivery.dueDate) : '—'}
+                {delivery.dueDate ? formatDate(delivery.dueDate, fmt) : '—'}
               </span>
             </div>
 
@@ -298,7 +300,7 @@ export function DeliverableFileSheet({
                 Uploaded Date
               </span>
               <span className="text-foreground font-medium">
-                {formatDate(delivery.createdAt)}
+                {formatDate(delivery.createdAt, fmt)}
               </span>
             </div>
 
@@ -308,7 +310,9 @@ export function DeliverableFileSheet({
                   Approved At
                 </span>
                 <span className="text-success font-medium">
-                  {delivery.approvedAt ? formatDate(delivery.approvedAt) : '—'}
+                  {delivery.approvedAt
+                    ? formatDate(delivery.approvedAt, fmt)
+                    : '—'}
                 </span>
               </div>
             )}
@@ -612,10 +616,6 @@ function StatusBadge({
   }
 }
 
-function formatDate(dateStr: string) {
-  try {
-    return format(new Date(dateStr), 'MMM d, yyyy')
-  } catch {
-    return '—'
-  }
+function formatDate(value: string, fmt: Formatter) {
+  return fmt.date(value, 'date') || '—'
 }

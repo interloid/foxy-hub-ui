@@ -10,19 +10,15 @@ import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { useFileActions } from '@/features/projects/hooks/use-file-actions'
 import { getDeliveryById } from '@/features/projects/queries/get-deliverables'
 import type { ProjectDelivery } from '@/features/projects/types'
-import { format, parseISO } from 'date-fns'
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { useFormatter } from '@/context/locale-provider'
+import type { Formatter } from '@/lib/format'
 
-function dueMonth(value: string | null): string {
+function dueMonth(value: string | null, fmt: Formatter): string {
   if (!value) return '-'
-
-  try {
-    return format(parseISO(value), 'MMM')
-  } catch {
-    return '-'
-  }
+  return fmt.date(value, 'month') || '-'
 }
 
 interface PendingApprovalsProps {
@@ -32,6 +28,7 @@ interface PendingApprovalsProps {
 }
 
 export function PendingApprovals({ approvals = [] }: PendingApprovalsProps) {
+  const fmt = useFormatter()
   const hasApprovals = approvals && approvals.length > 0
 
   const [selectedDelivery, setSelectedDelivery] =
@@ -135,7 +132,7 @@ export function PendingApprovals({ approvals = [] }: PendingApprovalsProps) {
                     aria-hidden="true"
                     className="bg-warning-subtle text-primary-accent flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-xl border text-[11px] font-bold uppercase"
                   >
-                    {dueMonth(item.dueDate)}
+                    {dueMonth(item.dueDate, fmt)}
                   </div>
 
                   {/* File Info */}

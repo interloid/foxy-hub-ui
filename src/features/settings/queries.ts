@@ -1,10 +1,11 @@
 import 'server-only'
 
 import { getSeatUsage } from '@/features/people/queries'
-import { getWorkspace } from '@/lib/dal'
+import { getWorkspace, isAdminRole } from '@/lib/dal'
 import { createClient } from '@/lib/supabase/server'
 
-import type { WorkspaceSettings } from './types'
+import { describeDevice, formatLocation } from './devices'
+import type { DeviceSession, WorkspaceSettings } from './types'
 
 export async function getWorkspaceSettings(
   orgSlug: string
@@ -13,10 +14,6 @@ export async function getWorkspaceSettings(
   if (!workspace) return null
 
   const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
 
   const [orgRes, seats, invitesRes] = await Promise.all([
     supabase
@@ -49,9 +46,39 @@ export async function getWorkspaceSettings(
     daysPerWeek: org.days_per_week,
     currency: org.currency,
     roundingMinutes: org.rounding_minutes,
-    canEdit: Boolean(user && org.user_id === user.id),
+    // Primary admins and admins — the same roles update_workspace_settings allows.
+    canEdit: isAdminRole(workspace.role),
     seatsUsed: seats.used,
     seatsTotal: seats.maxMembers,
     pendingInvites: invitesRes.count ?? 0,
   }
+}
+
+/** The signed-in user's live sessions, current device first. */
+export async function getMyDevices(): Promise<DeviceSession[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('list_my_sessions')
+
+  if (error) {
+    console.error('list sessions failed:', error.message)
+    return []
+  }
+
+  // Generated types mark these non-null, but a session with no recorded details comes
+  // back from the LEFT JOIN with nulls.
+  return (data ?? []).map((row) => {
+    const { name, kind } = describeDevice(row.user_agent as string | null)
+    return {
+      sessionId: row.session_id,
+      name,
+      kind,
+      location: formatLocation(
+        row.city as string | null,
+        row.country as string | null
+      ),
+      createdAt: row.created_at,
+      lastSeenAt: row.last_seen_at,
+      isCurrent: row.is_current,
+    }
+  })
 }

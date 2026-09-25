@@ -16,6 +16,7 @@ import { InvoiceListItem } from '@/features/invoices/queries/get-invoices'
 import { formatCurrency } from '@/lib/money'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useLocale } from '@/context/locale-provider'
 
 interface InvoicesTableProps {
   invoices: InvoiceListItem[]
@@ -45,6 +46,7 @@ export function InvoicesTable({
   totalPages,
   currentPage = 1,
 }: InvoicesTableProps) {
+  const locale = useLocale()
   const router = useRouter()
   const { currency } = useWorkspace()
   const pathname = usePathname()
@@ -111,7 +113,7 @@ export function InvoicesTable({
                         </div>
                       </FxTableCell>
                       <FxTableCell className="text-foreground truncate text-center text-[13px] font-extrabold">
-                        {formatCurrency(inv.amount, currency)}
+                        {formatCurrency(inv.amount, currency, { locale })}
                       </FxTableCell>
                     </FxTableRow>
                   )

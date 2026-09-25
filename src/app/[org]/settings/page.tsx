@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 import { SettingsView } from '@/features/settings/components/settings-view'
-import { getWorkspaceSettings } from '@/features/settings/queries'
+import { getMyDevices, getWorkspaceSettings } from '@/features/settings/queries'
+import { getAccount } from '@/lib/dal'
 
 interface SettingsPageProps {
   params: Promise<{ org: string }>
@@ -21,9 +22,21 @@ export async function generateMetadata({
 
 export default async function SettingsPage({ params }: SettingsPageProps) {
   const { org } = await params
-  const settings = await getWorkspaceSettings(org)
+  const [settings, account, devices] = await Promise.all([
+    getWorkspaceSettings(org),
+    getAccount(org),
+    getMyDevices(),
+  ])
 
+  if (!account) redirect('/sign-in?error=session_expired')
   if (!settings) notFound()
 
-  return <SettingsView settings={settings} orgSlug={org} />
+  return (
+    <SettingsView
+      settings={settings}
+      account={account}
+      devices={devices}
+      orgSlug={org}
+    />
+  )
 }

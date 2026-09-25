@@ -92,3 +92,58 @@ create policy "deliverables_delete_staff"
         and m.role in ('primary_admin', 'admin', 'manager', 'contributor')
     )
   );
+
+-- =====================================================================
+-- Storage RLS for the `avatars` bucket
+--
+-- Bucket row lives in migrations/20260923120000_avatars_storage.sql, for the same
+-- reason as `deliverables` above.
+--
+-- PATH CONVENTION — {user_id}/{filename}
+--   (storage.foldername(name))[1] -> the owner's auth.uid()
+--
+-- Owner-only, no org check: a photo belongs to the person, not a workspace. The bucket is
+-- public, so reads of the public URL skip RLS entirely; SELECT on your own folder exists
+-- only because `remove()` and upserts look the object up first.
+-- =====================================================================
+
+create policy "avatars_select_own"
+  on storage.objects for select to authenticated
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+
+create policy "avatars_insert_own"
+  on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+
+create policy "avatars_update_own"
+  on storage.objects for update to authenticated
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+
+create policy "avatars_delete_own"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+
+-- =====================================================================
+-- Two-factor authentication for storage — every bucket
+--
+-- Same restrictive gate as policies/20_rls_mfa_enforcement.sql: an aal1
+-- session of a user with 2FA can list, download, upload or delete NO
+-- object until it passes the code. Public-bucket URLs (avatars) are
+-- served without RLS and stay viewable, which is what a profile photo is.
+-- =====================================================================
+create policy "storage_require_mfa_when_enrolled"
+  on storage.objects as restrictive for all to authenticated
+  using ((select public.mfa_satisfied()))
+  with check ((select public.mfa_satisfied()));

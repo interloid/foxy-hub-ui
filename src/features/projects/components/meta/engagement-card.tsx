@@ -1,4 +1,7 @@
 import { FxBadge } from '@/components/shared/fx-badge'
+import { getUserLocale } from '@/lib/dal'
+import { formatNumber } from '@/lib/format'
+import type { Locale } from '@/lib/locale'
 import { AlertCircle } from 'lucide-react'
 import Image from 'next/image'
 import type {
@@ -21,10 +24,10 @@ interface EngagementCardProps {
   isError?: boolean
 }
 
-function formatMoney(value?: number | null): string {
+function formatMoney(value: number | null | undefined, locale: Locale): string {
   return value === null || value === undefined
     ? '—'
-    : `$${value.toLocaleString()}`
+    : `$${formatNumber(value, { locale })}`
 }
 
 function getInitials(name: string): string {
@@ -37,7 +40,7 @@ function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-export function EngagementCard({
+export async function EngagementCard({
   engagementModel = 'full_time',
   allocations = [],
   projectId,
@@ -49,6 +52,7 @@ export function EngagementCard({
   fixedPriceFee,
   isError = false,
 }: EngagementCardProps) {
+  const locale = await getUserLocale()
   const safeAllocations = allocations ?? []
 
   // Total committed hours per day across active allocations
@@ -84,6 +88,7 @@ export function EngagementCard({
           <>
             {/* Model Details Header */}
             <EngagementDetails
+              locale={locale}
               model={engagementModel}
               totalHoursPerDay={totalHoursPerDay}
               retainerBucketHours={retainerBucketHours}
@@ -201,6 +206,7 @@ function BadgeForModel({ model }: { model?: EngagementModel | null }) {
 
 /* Dynamic details block per engagement model */
 function EngagementDetails({
+  locale,
   model,
   totalHoursPerDay,
   retainerBucketHours,
@@ -209,6 +215,7 @@ function EngagementDetails({
   overageMultiplier,
   fixedPriceFee,
 }: {
+  locale: Locale
   model?: EngagementModel | null
   totalHoursPerDay: number
   retainerBucketHours?: number | null
@@ -251,7 +258,7 @@ function EngagementDetails({
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Retainer</span>
               <span className="text-foreground font-bold">
-                {formatMoney(retainerFee)}
+                {formatMoney(retainerFee, locale)}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -275,7 +282,7 @@ function EngagementDetails({
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Fixed price</span>
             <span className="text-foreground font-bold">
-              {formatMoney(fixedPriceFee)}
+              {formatMoney(fixedPriceFee, locale)}
             </span>
           </div>
         </div>

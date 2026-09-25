@@ -13,7 +13,6 @@ import { TableRow } from '@/components/ui/table'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { isAdminRole } from '@/lib/role'
 import { DeliverablesLoadingSkeleton } from '@/skeleton/deliverables'
-import { format } from 'date-fns'
 import { AlertCircle, Eye } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useState, useTransition } from 'react'
@@ -24,6 +23,8 @@ import { getDeliveryById } from '../../queries/get-deliverables'
 import { ProjectDelivery, ProjectMilestone } from '../../types'
 import { CreateDeliverySheet } from './create-deliverables-sheet'
 import { DeliverableFileSheet } from './deliverables-file-sheet'
+import { useFormatter } from '@/context/locale-provider'
+import type { Formatter } from '@/lib/format'
 
 interface DeliverablesSectionProps {
   projectId: string
@@ -48,6 +49,7 @@ export function DeliverablesSection({
   totalCount = 0,
   totalPages = 1,
 }: DeliverablesSectionProps) {
+  const fmt = useFormatter()
   const [deliveriesList, setDeliveriesList] =
     useState<ProjectDelivery[]>(initialDeliveries)
 
@@ -269,7 +271,7 @@ export function DeliverablesSection({
                   className="cursor-pointer"
                 >
                   <FxTableCell className="text-muted-foreground text-[12.5px] whitespace-nowrap">
-                    {formatDate(delivery.createdAt)}
+                    {formatDate(delivery.createdAt, fmt)}
                   </FxTableCell>
 
                   <FxTableCell
@@ -294,7 +296,7 @@ export function DeliverablesSection({
                   </FxTableCell>
 
                   <FxTableCell className="text-muted-foreground text-[12.5px] whitespace-nowrap">
-                    {delivery.dueDate ? formatDate(delivery.dueDate) : '—'}
+                    {delivery.dueDate ? formatDate(delivery.dueDate, fmt) : '—'}
                   </FxTableCell>
 
                   <FxTableCell>
@@ -405,10 +407,6 @@ function TableStatusPill({
   }
 }
 
-function formatDate(dateStr: string) {
-  try {
-    return format(new Date(dateStr), 'MMM d')
-  } catch {
-    return '—'
-  }
+function formatDate(value: string, fmt: Formatter) {
+  return fmt.date(value, 'day') || '—'
 }

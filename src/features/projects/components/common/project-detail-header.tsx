@@ -19,6 +19,7 @@ import type { Project, ProjectStatus } from '../../types'
 import { ProjectInvoiceContext } from '../../types/invoice'
 import { NewInvoiceSheet } from '../meta/new-invoice-sheet'
 import { EditProjectSheet } from './edit-project-sheet'
+import { useLocale } from '@/context/locale-provider'
 
 interface ProjectDetailHeaderProps {
   project: Project
@@ -33,6 +34,7 @@ export function ProjectDetailHeader({
   isInvoiceError = false,
   hasExistingInvoice,
 }: ProjectDetailHeaderProps) {
+  const locale = useLocale()
   const [isInvoiceSheetOpen, setIsInvoiceSheetOpen] = useState(false)
   const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false)
   const [isUpdateProjectOpen, setIsUpdateProjectOpen] = useState(false)
@@ -41,7 +43,8 @@ export function ProjectDetailHeader({
 
   const formattedValue = formatCurrency(
     project.contractValue ?? project.retainerAmount ?? 0,
-    currency
+    currency,
+    { locale }
   )
 
   const clientInitials = project.clientName

@@ -23,12 +23,13 @@ import {
 import { Sheet } from '@/components/ui/sheet'
 import { toISODate } from '@/lib/date'
 import { cn } from '@/lib/utils'
-import { format, parseISO } from 'date-fns'
+import { parseISO } from 'date-fns'
 import { CalendarIcon, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { updateMilestoneWithValidation } from '../../actions'
 import { MilestoneItem, MilestoneStatus } from '../../types/milestone'
+import { useFormatter } from '@/context/locale-provider'
 
 interface EditMilestoneSheetProps {
   milestone: MilestoneItem | null
@@ -49,6 +50,7 @@ export function EditMilestoneSheet({
   onOpenChange,
   onSuccess,
 }: EditMilestoneSheetProps) {
+  const fmt = useFormatter()
   const [prevMilestoneId, setPrevMilestoneId] = useState<string | null>(null)
 
   const [title, setTitle] = useState(milestone?.title ?? '')
@@ -147,9 +149,7 @@ export function EditMilestoneSheet({
                     )}
                   >
                     <span>
-                      {dueDate
-                        ? format(parseISO(dueDate), 'PPP')
-                        : 'Pick a due date'}
+                      {dueDate ? fmt.date(dueDate, 'long') : 'Pick a due date'}
                     </span>
                     <CalendarIcon className="size-4 opacity-50" />
                   </button>
@@ -160,8 +160,9 @@ export function EditMilestoneSheet({
                     selected={dueDate ? parseISO(dueDate) : undefined}
                     onSelect={(date) => {
                       if (date) {
-                        const isoString = date.toISOString().split('T')[0]
-                        setDueDate(isoString)
+                        // The calendar's LOCAL date — toISOString() would convert to UTC
+                        // first and save the previous day anywhere east of Greenwich.
+                        setDueDate(toISODate(date))
                       } else {
                         setDueDate('')
                       }

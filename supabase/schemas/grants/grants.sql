@@ -33,3 +33,21 @@ alter default privileges in schema public
   grant all on routines to anon, authenticated, service_role;
 alter default privileges in schema public
   grant all on sequences to anon, authenticated, service_role;
+
+-- ---------------------------------------------------------------------
+-- Exceptions to the blanket grant above — MUST come after it.
+--
+-- `revoke_user_sessions` deletes ANY user's sessions and is meant for the
+-- server alone (member deactivation, via the service-role key). Its revoke
+-- used to sit in functions.sql, which loads BEFORE this file, so the
+-- `grant all on all routines` above silently re-granted it to anon and
+-- authenticated. The function now also checks the role itself.
+-- ---------------------------------------------------------------------
+revoke execute on function public.revoke_user_sessions(uuid) from public, anon, authenticated;
+grant  execute on function public.revoke_user_sessions(uuid) to service_role;
+
+-- `check_email_exists` tells whether ANY address has an account. Open to anon it let
+-- anyone with the public key enumerate users (RISK-021); the app calls it only through
+-- the admin client. The function also checks the role itself.
+revoke execute on function public.check_email_exists(text) from public, anon, authenticated;
+grant  execute on function public.check_email_exists(text) to service_role;

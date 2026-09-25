@@ -28,10 +28,14 @@ import { roleLabel } from '@/lib/role'
 import {
   deactivateClientAction,
   deactivateMembershipAction,
+  reactivateMembershipAction,
   setClientStatusAction,
 } from '../actions'
-import { canDeactivateMember } from '../lib/can-deactivate-member'
-import { clientStatusCopy } from '../lib/client-copy'
+import {
+  canDeactivateMember,
+  canReactivateMember,
+} from '../lib/can-deactivate-member'
+import { clientStatusCopy, memberReactivateCopy } from '../lib/client-copy'
 import type { ClientCompanyRow, MembersClientsData, PersonRow } from '../types'
 import { EditClientSheet } from './edit-client-sheet'
 import { EditMemberSheet } from './edit-member-sheet'
@@ -57,6 +61,7 @@ const ROLE_BADGE: Record<PersonRow['role'], string> = {
 
 type PendingDeactivate =
   | { kind: 'member'; label: string; membershipId: string }
+  | { kind: 'reactivate-member'; label: string; membershipId: string }
   | { kind: 'client'; label: string; clientId: string }
 
 function initialsOf(name: string): string {
@@ -134,15 +139,15 @@ function MemberTable({
   viewerId,
   onEdit,
   onDeactivate,
+  onReactivate,
 }: {
   rows: PersonRow[]
   viewerRole: MembersClientsData['viewerRole']
   viewerId: string | null
   onEdit: (row: PersonRow) => void
   onDeactivate: (row: PersonRow) => void
+  onReactivate: (row: PersonRow) => void
 }) {
-  const canDeactivate = isAdminRole(viewerRole)
-
   return (
     <FxCard className="overflow-hidden p-0">
       <div className="w-full overflow-x-auto">
@@ -172,7 +177,12 @@ function MemberTable({
 
             {rows.map((row, index) => {
               const showDeactivate = canDeactivateMember(
-                canDeactivate,
+                viewerRole,
+                viewerId,
+                row
+              )
+              const showReactivate = canReactivateMember(
+                viewerRole,
                 viewerId,
                 row
               )
@@ -276,6 +286,19 @@ function MemberTable({
                           }}
                         >
                           Deactivate
+                        </FxButton>
+                      )}
+                      {showReactivate && (
+                        <FxButton
+                          variant="secondary"
+                          size="xs"
+                          className="hover:text-success hover:border-success hover:bg-transparent"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onReactivate(row)
+                          }}
+                        >
+                          Reactivate
                         </FxButton>
                       )}
                     </div>
@@ -470,12 +493,18 @@ export function MembersClientsView({
       const result =
         target.kind === 'member'
           ? await deactivateMembershipAction(orgSlug, target.membershipId)
-          : await deactivateClientAction(orgSlug, target.clientId)
+          : target.kind === 'reactivate-member'
+            ? await reactivateMembershipAction(orgSlug, target.membershipId)
+            : await deactivateClientAction(orgSlug, target.clientId)
 
       if (!result.ok) {
         toast.error(result.error)
       } else {
-        toast.success(`${target.label} was deactivated.`)
+        toast.success(
+          `${target.label} was ${
+            target.kind === 'reactivate-member' ? 'reactivated' : 'deactivated'
+          }.`
+        )
       }
 
       setPendingDeactivate(null)
@@ -577,6 +606,13 @@ export function MembersClientsView({
               membershipId: row.membershipId,
             })
           }
+          onReactivate={(row) =>
+            setPendingDeactivate({
+              kind: 'reactivate-member',
+              label: row.fullName,
+              membershipId: row.membershipId,
+            })
+          }
         />
       ) : (
         <ClientTable
@@ -643,14 +679,16 @@ export function MembersClientsView({
           const copy =
             pendingDeactivate.kind === 'client'
               ? clientStatusCopy(pendingDeactivate.label, true)
-              : {
-                  title: `Deactivate ${pendingDeactivate.label}?`,
-                  description:
-                    'This removes their access and frees the seat. Every timesheet, invoice and comment they left stays intact.',
-                  confirmLabel: 'Deactivate',
-                  pendingLabel: 'Deactivating…',
-                  destructive: true,
-                }
+              : pendingDeactivate.kind === 'reactivate-member'
+                ? memberReactivateCopy(pendingDeactivate.label)
+                : {
+                    title: `Deactivate ${pendingDeactivate.label}?`,
+                    description:
+                      'This removes their access and frees the seat. Every timesheet, invoice and comment they left stays intact.',
+                    confirmLabel: 'Deactivate',
+                    pendingLabel: 'Deactivating…',
+                    destructive: true,
+                  }
 
           return (
             <FxConfirmDialog

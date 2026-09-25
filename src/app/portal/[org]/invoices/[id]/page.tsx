@@ -6,7 +6,7 @@ import { ArrowUpRight, CheckCircle2, Clock, XCircle } from 'lucide-react'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
 import { getPortalInvoice } from '@/features/portal/queries'
-import { formatCurrency } from '@/lib/money'
+import { getFormatter } from '@/lib/dal'
 
 export const metadata: Metadata = {
   title: 'Payment | Foxy Hub',
@@ -22,6 +22,7 @@ export default async function PaymentResultPage({
   params,
   searchParams,
 }: PaymentResultPageProps) {
+  const fmt = await getFormatter()
   const { org, id } = await params
   const { payment } = await searchParams
 
@@ -90,7 +91,7 @@ export default async function PaymentResultPage({
             <div className="flex items-center justify-between py-3">
               <dt className="text-muted-foreground text-[13px]">Amount</dt>
               <dd className="text-foreground text-[15px] font-semibold">
-                {formatCurrency(invoice.amount, invoice.currency)}
+                {fmt.currency(invoice.amount, invoice.currency)}
               </dd>
             </div>
           </dl>

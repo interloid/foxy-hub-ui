@@ -1,6 +1,5 @@
 'use client'
 
-import { format, parseISO } from 'date-fns'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
@@ -29,15 +28,12 @@ import {
   PortalInvoicesSummary,
   PortalTeamCard,
 } from './portal-sidebar-cards'
+import { useFormatter } from '@/context/locale-provider'
+import type { Formatter } from '@/lib/format'
 
-function formatDate(value?: string | null): string {
+function formatDate(value: string | null | undefined, fmt: Formatter): string {
   if (!value) return '—'
-
-  try {
-    return format(parseISO(value), 'd MMM yyyy')
-  } catch {
-    return '—'
-  }
+  return fmt.date(value, 'date') || '—'
 }
 
 function PortalProjectHeader({
@@ -47,6 +43,7 @@ function PortalProjectHeader({
   project: Project
   orgSlug: string
 }) {
+  const fmt = useFormatter()
   const status =
     PROJECT_STATUS_CONFIG[project.status as ProjectStatus] ??
     PROJECT_STATUS_CONFIG.draft
@@ -86,13 +83,13 @@ function PortalProjectHeader({
           <div>
             <dt className="text-muted-foreground text-xs">Started</dt>
             <dd className="text-foreground text-[13.5px] font-medium">
-              {formatDate(project.startDate)}
+              {formatDate(project.startDate, fmt)}
             </dd>
           </div>
           <div>
             <dt className="text-muted-foreground text-xs">Due</dt>
             <dd className="text-foreground text-[13.5px] font-medium">
-              {formatDate(project.dueDate)}
+              {formatDate(project.dueDate, fmt)}
             </dd>
           </div>
         </dl>

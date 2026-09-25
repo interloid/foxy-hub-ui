@@ -33,6 +33,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 
 import { createClientAction } from '../actions'
+import { NETWORK_ERROR } from '../lib/network-error'
 import {
   clientNameSchema,
   contactEmailSchema,
@@ -61,7 +62,10 @@ export function NewClientSheet({
   const [contactEmail, setContactEmail] = useState('')
   const [portal, setPortal] = useState(true)
 
-  const [invite, setInvite] = useState(true)
+  // Not a user choice while the invite checkbox is hidden: it follows portal + email
+  // (handleEmailChange / handlePortalChange). So it starts off, like resetForm, and is not
+  // part of isDirty — it made an untouched form ask "Discard this client?" (RISK-029).
+  const [invite, setInvite] = useState(false)
   const [projectId, setProjectId] = useState(NO_PROJECT)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [touched, setTouched] = useState({
@@ -84,7 +88,6 @@ export function NewClientSheet({
     contactName.trim() !== '' ||
     contactEmail.trim() !== '' ||
     projectId !== NO_PROJECT ||
-    invite ||
     !portal
 
   const resetForm = () => {
@@ -112,8 +115,6 @@ export function NewClientSheet({
     onOpenChange(false)
   }
 
-  // Both SET the flag rather than only clearing it. Clearing alone was the other half of
-  // the trap: empty the email and invite went false, retype it and it stayed false.
   const handleEmailChange = (value: string) => {
     setContactEmail(value)
     setInvite(portal && value.trim() !== '')
@@ -130,19 +131,22 @@ export function NewClientSheet({
     if (hasErrors) return
 
     setIsSubmitting(true)
-    const result = await createClientAction(orgSlug, {
-      name,
-      contactName,
-      contactEmail,
-      portal,
-      // Re-derived at submit rather than trusted: a client with no portal has nowhere to
-      // log in to, and with no address there is nothing to mail.
-      invite: invite && portal && contactEmail.trim() !== '',
-      // Optional. `invitations.project_id` is nullable and its FK is MATCH SIMPLE, so a
-      // null skips the check — the client sees an empty portal until you point one at them.
-      projectId: projectId === NO_PROJECT ? undefined : projectId,
-    })
-    setIsSubmitting(false)
+    let result
+    try {
+      result = await createClientAction(orgSlug, {
+        name,
+        contactName,
+        contactEmail,
+        portal,
+        invite: invite && portal && contactEmail.trim() !== '',
+        projectId: projectId === NO_PROJECT ? undefined : projectId,
+      })
+    } catch {
+      toast.error(NETWORK_ERROR)
+      return
+    } finally {
+      setIsSubmitting(false)
+    }
 
     if (!result.ok) {
       toast.error(result.error)
@@ -153,14 +157,14 @@ export function NewClientSheet({
     const verb = result.data.reactivated ? 'was reactivated' : 'was added'
 
     if (result.data.inviteError) {
-      // An error, not a warning: the client exists but cannot get in.
       toast.error(`${label} ${verb}, but ${result.data.inviteError}`)
     } else if (result.data.invited) {
       toast.success(`${label} ${verb} and a portal invite was sent.`)
     } else {
-      // Says so out loud. A bare success is how a skipped invite read as a completed one.
+      // Only when portal access is off — the contact email is required, and with portal
+      // on an invite is always sent. There is no "send invite" button to point at.
       toast.success(
-        `${label} ${verb}. No portal invite sent — you can send one from their profile.`
+        `${label} ${verb}. Portal access is off, so no invite was sent.`
       )
     }
 
@@ -269,6 +273,7 @@ export function NewClientSheet({
             <label className="border-border justify- bg-muted flex cursor-pointer items-center gap-3 rounded-lg border p-3">
               <Switch
                 checked={portal}
+                className="[&>span]:data-[state=checked]:bg-brand-white [&>span]:data-[state=unchecked]:bg-brand-white"
                 onCheckedChange={handlePortalChange}
                 aria-label="Portal access"
               />
@@ -394,14 +399,14 @@ export function NewClientSheet({
             </div>
           </AlertDialogHeader>
           <AlertDialogFooter className="bg-muted text-[13px]">
-            <AlertDialogCancel size="lg" className="bg-card p-4">
+            <AlertDialogCancel size="lg" className="bg-card cursor-pointer p-4">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               size="lg"
               variant="default"
               onClick={discardAndClose}
-              className="p-4"
+              className="cursor-pointer p-4"
             >
               Discard changes
             </AlertDialogAction>

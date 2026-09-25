@@ -25,19 +25,35 @@ function formatWindow(windowMs: number): UpstashWindow {
   return `${hours} h` as UpstashWindow
 }
 
+/**
+ * True when the request is within the limit.
+ *
+ * FAILS OPEN (RISK-010): if Upstash Redis cannot be reached — outage, slow network, bad
+ * token, quota — the request is allowed and the failure is logged. This limiter is an extra
+ * layer; it used to throw, which crashed every caller, including sign-in, so a Redis
+ * problem locked everyone out of the app. Supabase Auth still applies its own sign-in
+ * limits while this one is unavailable.
+ */
 export async function rateLimit(
   key: string,
   { limit, windowMs }: RateLimitOptions
 ): Promise<boolean> {
-  const windowString = formatWindow(windowMs)
+  try {
+    const limiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(limit, formatWindow(windowMs)),
+      analytics: true,
+      prefix: 'foxy-hub:ratelimit',
+    })
 
-  const limiter = new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(limit, windowString),
-    analytics: true,
-    prefix: 'foxy-hub:ratelimit',
-  })
-
-  const { success } = await limiter.limit(key)
-  return success
+    const { success } = await limiter.limit(key)
+    return success
+  } catch (err) {
+    // The key's prefix only (e.g. "sign-in"), never the rest — it can hold an email or IP.
+    console.error(
+      `rate limit unavailable (${key.split(':')[0]}), allowing request:`,
+      (err as Error).message
+    )
+    return true
+  }
 }

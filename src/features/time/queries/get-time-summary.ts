@@ -1,5 +1,7 @@
 'use server'
 
+import { startOfWeekIn } from '@/lib/date'
+import { getUserTimeZone } from '@/lib/dal'
 import { createClient } from '@/lib/supabase/server'
 import {
   PendingApprovalEntry,
@@ -30,12 +32,8 @@ export async function getWeeklyTimeSummary(
     }
   }
 
-  const now = new Date()
-  const dayOfWeek = now.getDay()
-  const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek
-  const startOfWeek = new Date(now)
-  startOfWeek.setDate(now.getDate() + diffToMonday)
-  const startOfWeekStr = startOfWeek.toISOString().split('T')[0]
+  // Monday in the USER's zone — the server's own clock is UTC.
+  const startOfWeekStr = startOfWeekIn(await getUserTimeZone())
 
   let query = supabase
     .from('time_entries')
@@ -115,12 +113,8 @@ export async function getWeeklyTimeEntries(
     return []
   }
 
-  const now = new Date()
-  const dayOfWeek = now.getDay()
-  const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek
-  const startOfWeek = new Date(now)
-  startOfWeek.setDate(now.getDate() + diffToMonday)
-  const startOfWeekStr = startOfWeek.toISOString().split('T')[0]
+  // Monday in the USER's zone — the server's own clock is UTC.
+  const startOfWeekStr = startOfWeekIn(await getUserTimeZone())
 
   let query = supabase
     .from('time_entries')
@@ -184,12 +178,8 @@ export async function getPendingApprovals(
   }
 
   // 2. Calculate Start of Current Week (Monday 00:00:00)
-  const now = new Date()
-  const dayOfWeek = now.getDay()
-  const diffToMonday = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek
-  const startOfWeek = new Date(now)
-  startOfWeek.setDate(now.getDate() + diffToMonday)
-  const startOfWeekStr = startOfWeek.toISOString().split('T')[0]
+  // Monday in the USER's zone — the server's own clock is UTC.
+  const startOfWeekStr = startOfWeekIn(await getUserTimeZone())
 
   // 3. Query all submitted entries for the week
   let entriesQuery = supabase

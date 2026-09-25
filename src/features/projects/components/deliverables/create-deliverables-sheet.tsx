@@ -47,6 +47,7 @@ import { toast } from 'sonner'
 import { createDelivery } from '../../actions'
 import { CreateDeliveryFormValues, createDeliverySchema } from '../../schema'
 import { ProjectMilestone } from '../../types'
+import { useFormatter } from '@/context/locale-provider'
 
 interface CreateDeliverySheetProps {
   open: boolean
@@ -65,6 +66,7 @@ export function CreateDeliverySheet({
   milestones,
   onSuccess,
 }: CreateDeliverySheetProps) {
+  const fmt = useFormatter()
   const [selectedMilestone, setSelectedMilestone] =
     useState<ProjectMilestone | null>(null)
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
@@ -244,8 +246,8 @@ export function CreateDeliverySheet({
                   const selectedDate = field.value
                     ? parseISO(field.value)
                     : undefined
-                  const formattedDueDate = selectedDate
-                    ? format(selectedDate, 'MMM d, yyyy')
+                  const formattedDueDate = field.value
+                    ? fmt.date(field.value, 'date')
                     : 'Select due date...'
 
                   return (

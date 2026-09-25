@@ -7,7 +7,8 @@ import {
   getTeamMembers,
 } from '@/features/dashboard/queries'
 import { fetchProjectsAction } from '@/features/projects/actions'
-import { toISODate } from '@/lib/date'
+import { getUserTimeZone } from '@/lib/dal'
+import { todayIn } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -87,7 +88,8 @@ export async function GET(req: NextRequest) {
     // 3. Check Teammate Allocation Capacity
     if (type === 'teammate-capacity') {
       const userId = searchParams.get('userId')
-      const dateStr = searchParams.get('dateStr') || toISODate(new Date())
+      const dateStr =
+        searchParams.get('dateStr') || todayIn(await getUserTimeZone())
 
       if (!userId) {
         return NextResponse.json({

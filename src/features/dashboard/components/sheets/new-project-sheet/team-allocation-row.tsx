@@ -27,6 +27,8 @@ import {
 } from 'react-hook-form'
 import type { AllocationRowIssues } from './team-allocation-section'
 import { AllocationFormValues, NewProjectFormValues } from './types'
+import { useFormatter } from '@/context/locale-provider'
+import { numericDatePlaceholder } from '@/lib/format'
 
 interface TeamAllocationRowProps {
   index: number
@@ -59,6 +61,7 @@ export function TeamAllocationRow({
   remove,
   checkCapacityForUser,
 }: TeamAllocationRowProps) {
+  const fmt = useFormatter()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -297,14 +300,8 @@ export function TeamAllocationRow({
                   >
                     <span className="truncate text-sm font-normal">
                       {dateField.value
-                        ? new Date(
-                            dateField.value + 'T00:00:00'
-                          ).toLocaleDateString('en-US', {
-                            month: '2-digit',
-                            day: '2-digit',
-                            year: 'numeric',
-                          })
-                        : 'MM/DD/YYYY'}
+                        ? fmt.date(dateField.value, 'numeric')
+                        : numericDatePlaceholder(fmt.locale)}
                     </span>
                     <CalendarIcon className="text-muted-foreground ml-1 size-3.5 shrink-0" />
                   </FxButton>

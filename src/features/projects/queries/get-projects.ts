@@ -1,3 +1,5 @@
+import { getUserTimeZone } from '@/lib/dal'
+import { startOfDayInstantIn, startOfMonthIn } from '@/lib/date'
 import { calculateMilestoneProgress } from '@/lib/progress'
 import { createClient } from '@/lib/supabase/server'
 import { QueryData } from '@supabase/supabase-js'
@@ -51,9 +53,7 @@ async function getProjectHealthSummaries(
   if (projects.length === 0) return summaries
 
   const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .split('T')[0]!
+  const monthStart = startOfMonthIn(await getUserTimeZone())
 
   const { data: entries, error } = await supabase
     .from('time_entries')
@@ -321,8 +321,10 @@ export async function getProjectsData({
   }
 
   // 4. Calculate organization-wide metrics and tab counts
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+  const timeZone = await getUserTimeZone()
+  const startOfMonth = new Date(
+    startOfDayInstantIn(timeZone, startOfMonthIn(timeZone))
+  )
   const { data: allStatuses } = await supabase
     .from('projects')
     .select('status, engagement, updated_at')

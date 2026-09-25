@@ -1,5 +1,6 @@
 'use client'
 
+import { UserAvatar } from '@/components/shared/app/user-avatar'
 import {
   FxTooltip,
   FxTooltipContent,
@@ -46,7 +47,13 @@ export function AppSidebar({
   sections: NavSection[]
   activeHref: string
   workspace: { name: string; org: string }
-  account: { name: string; role: string; initials: string; email: string }
+  account: {
+    name: string
+    role: string
+    initials: string
+    avatarUrl?: string | null
+    email: string
+  }
   onSearch?: () => void
   className?: string
   isMobile?: boolean
@@ -219,9 +226,11 @@ export function AppSidebar({
           )}
           title={collapsed ? `${account.name} · ${account.role}` : undefined}
         >
-          <span className="bg-brand-gradient text-2xs text-primary-foreground flex size-7.5 shrink-0 items-center justify-center rounded-full font-semibold">
-            {account.initials}
-          </span>
+          <UserAvatar
+            initials={account.initials}
+            avatarUrl={account.avatarUrl}
+            className="text-2xs size-7.5"
+          />
           {!collapsed && (
             <span className="flex min-w-0 flex-col">
               <span className="truncate text-base leading-3.75 font-medium">

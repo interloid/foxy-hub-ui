@@ -13,6 +13,8 @@ import {
   TimeEntriesTableCardProps,
   TimeEntryStatus,
 } from '../../types/time-entries'
+import { useFormatter } from '@/context/locale-provider'
+import type { Formatter } from '@/lib/format'
 
 const STATUS_BADGE_CONFIG: Record<
   TimeEntryStatus,
@@ -27,13 +29,9 @@ const STATUS_BADGE_CONFIG: Record<
   rejected: { label: 'Rejected', variant: 'destructive' },
 }
 
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  if (isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date)
+function formatDate(value: string, fmt: Formatter): string {
+  if (!value) return ''
+  return fmt.date(value, 'day')
 }
 
 function formatDuration(minutes: number): string {
@@ -53,6 +51,7 @@ export function TimeEntriesTableCard({
   entries = [],
   isError = false,
 }: TimeEntriesTableCardProps) {
+  const fmt = useFormatter()
   const safeEntries = (entries ?? []).slice(0, 5)
 
   return (
@@ -101,7 +100,7 @@ export function TimeEntriesTableCard({
                 <FxTableRow key={entry.id}>
                   {/* Date */}
                   <FxTableCell className="text-muted-foreground text-[12.5px] font-normal">
-                    {formatDate(entry.workDate)}
+                    {formatDate(entry.workDate, fmt)}
                   </FxTableCell>
 
                   {/* Team Member */}

@@ -7,8 +7,7 @@ import { PendingApprovals } from '@/features/dashboard/components/widgets/pendin
 import { RecentActivity } from '@/features/dashboard/components/widgets/recent-activity'
 import type { DashboardStat } from '@/features/dashboard/types'
 import { getPortalDashboard, getPortalMetrics } from '@/features/portal/queries'
-import { getAccount, getWorkspace } from '@/lib/dal'
-import { formatCurrency } from '@/lib/money'
+import { getAccount, getFormatter, getWorkspace } from '@/lib/dal'
 
 interface PortalHomeProps {
   params: Promise<{ org: string }>
@@ -28,6 +27,7 @@ export async function generateMetadata({
 }
 
 export default async function PortalHomePage({ params }: PortalHomeProps) {
+  const fmt = await getFormatter()
   const { org } = await params
 
   const [account, workspace] = await Promise.all([
@@ -68,7 +68,7 @@ export default async function PortalHomePage({ params }: PortalHomeProps) {
         },
         {
           label: 'Outstanding',
-          value: formatCurrency(metrics.outstandingAmount, metrics.currency),
+          value: fmt.currency(metrics.outstandingAmount, metrics.currency),
           delta:
             metrics.overdueInvoices > 0
               ? `${metrics.overdueInvoices} overdue`

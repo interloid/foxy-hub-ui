@@ -41,6 +41,7 @@ import {
 import { useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { DurationInput } from './duration-input'
+import { useFormatter } from '@/context/locale-provider'
 
 interface LogTimeSheetProps {
   open: boolean
@@ -48,6 +49,7 @@ interface LogTimeSheetProps {
 }
 
 export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
+  const fmt = useFormatter()
   // Database Options State
   const [projects, setProjects] = useState<ProjectOption[]>([])
   const [milestones, setMilestones] = useState<MilestoneOption[]>([])
@@ -197,11 +199,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
   }
 
   const formattedDate = selectedDate
-    ? selectedDate.toLocaleDateString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric',
-      })
+    ? fmt.date(toISODate(selectedDate), 'numeric')
     : 'Select date'
 
   const isSubmitDisabled =

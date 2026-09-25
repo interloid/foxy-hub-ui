@@ -33,7 +33,8 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 const SYSTEM_QUERY = '(prefers-color-scheme: dark)'
 
-const THEME_CHANGE_EVENT = 'themechange'
+/** Fired by `setTheme` in THIS tab (other tabs hear the `storage` event instead). */
+export const THEME_CHANGE_EVENT = 'themechange'
 
 function subscribeStoredTheme(onStoreChange: () => void) {
   window.addEventListener('storage', onStoreChange)

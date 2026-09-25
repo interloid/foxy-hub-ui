@@ -10,6 +10,8 @@ import { useState } from 'react'
 import { MilestoneItem, MilestoneStatus } from '../../types/milestone'
 import { CreateMilestoneSheet } from './create-milestone-sheet'
 import { EditMilestoneSheet } from './edit-milestone-sheet'
+import { useFormatter } from '@/context/locale-provider'
+import type { Formatter } from '@/lib/format'
 
 interface MilestonesListCardProps {
   milestones?: MilestoneItem[] | null
@@ -40,14 +42,9 @@ const STATUS_CONFIG: Record<
   },
 }
 
-function formatDate(dateString?: string | null): string {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  if (isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date)
+function formatDate(value: string | null | undefined, fmt: Formatter): string {
+  if (!value) return ''
+  return fmt.date(value, 'day')
 }
 
 function formatHours(minutes: number = 0): string {
@@ -62,6 +59,7 @@ export function MilestonesListCard({
   isError = false,
   onUpdateMilestone,
 }: MilestonesListCardProps) {
+  const fmt = useFormatter()
   const safeMilestones = milestones ?? []
   const displayedMilestones = isInOverview
     ? safeMilestones.slice(-5).reverse()
@@ -165,7 +163,7 @@ export function MilestonesListCard({
                           isInOverview ? 'mt-0.5 text-xs' : 'mt-1 text-[12.5px]'
                         )}
                       >
-                        Due {formatDate(item.dueDate)} · {loggedHoursStr}h
+                        Due {formatDate(item.dueDate, fmt)} · {loggedHoursStr}h
                         logged
                       </p>
                     </div>

@@ -32,6 +32,7 @@ import {
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { createMilestone } from '../../actions'
 import { CreateMilestoneFormValues, createMilestoneSchema } from '../../schema'
+import { useFormatter } from '@/context/locale-provider'
 
 interface CreateMilestoneSheetProps {
   open: boolean
@@ -48,6 +49,7 @@ export function CreateMilestoneSheet({
   orgId,
   onSuccess,
 }: CreateMilestoneSheetProps) {
+  const fmt = useFormatter()
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
@@ -148,8 +150,8 @@ export function CreateMilestoneSheet({
                   const selectedDate = field.value
                     ? parseISO(field.value)
                     : undefined
-                  const formattedDueDate = selectedDate
-                    ? format(selectedDate, 'MMM d, yyyy')
+                  const formattedDueDate = field.value
+                    ? fmt.date(field.value, 'date')
                     : 'Select due date...'
 
                   return (

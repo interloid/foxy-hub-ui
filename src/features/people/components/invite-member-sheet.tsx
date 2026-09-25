@@ -40,6 +40,7 @@ import { Sheet } from '@/components/ui/sheet'
 
 import type { InvitableStaffRole } from '@/lib/role'
 import { inviteMemberAction } from '../actions'
+import { NETWORK_ERROR } from '../lib/network-error'
 import {
   fieldError,
   fullNameSchema,
@@ -85,8 +86,6 @@ export function InviteMemberSheet({
   const touch = (field: keyof typeof touched) =>
     setTouched((prev) => ({ ...prev, [field]: true }))
 
-  // Only the email is mandatory. Full name and job title pass when blank, and are held
-  // to the 2-character minimum once something is typed — see optionalText in ../schemas.
   const emailError = fieldError(inviteEmailSchema, email)
   const fullNameError = fieldError(fullNameSchema, fullName)
   const jobTitleError = fieldError(jobTitleSchema, jobTitle)
@@ -127,13 +126,20 @@ export function InviteMemberSheet({
     if (hasErrors) return
 
     setIsSubmitting(true)
-    const result = await inviteMemberAction(orgSlug, {
-      email: email.trim(),
-      role,
-      fullName: fullName.trim() || undefined,
-      jobTitle,
-    })
-    setIsSubmitting(false)
+    let result
+    try {
+      result = await inviteMemberAction(orgSlug, {
+        email: email.trim(),
+        role,
+        fullName: fullName.trim() || undefined,
+        jobTitle,
+      })
+    } catch {
+      toast.error(NETWORK_ERROR)
+      return
+    } finally {
+      setIsSubmitting(false)
+    }
 
     if (!result.ok) {
       toast.error(result.error)
@@ -148,7 +154,6 @@ export function InviteMemberSheet({
     }
 
     toast.success(`Invite sent to ${email.trim()}`)
-    // Straight past the dirty guard — the invite went out, there is nothing to lose.
     resetForm()
     onOpenChange(false)
   }

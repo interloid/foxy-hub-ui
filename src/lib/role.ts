@@ -28,7 +28,7 @@ export function isBillingRole(role: string | null | undefined): boolean {
 }
 
 const ROLE_LABELS: Record<UserRole, string> = {
-  primary_admin: 'Primary admin',
+  primary_admin: 'Primary Admin',
   admin: 'Admin',
   manager: 'Manager',
   contributor: 'Contributor',

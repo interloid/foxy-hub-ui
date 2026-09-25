@@ -209,7 +209,7 @@ password_requirements = ""
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
-email_sent = 2
+email_sent = 30
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
@@ -234,7 +234,11 @@ web3 = 30
 enable_signup = true
 # If enabled, a user will be required to confirm any email change on both the old, and new email
 # addresses. If disabled, only the new email is required to confirm.
-double_confirm_changes = true
+# Off on purpose: with `enable_confirmations = false` GoTrue auto-confirms, so the FIRST link of
+# a double confirm completes the change — clicking the OLD inbox's link alone would move the
+# account to an address nobody proved they own. Confirming only the new address proves it; the
+# old one still hears about it through `[auth.email.notification.email_changed]`.
+double_confirm_changes = false
 # If enabled, users need to confirm their email address before signing in.
 enable_confirmations = false
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
@@ -247,21 +251,44 @@ otp_length = 6
 otp_expiry = 3600
 
 # Use a production-ready SMTP server
-# [auth.email.smtp]
-# enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+[auth.email.smtp]
+enabled = true
+host = "smtp.gmail.com"
+port = 587
+user = "loggerkey314@gmail.com"
+pass = "env(SMTP_PASS)"
+admin_email = "loggerkey314@gmail.com"
+sender_name = "FoxyHub"
 
 # The invitation template is NOT optional here — the stock one uses `{{ .ConfirmationURL }}`,
 # which is the fragment flow `/auth/confirm` cannot read. Without this block invitations are
 # sent locally but can never be accepted. See decisions.md D023 and the file itself.
 [auth.email.template.invite]
-subject = "You have been invited"
+subject = "You've been invited to Foxy HUB"
 content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.confirmation]
+subject = "Confirm your email for Foxy HUB"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.magic_link]
+subject = "Your Foxy HUB sign-in link"
+content_path = "./supabase/templates/magic-link.html"
+
+[auth.email.template.recovery]
+subject = "Reset your Foxy HUB password"
+content_path = "./supabase/templates/recovery.html"
+
+# Same reason as invite: links with `{{ .TokenHash }}` so `/auth/confirm` can verify it.
+[auth.email.template.email_change]
+subject = "Confirm your new email for Foxy HUB"
+content_path = "./supabase/templates/email-change.html"
+
+# Security notice sent to the old address once an email change completes.
+[auth.email.notification.email_changed]
+enabled = true
+subject = "Your Foxy HUB email was changed"
+content_path = "./templates/email-changed-notification.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
@@ -314,9 +341,11 @@ auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 max_enrolled_factors = 10
 
 # Control MFA via App Authenticator (TOTP)
+# ON: this makes 2FA AVAILABLE — each user opts in from Settings → Security. Pushing this as
+# `false` would switch it off on the cloud project and lock enrolled users out of their codes.
 [auth.mfa.totp]
-enroll_enabled = false
-verify_enabled = false
+enroll_enabled = true
+verify_enabled = true
 
 # Configure MFA via Phone Messaging
 [auth.mfa.phone]
@@ -473,6 +502,15 @@ entrypoint = "./functions/invoice-overdue-handler/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/invoice-overdue-handler/*.html" ]
 
+# Monday summary email. Called hourly by pg_cron with `webhook_secret` (verify_jwt off, like
+# invoice-overdue-handler), and by Settings' "Send test" with the user's own access token,
+# which the function verifies itself.
+[functions.weekly-digest]
+enabled = true
+verify_jwt = false
+import_map = "./functions/weekly-digest/deno.json"
+entrypoint = "./functions/weekly-digest/index.ts"
+
 [functions.stripe-webhook]
 enabled = true
 verify_jwt = false
@@ -483,3 +521,10 @@ entrypoint = "./functions/stripe-webhook/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/stripe-webhook/*.html" ]
+
+[remotes.production]
+project_id = "wclxwmufsojmyafxysbb"
+
+[remotes.production.auth]
+site_url = "https://foxy-hub-amber.vercel.app"
+additional_redirect_urls = ["https://foxy-hub-amber.vercel.app/**"]

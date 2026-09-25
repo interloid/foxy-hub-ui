@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTransition } from 'react'
 import { notifyOtherTabsOnLogout } from '../common/tab-session-sync'
+import { UserAvatar } from '../shared/app/user-avatar'
 import { FxBadge } from '../shared/fx-badge'
 import { FxSpinner } from '../shared/fx-loader'
 import { NAV_ICONS } from './nav-icons'
@@ -28,6 +29,7 @@ export function AccountMenu({
     name: string
     email: string
     initials: string
+    avatarUrl?: string | null
     role: string
     org?: string
   }
@@ -51,9 +53,11 @@ export function AccountMenu({
           className
         )}
       >
-        <span className="bg-brand-gradient text-2xs text-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-full font-semibold uppercase">
-          {account.initials}
-        </span>
+        <UserAvatar
+          initials={account.initials}
+          avatarUrl={account.avatarUrl}
+          className="text-2xs size-7 uppercase"
+        />
 
         <div className="text-foreground dash:inline hidden text-sm font-medium">
           <div>{account.name}</div>
@@ -74,9 +78,11 @@ export function AccountMenu({
         aria-label="Account"
       >
         <DropdownMenuLabel className="border-border flex items-center gap-2.5 border-b p-3.5 font-normal">
-          <span className="bg-brand-gradient text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-full text-base font-semibold">
-            {account.initials}
-          </span>
+          <UserAvatar
+            initials={account.initials}
+            avatarUrl={account.avatarUrl}
+            className="size-9 text-base"
+          />
           <span className="flex w-full min-w-0 flex-col">
             <div className="flex items-center gap-2">
               <span className="text-md text-foreground truncate font-semibold">

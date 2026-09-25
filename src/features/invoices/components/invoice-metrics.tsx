@@ -3,12 +3,14 @@
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { InvoiceMetrics } from '@/features/invoices/queries/get-invoice-metrics'
 import { formatCurrency } from '@/lib/money'
+import { useLocale } from '@/context/locale-provider'
 
 interface InvoiceMetricsProps {
   metrics: InvoiceMetrics
 }
 
 export function InvoiceMetricsCards({ metrics }: InvoiceMetricsProps) {
+  const locale = useLocale()
   const cards = [
     {
       id: 'paid',
@@ -44,7 +46,7 @@ export function InvoiceMetricsCards({ metrics }: InvoiceMetricsProps) {
                 value={card.value}
                 className={`text-2xl text-[24px] font-bold tracking-tight ${card.textClass}`}
               >
-                {formatCurrency(card.value, currency)}
+                {formatCurrency(card.value, currency, { locale })}
               </data>
             </article>
           </li>

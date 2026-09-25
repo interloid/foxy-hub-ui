@@ -5,6 +5,7 @@ import type { PortalInvoice, PortalTeamMember } from '@/features/portal/queries'
 import { formatCurrency } from '@/lib/money'
 
 import { PayNowButton } from './portal-invoices-card'
+import { useLocale } from '@/context/locale-provider'
 
 const STATUS_BADGE: Record<
   PortalInvoice['status'],
@@ -24,6 +25,7 @@ export function PortalInvoicesSummary({
   invoices: PortalInvoice[]
   projectName: string
 }) {
+  const locale = useLocale()
   return (
     <section
       aria-labelledby="portal-invoices-heading"
@@ -61,7 +63,9 @@ export function PortalInvoicesSummary({
                 <div className="flex items-center justify-between gap-3 pt-0.5">
                   <span className="text-foreground text-[15px] font-semibold">
                     {/* The invoice's own currency — it keeps what it was raised in. */}
-                    {formatCurrency(invoice.amount, invoice.currency)}
+                    {formatCurrency(invoice.amount, invoice.currency, {
+                      locale,
+                    })}
                   </span>
 
                   <PayNowButton invoice={invoice} />

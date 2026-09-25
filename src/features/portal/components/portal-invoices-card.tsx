@@ -1,6 +1,5 @@
 'use client'
 
-import { format, parseISO } from 'date-fns'
 import { ArrowUpRight, Loader2 } from 'lucide-react'
 import { useTransition } from 'react'
 import { toast } from 'sonner'
@@ -19,6 +18,8 @@ import { TableBody } from '@/components/ui/table'
 import { startInvoicePaymentAction } from '@/features/portal/actions'
 import type { PortalInvoice } from '@/features/portal/queries'
 import { formatCurrency } from '@/lib/money'
+import { useFormatter, useLocale } from '@/context/locale-provider'
+import type { Formatter } from '@/lib/format'
 
 const STATUS_BADGE: Record<
   PortalInvoice['status'],
@@ -31,14 +32,9 @@ const STATUS_BADGE: Record<
   draft: { label: 'Draft', variant: 'default' },
 }
 
-function formatDate(value: string | null): string {
+function formatDate(value: string | null, fmt: Formatter): string {
   if (!value) return '—'
-
-  try {
-    return format(parseISO(value), 'd MMM yyyy')
-  } catch {
-    return '—'
-  }
+  return fmt.date(value, 'date') || '—'
 }
 
 export function PayNowButton({ invoice }: { invoice: PortalInvoice }) {
@@ -85,6 +81,8 @@ export function PortalInvoicesCard({
 }: {
   invoices: PortalInvoice[]
 }) {
+  const locale = useLocale()
+  const fmt = useFormatter()
   return (
     <FxCard className="overflow-hidden p-0">
       <div className="w-full overflow-x-auto">
@@ -122,11 +120,11 @@ export function PortalInvoicesCard({
                   </FxTableCell>
 
                   <FxTableCell className="text-muted-foreground align-middle text-[13px]">
-                    {formatDate(invoice.issuedAt)}
+                    {formatDate(invoice.issuedAt, fmt)}
                   </FxTableCell>
 
                   <FxTableCell className="text-muted-foreground align-middle text-[13px]">
-                    {formatDate(invoice.dueDate)}
+                    {formatDate(invoice.dueDate, fmt)}
                   </FxTableCell>
 
                   <FxTableCell className="align-middle">
@@ -134,7 +132,9 @@ export function PortalInvoicesCard({
                   </FxTableCell>
 
                   <FxTableCell className="text-foreground text-right align-middle text-[13.5px] font-semibold">
-                    {formatCurrency(invoice.amount, invoice.currency)}
+                    {formatCurrency(invoice.amount, invoice.currency, {
+                      locale,
+                    })}
                   </FxTableCell>
 
                   <FxTableCell className="text-right align-middle">

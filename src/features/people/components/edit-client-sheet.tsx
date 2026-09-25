@@ -24,6 +24,7 @@ import { Switch } from '@/components/ui/switch'
 
 import { setClientStatusAction, updateClientAction } from '../actions'
 import { clientStatusCopy } from '../lib/client-copy'
+import { NETWORK_ERROR } from '../lib/network-error'
 import { clientNameSchema, contactNameSchema, fieldError } from '../schemas'
 import type { ClientCompanyRow } from '../types'
 
@@ -74,7 +75,13 @@ function EditClientSheetForm({
     contactName.trim() !== (client.contactName ?? '') ||
     portal !== client.hasPortal
 
+  // The form stays mounted while the sheet is closed, so discarding puts the saved
+  // values back — otherwise reopening this client shows the discarded edits.
   const close = () => {
+    setName(client.name)
+    setContactName(client.contactName ?? '')
+    setPortal(client.hasPortal)
+    setTouched({ name: false, contactName: false })
     setShowDiscard(false)
     onOpenChange(false)
   }
@@ -93,12 +100,19 @@ function EditClientSheetForm({
     if (hasErrors) return
 
     setIsSaving(true)
-    const result = await updateClientAction(orgSlug, client.id, {
-      name,
-      contactName,
-      portal,
-    })
-    setIsSaving(false)
+    let result
+    try {
+      result = await updateClientAction(orgSlug, client.id, {
+        name,
+        contactName,
+        portal,
+      })
+    } catch {
+      toast.error(NETWORK_ERROR)
+      return
+    } finally {
+      setIsSaving(false)
+    }
 
     if (!result.ok) {
       toast.error(result.error)
@@ -112,9 +126,16 @@ function EditClientSheetForm({
   const handleToggleStatus = async () => {
     setIsTogglingStatus(true)
     const next = !client.isActive
-    const result = await setClientStatusAction(orgSlug, client.id, next)
-    setIsTogglingStatus(false)
-    setShowStatusConfirm(false)
+    let result
+    try {
+      result = await setClientStatusAction(orgSlug, client.id, next)
+    } catch {
+      toast.error(NETWORK_ERROR)
+      return
+    } finally {
+      setIsTogglingStatus(false)
+      setShowStatusConfirm(false)
+    }
 
     if (!result.ok) {
       toast.error(result.error)
@@ -227,6 +248,7 @@ function EditClientSheetForm({
                 checked={portal}
                 disabled={!canManage}
                 onCheckedChange={setPortal}
+                className="[&>span]:data-[state=checked]:bg-brand-white [&>span]:data-[state=unchecked]:bg-brand-white"
                 aria-label="Portal access"
               />
               <span className="space-y-0.5">

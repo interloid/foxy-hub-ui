@@ -37,6 +37,7 @@ export function TopBar({
     name: string
     email: string
     initials: string
+    avatarUrl?: string | null
     role: string
     org?: string
   }

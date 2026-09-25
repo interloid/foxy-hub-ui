@@ -1,3 +1,10 @@
+import { getUserTimeZone } from '@/lib/dal'
+import {
+  shiftISODate,
+  startOfDayInstantIn,
+  startOfMonthIn,
+  todayIn,
+} from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 
 export interface InvoiceMetrics {
@@ -11,22 +18,18 @@ export async function getInvoiceMetrics(
 ): Promise<InvoiceMetrics> {
   const supabase = await createClient()
 
-  const now = new Date()
-  const startOfMonth = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    1
-  ).toISOString()
-  const endOfMonth = new Date(
-    now.getFullYear(),
-    now.getMonth() + 1,
-    0,
-    23,
-    59,
-    59,
-    999
-  ).toISOString()
-  const today = now.toISOString().split('T')[0]
+  // This calendar month and "today" in the USER's zone, as instants for `paid_at`.
+  const timeZone = await getUserTimeZone()
+  const monthStartDate = startOfMonthIn(timeZone)
+  const nextMonthStartDate = startOfMonthIn(
+    'UTC',
+    new Date(`${shiftISODate(monthStartDate, 31)}T00:00:00Z`)
+  )
+  const monthStart = Date.parse(startOfDayInstantIn(timeZone, monthStartDate))
+  const nextMonthStart = Date.parse(
+    startOfDayInstantIn(timeZone, nextMonthStartDate)
+  )
+  const today = todayIn(timeZone)
 
   // Fetch relevant invoices for the organization
   const { data: invoices } = await supabase
@@ -49,8 +52,8 @@ export async function getInvoiceMetrics(
     if (
       inv.status === 'paid' &&
       inv.paid_at &&
-      inv.paid_at >= startOfMonth &&
-      inv.paid_at <= endOfMonth
+      Date.parse(inv.paid_at) >= monthStart &&
+      Date.parse(inv.paid_at) < nextMonthStart
     ) {
       paidThisMonth += amount
     }

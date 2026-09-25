@@ -1,4 +1,10 @@
-import { getStartOfWeekISO } from '@/lib/week'
+import { getUserTimeZone } from '@/lib/dal'
+import {
+  shiftISODate,
+  startOfMonthIn,
+  startOfWeekIn,
+  todayIn,
+} from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 import { HoursSummaryData, TimeEntry } from '../types'
 import { TimeEntryItem } from '../types/time-entries'
@@ -30,10 +36,8 @@ export async function getWeeklyLoggedMinutesByUser(
 ): Promise<Record<string, number>> {
   const supabase = await createClient()
 
-  const weekStart = getStartOfWeekISO()
-  const weekEnd = new Date(weekStart)
-  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6)
-  const weekEndStr = weekEnd.toISOString().split('T')[0]
+  const weekStart = startOfWeekIn(await getUserTimeZone())
+  const weekEndStr = shiftISODate(weekStart, 6)
 
   const { data: entries, error } = await supabase
     .from('time_entries')
@@ -101,13 +105,15 @@ export async function getMonthlyLoggedHours(
 ): Promise<number> {
   const supabase = await createClient()
 
-  const now = new Date()
-  const firstDayStr = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .split('T')[0]
-  const lastDayStr = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    .toISOString()
-    .split('T')[0]
+  const firstDayStr = startOfMonthIn(await getUserTimeZone())
+  // The day before the 1st of next month.
+  const lastDayStr = shiftISODate(
+    startOfMonthIn(
+      'UTC',
+      new Date(`${shiftISODate(firstDayStr, 31)}T00:00:00Z`)
+    ),
+    -1
+  )
 
   const { data: entries, error } = await supabase
     .from('time_entries')
@@ -152,12 +158,10 @@ export async function getProjectHoursSummary(
 ): Promise<HoursSummaryData> {
   const supabase = await createClient()
 
-  // Calculate start of current month in YYYY-MM-DD
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .split('T')[0]
-  const today = now.toISOString().split('T')[0]
+  // This month so far, in the user's zone.
+  const timeZone = await getUserTimeZone()
+  const startOfMonth = startOfMonthIn(timeZone)
+  const today = todayIn(timeZone)
 
   const { data: entries, error } = await supabase
     .from('time_entries')
@@ -194,11 +198,9 @@ export async function getRecentProjectTimeEntries(
 ): Promise<TimeEntryItem[]> {
   const supabase = await createClient()
 
-  const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .split('T')[0]
-  const today = now.toISOString().split('T')[0]
+  const timeZone = await getUserTimeZone()
+  const startOfMonth = startOfMonthIn(timeZone)
+  const today = todayIn(timeZone)
 
   const { data: entries, error: entriesError } = await supabase
     .from('time_entries')

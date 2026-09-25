@@ -14,14 +14,12 @@ import { cn } from '@/lib/utils'
 import { Info, Loader2, Send } from 'lucide-react'
 import { WeeklyTimeEntriesTableProps, WeeklyTimeEntryItem } from '../types'
 import { formatMinutesToLabel } from '@/lib/time'
+import { useFormatter } from '@/context/locale-provider'
+import type { Formatter } from '@/lib/format'
 
-function formatDateLabel(dateString: string): string {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date)
+function formatDateLabel(value: string, fmt: Formatter): string {
+  if (!value) return ''
+  return fmt.date(value, 'day')
 }
 
 function StatusBadge({ status }: { status: WeeklyTimeEntryItem['status'] }) {
@@ -61,6 +59,7 @@ export function WeeklyTimeEntriesTable({
   onSubmitSingleDraft,
   className,
 }: WeeklyTimeEntriesTableProps) {
+  const fmt = useFormatter()
   const draftEntries = entries.filter((e) => e.status === 'draft')
   const draftCount = draftEntries.length
   const isBatchSubmitting = submittingId === 'all'
@@ -124,7 +123,7 @@ export function WeeklyTimeEntriesTable({
               return (
                 <FxTableRow key={entry.id}>
                   <FxTableCell className="text-muted-foreground text-sm font-medium">
-                    {formatDateLabel(entry.workDate)}
+                    {formatDateLabel(entry.workDate, fmt)}
                   </FxTableCell>
 
                   <FxTableCell className="text-foreground text-[13px] font-semibold">
