@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 import {
   FxTabsListUnderline,
   FxTabsTriggerUnderline,
@@ -13,11 +15,33 @@ import { GeneralTab } from './general-tab'
 import { SecurityTab } from './security-tab'
 import { WorkspaceTab } from './workspace-tab'
 
+/** Each tab carries the page heading shown while it is open. */
 const TABS = [
-  { value: 'general', label: 'General' },
-  { value: 'security', label: 'Security' },
-  { value: 'workspace', label: 'Workspace' },
-]
+  {
+    value: 'general',
+    label: 'General',
+    title: 'Your account',
+    description: 'Your details and how Foxy HUB behaves for you.',
+  },
+  {
+    value: 'security',
+    label: 'Security',
+    title: 'Security',
+    description: 'How you sign in, and where you are signed in right now.',
+  },
+  {
+    value: 'workspace',
+    label: 'Workspace',
+    title: 'Workspace',
+    description:
+      'Shared rules every project, timesheet and invoice is measured against.',
+  },
+] as const
+
+type TabValue = (typeof TABS)[number]['value']
+
+const isTab = (value: string): value is TabValue =>
+  TABS.some((tab) => tab.value === value)
 
 export function SettingsView({
   settings,
@@ -30,18 +54,25 @@ export function SettingsView({
   devices: DeviceSession[]
   orgSlug: string
 }) {
+  const [tab, setTab] = useState<TabValue>('general')
+  const active = TABS.find((t) => t.value === tab) ?? TABS[0]
+
   return (
-    <div className="flex w-full flex-col gap-5">
+    <div className="flex w-full flex-col gap-5 md:p-6">
       <div className="space-y-1">
         <h1 className="text-foreground text-[24px] font-medium tracking-tight">
-          Your account
+          {active.title}
         </h1>
         <p className="text-muted-foreground text-[14px]">
-          Your details and how Foxy HUB behaves for you.
+          {active.description}
         </p>
       </div>
 
-      <Tabs defaultValue="general" className="w-full gap-8">
+      <Tabs
+        value={tab}
+        onValueChange={(value) => isTab(value) && setTab(value)}
+        className="w-full gap-8"
+      >
         <div className="w-full scrollbar-none overflow-x-auto [&::-webkit-scrollbar]:hidden">
           <FxTabsListUnderline
             aria-label="Settings sections"

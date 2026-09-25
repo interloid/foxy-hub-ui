@@ -24,18 +24,38 @@ function useDeviceTimeZone(): string | null {
   return useSyncExternalStore(subscribeNever, deviceTimeZone, () => null)
 }
 
-/** Every zone this browser knows, UTC included, for the dropdown. */
+/**
+ * Chrome and Node still list these zones under their pre-rename IANA names, so searching
+ * "Kolkata" or "Kyiv" found nothing. The current names are valid everywhere a zone is used
+ * (Intl, isValidTimeZone, Postgres), so the list shows and saves those instead.
+ */
+const RENAMED_ZONES: Record<string, string> = {
+  'Asia/Calcutta': 'Asia/Kolkata',
+  'Asia/Katmandu': 'Asia/Kathmandu',
+  'Asia/Rangoon': 'Asia/Yangon',
+  'Asia/Saigon': 'Asia/Ho_Chi_Minh',
+  'Europe/Kiev': 'Europe/Kyiv',
+  'Africa/Asmera': 'Africa/Asmara',
+  'Atlantic/Faeroe': 'Atlantic/Faroe',
+  'America/Godthab': 'America/Nuuk',
+  'Pacific/Enderbury': 'Pacific/Kanton',
+  'Pacific/Ponape': 'Pacific/Pohnpei',
+  'Pacific/Truk': 'Pacific/Chuuk',
+}
+
+const currentName = (zone: string) => RENAMED_ZONES[zone] ?? zone
+
 function allTimeZones(): string[] {
   const supported =
     typeof Intl.supportedValuesOf === 'function'
       ? Intl.supportedValuesOf('timeZone')
       : []
-  return supported.includes('UTC') ? supported : ['UTC', ...supported]
+  const zones = [...new Set(supported.map(currentName))]
+  return zones.includes('UTC') ? zones : ['UTC', ...zones]
 }
 
-const readable = (zone: string) => zone.replace(/_/g, ' ')
+const readable = (zone: string) => currentName(zone).replace(/_/g, ' ')
 
-/** "Asia/Kolkata" → "Asia / Kolkata (GMT+05:30)" — what the dropdown shows and searches. */
 function zoneLabel(zone: string): string {
   return `${readable(zone).replace(/\//g, ' / ')} (${gmtOffsetLabel(zone)})`
 }
@@ -58,6 +78,8 @@ export function TimeZoneRow({
   const zones = useMemo(() => (choosing ? allTimeZones() : []), [choosing])
 
   const automatic = manual === null
+  // A zone saved under its old name ("Asia/Calcutta") is the same list item.
+  const selectedZone = manual === null ? null : currentName(manual)
   const activeZone = manual ?? device
 
   const save = (zone: string | null) => {
@@ -91,18 +113,19 @@ export function TimeZoneRow({
       {choosing ? (
         <Combobox
           items={zones}
-          defaultValue={manual}
+          defaultValue={selectedZone}
+          defaultInputValue=""
           defaultOpen
           openOnInputClick
           autoHighlight
           itemToStringLabel={(item: string) => zoneLabel(item)}
           onValueChange={(value) => {
             const zone = value as string | null
-            if (zone && zone !== manual) save(zone)
+            if (!zone) return
+            if (zone !== selectedZone) save(zone)
             else setChoosing(false)
           }}
           onOpenChange={(open) => {
-            // Closing without picking (Escape, click away) leaves the zone as it was.
             if (!open) setChoosing(false)
           }}
         >
@@ -113,14 +136,21 @@ export function TimeZoneRow({
             className="w-64"
           />
           <ComboboxContent align="end">
-            <ComboboxEmpty>No time zone found.</ComboboxEmpty>
-            <ComboboxList>
-              {(item: string) => (
-                <ComboboxItem key={item} value={item}>
-                  {zoneLabel(item)}
-                </ComboboxItem>
-              )}
-            </ComboboxList>
+            <div className="py-3">
+              <ComboboxEmpty>No time zone found.</ComboboxEmpty>
+
+              <ComboboxList>
+                {(item: string) => (
+                  <ComboboxItem
+                    key={item}
+                    value={item}
+                    className="hover:bg-primary data-highlighted:bg-primary cursor-pointer p-2"
+                  >
+                    {zoneLabel(item)}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </div>
           </ComboboxContent>
         </Combobox>
       ) : (

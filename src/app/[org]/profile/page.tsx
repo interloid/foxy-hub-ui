@@ -22,7 +22,7 @@ export default async function ProfilePage({
   const { org } = await params
 
   return (
-    <div className="w-full">
+    <div className="w-full md:p-6">
       <BackLink asChild className="mb-3.5">
         <Link href={`/${org}${PROFILE.back.href}`}>{PROFILE.back.label}</Link>
       </BackLink>

@@ -19,7 +19,6 @@ import { env } from '@/config/env'
 
 import { renameWorkspaceAction } from '../actions'
 
-/** Workspaces are a path on one domain, not a subdomain each — `foxyhub.app/interloid`. */
 const APP_DOMAIN = env.NEXT_PUBLIC_APP_DOMAIN ?? 'yourdomain.com'
 
 interface EditWorkspaceSheetProps {
