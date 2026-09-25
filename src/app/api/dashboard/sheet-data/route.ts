@@ -5,8 +5,10 @@ import {
   getProjects,
   getTeammateCapacity,
   getTeamMembers,
-} from '@/features/dashboard/actions'
-import { toISODate } from '@/lib/date'
+} from '@/features/dashboard/queries'
+import { fetchProjectsAction } from '@/features/projects/actions'
+import { getUserTimeZone } from '@/lib/dal'
+import { todayIn } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -64,15 +66,20 @@ export async function GET(req: NextRequest) {
     // 2. Fetch Capacity and Logged Minutes for a User on a specific date
     if (type === 'capacity') {
       const dateStr = searchParams.get('dateStr')
+      const projectId = searchParams.get('projectId')
 
-      if (!dateStr) {
+      if (!dateStr || !projectId) {
         return NextResponse.json({
           dailyCapacityHours: 8,
           alreadyLoggedMinutes: 0,
         })
       }
 
-      const capacityData = await getOrganizationCapacity(orgSlug, dateStr)
+      const capacityData = await getOrganizationCapacity(
+        orgSlug,
+        dateStr,
+        projectId
+      )
       return NextResponse.json(
         capacityData ?? { dailyCapacityHours: 8, alreadyLoggedMinutes: 0 }
       )
@@ -81,7 +88,8 @@ export async function GET(req: NextRequest) {
     // 3. Check Teammate Allocation Capacity
     if (type === 'teammate-capacity') {
       const userId = searchParams.get('userId')
-      const dateStr = searchParams.get('dateStr') || toISODate(new Date())
+      const dateStr =
+        searchParams.get('dateStr') || todayIn(await getUserTimeZone())
 
       if (!userId) {
         return NextResponse.json({
@@ -117,8 +125,24 @@ export async function GET(req: NextRequest) {
 
     // 6. Fetch Projects for Org
     if (type === 'projects') {
-      const projects = await getProjects(orgSlug)
-      return NextResponse.json(Array.isArray(projects) ? projects : [])
+      const page = searchParams.get('page')
+      const pageSize = searchParams.get('pageSize')
+      const allocatedProject = searchParams.get('allocatedProject') === 'true'
+
+      if (page || pageSize) {
+        const pageNum = parseInt(page || '1', 10)
+        const sizeNum = parseInt(pageSize || '10', 10)
+        const paginatedData = await fetchProjectsAction(
+          orgSlug,
+          allocatedProject,
+          pageNum,
+          sizeNum
+        )
+        return NextResponse.json(paginatedData)
+      }
+
+      const projects = await getProjects(orgSlug, allocatedProject)
+      return NextResponse.json(projects !== null ? projects : [])
     }
 
     return NextResponse.json([])

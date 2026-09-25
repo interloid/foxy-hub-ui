@@ -12,7 +12,9 @@ import {
   Popover,
   PopoverTrigger,
 } from '@/components/shared/fx-menu'
-import { TeamMemberOption } from '@/features/dashboard/actions'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { getCurrencySymbol } from '@/lib/money'
+import { TeamMemberOption } from '@/features/dashboard/types'
 import { toISODate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import { Calendar as CalendarIcon, ChevronDown, X } from 'lucide-react'
@@ -23,7 +25,10 @@ import {
   UseFormSetValue,
   useWatch,
 } from 'react-hook-form'
+import type { AllocationRowIssues } from './team-allocation-section'
 import { AllocationFormValues, NewProjectFormValues } from './types'
+import { useFormatter } from '@/context/locale-provider'
+import { numericDatePlaceholder } from '@/lib/format'
 
 interface TeamAllocationRowProps {
   index: number
@@ -33,6 +38,7 @@ interface TeamAllocationRowProps {
   isLoadingTeam: boolean
   maxCapacity: number
   orgMaxDaysPerWk: number
+  issues: AllocationRowIssues
   control: Control<NewProjectFormValues>
   register: UseFormRegister<NewProjectFormValues>
   setValue: UseFormSetValue<NewProjectFormValues>
@@ -48,12 +54,14 @@ export function TeamAllocationRow({
   isLoadingTeam,
   maxCapacity,
   orgMaxDaysPerWk,
+  issues,
   control,
   register,
   setValue,
   remove,
   checkCapacityForUser,
 }: TeamAllocationRowProps) {
+  const fmt = useFormatter()
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -67,6 +75,9 @@ export function TeamAllocationRow({
     control,
     name: `allocations.${index}.userId`,
   })
+
+  const { currency } = useWorkspace()
+  const currencySymbol = getCurrencySymbol(currency)
 
   const selectedMember = teamMembers.find((m) => m.id === selectedUserId)
   const displayName =
@@ -110,6 +121,12 @@ export function TeamAllocationRow({
                         shouldValidate: true,
                         shouldDirty: true,
                       })
+
+                      setValue(
+                        `allocations.${index}.rate`,
+                        m.defaultRate ?? undefined,
+                        { shouldValidate: true, shouldDirty: true }
+                      )
 
                       // 3. Trigger capacity check callback
                       checkCapacityForUser(
@@ -200,6 +217,7 @@ export function TeamAllocationRow({
                 min={1}
                 max={maxCapacity}
                 className="h-8 px-1.5 font-mono text-[12px]"
+                aria-invalid={issues.invalid.hoursPerDay || undefined}
                 value={field.value ?? ''}
                 onChange={(e) => {
                   const parsed = parseFloat(e.target.value) || 0
@@ -230,6 +248,7 @@ export function TeamAllocationRow({
             min={1}
             max={orgMaxDaysPerWk}
             className="h-8 px-1.5 font-mono text-[12px]"
+            aria-invalid={issues.invalid.daysPerWk || undefined}
             {...register(`allocations.${index}.daysPerWk`, {
               valueAsNumber: true,
               onChange: (e) => {
@@ -247,14 +266,18 @@ export function TeamAllocationRow({
         {/* Rate $/HR */}
         <div className="w-full min-w-0">
           <label className="text-muted-foreground block truncate text-[10px] font-semibold uppercase">
-            Rate $/HR
+            Rate {currencySymbol}/hr
           </label>
           <FxInput
             type="number"
             min={1}
             className="h-8 px-1.5 font-mono text-[12px]"
+            aria-invalid={issues.invalid.rate || undefined}
             {...register(`allocations.${index}.rate`, {
-              valueAsNumber: true,
+              setValueAs: (value) =>
+                value === '' || value === null || value === undefined
+                  ? undefined
+                  : Number(value),
             })}
           />
         </div>
@@ -277,14 +300,8 @@ export function TeamAllocationRow({
                   >
                     <span className="truncate text-sm font-normal">
                       {dateField.value
-                        ? new Date(
-                            dateField.value + 'T00:00:00'
-                          ).toLocaleDateString('en-US', {
-                            month: '2-digit',
-                            day: '2-digit',
-                            year: 'numeric',
-                          })
-                        : 'MM/DD/YYYY'}
+                        ? fmt.date(dateField.value, 'numeric')
+                        : numericDatePlaceholder(fmt.locale)}
                     </span>
                     <CalendarIcon className="text-muted-foreground ml-1 size-3.5 shrink-0" />
                   </FxButton>
@@ -312,6 +329,14 @@ export function TeamAllocationRow({
           />
         </div>
       </div>
+      {issues.messages.length > 0 && (
+        <p
+          role="alert"
+          className="text-destructive text-[11px] leading-snug font-medium"
+        >
+          {issues.messages.join(' · ')}
+        </p>
+      )}
     </div>
   )
 }

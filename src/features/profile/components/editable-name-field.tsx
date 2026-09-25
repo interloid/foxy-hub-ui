@@ -35,7 +35,7 @@ export function EditableNameField({
 
   const form = useForm<FullNameInput>({
     resolver: zodResolver(fullNameSchema),
-    mode: 'onTouched',
+    mode: 'onChange',
     defaultValues: { fullName: fullName ?? '' },
   })
 
@@ -43,6 +43,9 @@ export function EditableNameField({
     control: form.control,
     name: 'fullName',
   })
+  const isNameModified = field.value.trim() !== savedName.trim()
+  const isCheckDisabled =
+    !isNameModified || Boolean(fieldState.error) || pending
 
   useEffect(() => {
     if (!saved) return
@@ -63,6 +66,7 @@ export function EditableNameField({
   }
 
   const handleSave = () => {
+    if (isCheckDisabled) return
     startTransition(async () => {
       await form.handleSubmit(async (values) => {
         const result = await updateFullName(values.fullName)
@@ -85,7 +89,7 @@ export function EditableNameField({
         {PROFILE.fields.name}
       </FxLabel>
 
-      <FxInputGroup>
+      <FxInputGroup className="has-disabled:opacity-100">
         <FxInputGroupInput
           id="full-name"
           inputSize="sm"
@@ -112,7 +116,6 @@ export function EditableNameField({
             }
           }}
         />
-
         <FxInputGroupAddon
           align="inline-end"
           className="gap-1 border-0 p-0 px-1.5"
@@ -122,11 +125,11 @@ export function EditableNameField({
               {/* Save / Loading Button */}
               <FxButton
                 type="button"
-                className="text-success hover:text-success bg-transparent hover:bg-transparent"
+                className="text-success hover:text-success bg-transparent hover:bg-transparent disabled:pointer-events-none disabled:opacity-40 disabled:hover:bg-transparent"
                 variant={'ghost'}
                 size="icon-sm"
                 aria-label={PROFILE.edit.save}
-                disabled={pending}
+                disabled={isCheckDisabled}
                 onClick={handleSave}
               >
                 {pending ? (

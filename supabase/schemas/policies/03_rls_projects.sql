@@ -8,10 +8,10 @@ create policy "staff_and_own_client_view_projects"
   on public.projects for select to authenticated
   using (
     client_id = (select auth.uid())
-    or public.has_org_role(projects.org_id, array['owner', 'admin', 'member']::public.user_role[])
+    or public.has_org_role(projects.org_id, array['primary_admin', 'admin', 'manager', 'contributor']::public.user_role[])
   );
 
--- Owners/admins can insert projects
+-- Primary admins, admins and managers can insert projects
 create policy "owners_admins_insert_projects"
   on public.projects for insert to authenticated
   with check (
@@ -19,11 +19,11 @@ create policy "owners_admins_insert_projects"
       select 1 from public.memberships m
       where m.user_id = (select auth.uid())
         and m.org_id  = projects.org_id
-        and m.role    in ('owner', 'admin')
+        and m.role    in ('primary_admin', 'admin', 'manager')
     )
   );
 
--- Owners/admins/members can update projects
+-- All staff — primary admin, admin, manager and contributor — can update projects
 create policy "staff_update_projects"
   on public.projects for update to authenticated
   using (
@@ -31,11 +31,11 @@ create policy "staff_update_projects"
       select 1 from public.memberships m
       where m.user_id = (select auth.uid())
         and m.org_id  = projects.org_id
-        and m.role    in ('owner', 'admin', 'member')
+        and m.role    in ('primary_admin', 'admin', 'manager', 'contributor')
     )
   );
 
--- Owners/admins can delete projects
+-- Primary admins, admins and managers can delete projects
 create policy "owners_admins_delete_projects"
   on public.projects for delete to authenticated
   using (
@@ -43,6 +43,6 @@ create policy "owners_admins_delete_projects"
       select 1 from public.memberships m
       where m.user_id = (select auth.uid())
         and m.org_id  = projects.org_id
-        and m.role    in ('owner', 'admin')
+        and m.role    in ('primary_admin', 'admin', 'manager')
     )
   );

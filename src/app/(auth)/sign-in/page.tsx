@@ -15,6 +15,8 @@ const ERRORS: Record<string, string> = {
   invalid_link: 'That sign-in link has expired or was already used.',
   session_expired: 'Your session expired. Sign in again.',
   missing_code: 'That sign-in link has expired or was already used.',
+  link_expired: 'That link has expired. Ask for a new invite.',
+  link_already_used: 'That link was already used. Sign in with your password.',
 }
 
 export default async function SignInPage({

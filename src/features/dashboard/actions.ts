@@ -1,13 +1,13 @@
 'use server'
 
 import { getWorkspace, isAdminRole } from '@/lib/dal'
-import { toISODate } from '@/lib/date'
 import { parseDurationToMinutes } from '@/lib/duration'
 import { createClient } from '@/lib/supabase/server'
 import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { ActionResult } from '../onboarding/types'
+import { getTeammateAllocatedHours } from './queries'
 import { createProjectSchema } from './schema'
 
 // Helper for formatting Zod validation errors
@@ -22,39 +22,6 @@ const createTimeEntrySchema = z.object({
   durationStr: z.string().min(1, 'Duration string is required'),
   description: z.string().max(500, 'Description too long'),
 })
-
-export interface ClientOption {
-  id: string
-  name: string
-}
-
-export interface TeamMemberOption {
-  id: string
-  name: string
-  role: string
-}
-
-export interface TeammateAllocationCheck {
-  userId: string
-  existingHoursPerDay: number
-  maxDailyCapacity: number
-  maxDaysPerWk: number
-}
-
-export interface CapacityAndLoggedData {
-  dailyCapacityHours: number
-  alreadyLoggedMinutes: number
-}
-
-export interface ProjectOption {
-  id: string
-  name: string
-}
-
-export interface MilestoneOption {
-  id: string
-  title: string
-}
 
 type ProjectInsert = Database['public']['Tables']['projects']['Insert']
 type AllocationInsert =
@@ -90,140 +57,9 @@ export async function getUserName(): Promise<ActionResult<{ name: string }>> {
   return { ok: true, data: { name } }
 }
 
-export async function getDailyCapacityAndLoggedMinutes(
-  dateString: string,
-  orgSlug: string
-): Promise<CapacityAndLoggedData> {
-  // Manual Query Parameter Validation (No Zod)
-  if (!dateString || !orgSlug) {
-    return { dailyCapacityHours: 8, alreadyLoggedMinutes: 0 }
-  }
-
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return { dailyCapacityHours: 8, alreadyLoggedMinutes: 0 }
-  }
-
-  const workspace = await getWorkspace(orgSlug)
-  if (!workspace) {
-    return { dailyCapacityHours: 8, alreadyLoggedMinutes: 0 }
-  }
-
-  const { data: orgData } = await supabase
-    .from('organizations')
-    .select('daily_capacity_hours')
-    .eq('id', workspace.id)
-    .maybeSingle()
-
-  const dailyCapacityHours = orgData?.daily_capacity_hours ?? 8
-
-  const { data: entries } = await supabase
-    .from('time_entries')
-    .select('duration_minutes')
-    .eq('user_id', user.id)
-    .eq('work_date', dateString)
-
-  const alreadyLoggedMinutes =
-    entries?.reduce((sum, entry) => sum + (entry.duration_minutes || 0), 0) ?? 0
-
-  return { dailyCapacityHours, alreadyLoggedMinutes }
-}
-
-export async function getProjectsForOrg(
-  orgSlug: string | null
-): Promise<ProjectOption[]> {
-  // Manual Query Parameter Validation
-  if (!orgSlug || typeof orgSlug !== 'string') return []
-
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) return []
-
-  const { data, error } = await supabase
-    .from('projects')
-    .select(
-      `
-      id,
-      name,
-      organization:organizations!inner (
-        slug,
-        memberships!inner (
-          user_id
-        )
-      )
-    `
-    )
-    .eq('organization.slug', orgSlug)
-    .eq('organization.memberships.user_id', user.id)
-    .order('name', { ascending: true })
-
-  if (error || !data) return []
-
-  return data.map((p) => ({ id: p.id, name: p.name }))
-}
-
-export async function getMilestonesForProject(
-  projectId: string | null,
-  orgSlug: string | null
-): Promise<MilestoneOption[]> {
-  // Manual Parameter Validation
-  if (
-    !projectId ||
-    !orgSlug ||
-    typeof projectId !== 'string' ||
-    typeof orgSlug !== 'string'
-  ) {
-    return []
-  }
-
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) return []
-
-  const { data, error } = await supabase
-    .from('milestones')
-    .select(
-      `
-      id,
-      title,
-      project:projects!inner (
-        org_id,
-        organization:organizations!inner (
-          slug,
-          memberships!inner (
-            user_id
-          )
-        )
-      )
-    `
-    )
-    .eq('project_id', projectId)
-    .eq('project.organization.slug', orgSlug)
-    .eq('project.organization.memberships.user_id', user.id)
-    .order('title', { ascending: true })
-
-  if (error || !data) return []
-
-  return data.map((m) => ({ id: m.id, title: m.title }))
-}
-
 export async function createTimeEntry(
   rawInput: unknown
 ): Promise<ActionResult> {
-  // 1. Zod Body Validation
   const parsed = createTimeEntrySchema.safeParse(rawInput)
   if (!parsed.success) {
     return { ok: false, error: firstIssue(parsed.error) }
@@ -232,7 +68,6 @@ export async function createTimeEntry(
   const params = parsed.data
   const supabase = await createClient()
 
-  // 2. Authentication
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -270,155 +105,89 @@ export async function createTimeEntry(
     }
   }
 
-  const { data: orgData } = await supabase
-    .from('organizations')
-    .select('id, daily_capacity_hours')
-    .eq('slug', params.orgSlug)
-    .maybeSingle()
-
-  if (!orgData) {
-    return { ok: false, error: 'Organization not found.' }
-  }
-
-  const dailyCapacityMinutes = (orgData.daily_capacity_hours ?? 8) * 60
-
-  const { data: existingEntries } = await supabase
-    .from('time_entries')
-    .select('duration_minutes, projects!inner(org_id)')
-    .eq('user_id', user.id)
-    .eq('work_date', params.workDate)
-    .eq('projects.org_id', orgData.id)
-
-  const alreadyLoggedMinutes = (existingEntries ?? []).reduce(
-    (sum, entry) => sum + (entry.duration_minutes ?? 0),
-    0
+  const { data: rpcResult, error: rpcError } = await supabase.rpc(
+    'create_time_entry_with_capacity_check',
+    {
+      p_user_id: user.id,
+      p_project_id: params.projectId,
+      p_milestone_id: (params.milestoneId || null) as string,
+      p_work_date: params.workDate,
+      p_duration_minutes: durationMinutes,
+      p_description: params.description.trim(),
+      p_org_id: project.org_id,
+    }
   )
 
-  if (alreadyLoggedMinutes + durationMinutes > dailyCapacityMinutes) {
-    const remainingMinutes = Math.max(
-      0,
-      dailyCapacityMinutes - alreadyLoggedMinutes
-    )
-    const remainingHours = (remainingMinutes / 60).toFixed(1)
-    return {
-      ok: false,
-      error: `Exceeds daily capacity. You only have ${remainingHours} hours remaining for ${params.workDate}.`,
-    }
-  }
-
-  const { error } = await supabase.from('time_entries').insert({
-    user_id: user.id,
-    project_id: params.projectId,
-    milestone_id: params.milestoneId || null,
-    work_date: params.workDate,
-    duration_minutes: durationMinutes,
-    description: params.description.trim(),
-    status: 'draft',
-  })
-
-  if (error) {
-    console.error('Create Time Entry Error:', error.message)
+  if (rpcError) {
+    console.error('Create Time Entry RPC Error:', rpcError.message)
     return { ok: false, error: 'Failed to record time entry.' }
   }
 
-  // 3. Revalidate Path
+  const result = rpcResult as { ok: boolean; error?: string; id?: string }
+
+  if (!result?.ok) {
+    return {
+      ok: false,
+      error: result?.error || 'Exceeds daily capacity.',
+    }
+  }
+
   revalidatePath(`/${params.orgSlug}`)
   return { ok: true }
 }
 
-export async function getTeammateAllocatedHours(
-  targetUserId: string,
-  orgSlug: string,
-  targetDateStr?: string
-): Promise<TeammateAllocationCheck> {
-  // Manual Parameter Validation
-  if (!targetUserId || !orgSlug) {
+const memberRateValue = z
+  .number({ error: 'Rate must be a number' })
+  .positive('Rate must be greater than 0')
+  .nullable()
+  .optional()
+
+const memberRatesSchema = z.object({
+  orgSlug: z.string().min(1, 'Organization slug is required'),
+  userId: z.uuid('Invalid teammate ID'),
+  defaultRate: memberRateValue,
+  costRate: memberRateValue,
+})
+
+export async function updateMemberRatesAction(
+  rawParams: unknown
+): Promise<ActionResult> {
+  const parsed = memberRatesSchema.safeParse(rawParams)
+  if (!parsed.success) {
+    return { ok: false, error: firstIssue(parsed.error) }
+  }
+
+  const { orgSlug, userId, defaultRate, costRate } = parsed.data
+
+  const workspace = await getWorkspace(orgSlug)
+  if (!workspace) {
+    return { ok: false, error: 'Workspace not found or access denied.' }
+  }
+
+  const isAdmin = await isAdminRole(workspace.role)
+  if (!isAdmin) {
     return {
-      userId: targetUserId ?? '',
-      existingHoursPerDay: 0,
-      maxDailyCapacity: 8,
-      maxDaysPerWk: 5,
+      ok: false,
+      error: 'Unauthorized: Only administrators can set teammate rates.',
     }
   }
 
   const supabase = await createClient()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { error } = await supabase.rpc('set_member_rates', {
+    target_user_id: userId,
+    target_org_id: workspace.id,
+    new_default_rate: defaultRate ?? undefined,
+    new_cost_rate: costRate ?? undefined,
+  })
 
-  if (!user) {
-    return {
-      userId: targetUserId,
-      existingHoursPerDay: 0,
-      maxDailyCapacity: 8,
-      maxDaysPerWk: 5,
-    }
+  if (error) {
+    console.error('set_member_rates RPC error:', error.message)
+    return { ok: false, error: 'Failed to save rates.' }
   }
 
-  const workspace = await getWorkspace(orgSlug)
-  if (!workspace) {
-    return {
-      userId: targetUserId,
-      existingHoursPerDay: 0,
-      maxDailyCapacity: 8,
-      maxDaysPerWk: 5,
-    }
-  }
-
-  const { data: targetMembership } = await supabase
-    .from('memberships')
-    .select('id')
-    .eq('org_id', workspace.id)
-    .eq('user_id', targetUserId)
-    .maybeSingle()
-
-  if (!targetMembership) {
-    return {
-      userId: targetUserId,
-      existingHoursPerDay: 0,
-      maxDailyCapacity: 8,
-      maxDaysPerWk: 5,
-    }
-  }
-
-  const { data: orgData } = await supabase
-    .from('organizations')
-    .select('daily_capacity_hours, days_per_week')
-    .eq('id', workspace.id)
-    .maybeSingle()
-
-  const maxDailyCapacity = orgData?.daily_capacity_hours ?? 8
-  const maxDaysPerWk = orgData?.days_per_week ?? 5
-  const evalDate = targetDateStr || toISODate(new Date())
-
-  const { data: allocations, error } = await supabase
-    .from('project_allocations')
-    .select('hours_per_day')
-    .eq('user_id', targetUserId)
-    .lte('effective_from', evalDate)
-    .or(`effective_to.is.null,effective_to.gte.${evalDate}`)
-
-  if (error || !allocations) {
-    return {
-      userId: targetUserId,
-      existingHoursPerDay: 0,
-      maxDailyCapacity,
-      maxDaysPerWk,
-    }
-  }
-
-  const existingHoursPerDay = allocations.reduce(
-    (sum, item) => sum + (Number(item.hours_per_day) || 0),
-    0
-  )
-
-  return {
-    userId: targetUserId,
-    existingHoursPerDay,
-    maxDailyCapacity,
-    maxDaysPerWk,
-  }
+  revalidatePath(`/${orgSlug}`)
+  return { ok: true }
 }
 
 export async function createProject(
@@ -508,8 +277,9 @@ export async function createProject(
     name: params.name.trim(),
     due_date: params.dueDate || null,
     engagement: dbEngagement,
-    client_id: params.clientId,
+    client_org_id: params.clientId || null,
     contract_value: params.budget ?? null,
+    estimated_hours: params.estimatedHours ?? null,
     retainer_hours: params.retainerBucketHours ?? null,
     retainer_period: dbRetainerPeriod,
     retainer_amount: params.retainerAmount ?? null,
@@ -550,95 +320,6 @@ export async function createProject(
 
   // 6. Path Revalidation
   revalidatePath(`/${orgSlug}`)
+  revalidatePath(`/${orgSlug}/projects`)
   return { ok: true }
 }
-
-export async function getClientsForOrg(
-  orgSlug: string | null
-): Promise<ClientOption[]> {
-  if (!orgSlug || typeof orgSlug !== 'string') return []
-
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) return []
-
-  const workspace = await getWorkspace(orgSlug)
-  if (!workspace) return []
-
-  const { data, error } = await supabase
-    .from('clients')
-    .select('id, name')
-    .eq('org_id', workspace.id)
-    .order('name', { ascending: true })
-
-  if (error || !data) return []
-  return data
-}
-
-export async function getTeamMembersForOrg(
-  orgSlug: string | null
-): Promise<TeamMemberOption[]> {
-  if (!orgSlug || typeof orgSlug !== 'string') return []
-
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) return []
-
-  const workspace = await getWorkspace(orgSlug)
-  if (!workspace) return []
-
-  const { data: memberships, error: membershipsError } = await supabase
-    .from('memberships')
-    .select('user_id, role')
-    .eq('org_id', workspace.id)
-    .neq('role', 'client')
-
-  if (membershipsError || !memberships || memberships.length === 0) return []
-
-  const userIds = memberships.map((m) => m.user_id)
-
-  const { data: profiles, error: profilesError } = await supabase
-    .from('profiles')
-    .select('id, full_name')
-    .in('id', userIds)
-
-  if (profilesError)
-    console.error('Error fetching profiles:', profilesError.message)
-
-  const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) || [])
-
-  return memberships.map((item) => {
-    const fullName = profileMap.get(item.user_id) || 'Unnamed Teammate'
-    const role = item.role
-      ? item.role.charAt(0).toUpperCase() + item.role.slice(1)
-      : 'Member'
-
-    return {
-      id: item.user_id,
-      name: `${fullName} · ${role}`,
-      role: item.role,
-    }
-  })
-}
-
-export const getProjects = getProjectsForOrg
-export const getMilestones = getMilestonesForProject
-export const getOrganizationCapacity = async (
-  orgSlug: string,
-  dateStr: string
-) => getDailyCapacityAndLoggedMinutes(dateStr, orgSlug)
-export const getTeammateCapacity = async (
-  userId: string,
-  orgSlug: string,
-  dateStr?: string
-) => getTeammateAllocatedHours(userId, orgSlug, dateStr)
-export const getClients = getClientsForOrg
-export const getTeamMembers = getTeamMembersForOrg

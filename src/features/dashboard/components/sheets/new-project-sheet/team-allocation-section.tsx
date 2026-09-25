@@ -2,22 +2,63 @@
 
 import { FxButton } from '@/components/shared/fx-button'
 import { FxInput } from '@/components/shared/fx-field'
-import { TeamMemberOption } from '@/features/dashboard/actions'
 import { AlertTriangle, Plus } from 'lucide-react'
 import {
   Control,
   FieldArrayWithId,
+  FieldErrors,
   UseFormRegister,
   UseFormSetValue,
 } from 'react-hook-form'
 
 import { TeamAllocationRow } from './team-allocation-row'
 import { AllocationFormValues, NewProjectFormValues } from './types'
+import { TeamMemberOption } from '@/features/dashboard/types'
 
 interface OverCommittedDetails {
   memberName: string
   totalHours: number
   maxCapacity: number
+}
+export interface AllocationRowIssues {
+  messages: string[]
+  invalid: Partial<Record<keyof AllocationFormValues, boolean>>
+}
+
+const ALLOCATION_FIELDS = [
+  'userId',
+  'hoursPerDay',
+  'daysPerWk',
+  'rate',
+  'effectiveFrom',
+] as const
+
+export function allocationRowIssues(
+  errors: FieldErrors<NewProjectFormValues>,
+  index: number
+): AllocationRowIssues {
+  const rowError = errors.allocations?.[index]
+  const issues: AllocationRowIssues = { messages: [], invalid: {} }
+
+  if (!rowError) return issues
+
+  for (const field of ALLOCATION_FIELDS) {
+    const message = rowError[field]?.message
+
+    if (typeof message === 'string' && message.length > 0) {
+      issues.messages.push(message)
+      issues.invalid[field] = true
+    }
+  }
+
+  return issues
+}
+
+export interface ModelFitSuggestion {
+  suggested: 'full_time' | 'part_time'
+  suggestedLabel: string
+  currentLabel: string
+  reason: string
 }
 
 interface TeamAllocationSectionProps {
@@ -29,6 +70,9 @@ interface TeamAllocationSectionProps {
   orgMaxDaysPerWk: number
   isOverCommitted: boolean
   overCommittedDetails: OverCommittedDetails | null
+  modelFit: ModelFitSuggestion | null
+  onSwitchEngagement: (engagement: 'full_time' | 'part_time') => void
+  errors: FieldErrors<NewProjectFormValues>
   control: Control<NewProjectFormValues>
   register: UseFormRegister<NewProjectFormValues>
   setValue: UseFormSetValue<NewProjectFormValues>
@@ -46,6 +90,9 @@ export function TeamAllocationSection({
   orgMaxDaysPerWk,
   isOverCommitted,
   overCommittedDetails,
+  modelFit,
+  onSwitchEngagement,
+  errors,
   control,
   register,
   setValue,
@@ -88,6 +135,7 @@ export function TeamAllocationSection({
             isLoadingTeam={isLoadingTeam}
             maxCapacity={maxCapacity}
             orgMaxDaysPerWk={orgMaxDaysPerWk}
+            issues={allocationRowIssues(errors, index)}
             control={control}
             register={register}
             setValue={setValue}
@@ -98,7 +146,7 @@ export function TeamAllocationSection({
       })}
 
       <p className="text-muted-foreground text-[11.5px] leading-snug">
-        Part-time is first-class — set any hours/day. Rates snapshot onto each
+        Part-time is first-class set any hours/day. Rates snapshot onto each
         time entry; a change over time is a new dated row.
       </p>
 
@@ -111,7 +159,7 @@ export function TeamAllocationSection({
               <strong className="text-foreground font-semibold">
                 Over-commitment blocked
               </strong>{' '}
-              — this allocation pushes someone past a standard working day:
+              this allocation pushes someone past a standard working day:
               <div className="text-foreground mt-0.5 font-medium">
                 {overCommittedDetails.memberName} →{' '}
                 <span className="font-bold">
@@ -133,6 +181,33 @@ export function TeamAllocationSection({
               {...register('overrideReason')}
             />
           </div>
+        </div>
+      )}
+
+      {modelFit && (
+        <div className="border-warning/40 bg-warning/10 space-y-2 rounded-lg border p-3.5">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="text-warning mt-0.5 size-4 shrink-0" />
+            <div className="text-[12px]">
+              <strong className="text-foreground font-semibold">
+                This looks like a {modelFit.suggestedLabel} project
+              </strong>{' '}
+              you selected {modelFit.currentLabel}.
+              <div className="text-foreground mt-0.5 font-medium">
+                {modelFit.reason}
+              </div>
+            </div>
+          </div>
+
+          <FxButton
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onSwitchEngagement(modelFit.suggested)}
+            className="border-warning/40 text-foreground hover:bg-warning/15 h-7 bg-transparent text-[11.5px] font-medium"
+          >
+            Switch to {modelFit.suggestedLabel}
+          </FxButton>
         </div>
       )}
     </div>

@@ -23,12 +23,14 @@ import {
   Sheet,
 } from '@/components/shared/fx-sheet'
 import { FxTextarea } from '@/components/shared/fx-textarea'
+import { createTimeEntry } from '@/features/dashboard/actions'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import {
-  createTimeEntry,
+  CapacityAndLoggedData,
   MilestoneOption,
   ProjectOption,
-} from '@/features/dashboard/actions'
-import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+  ProjectsAndAllocationHours,
+} from '@/features/dashboard/types'
 import { toISODate } from '@/lib/date'
 import {
   Calendar as CalendarIcon,
@@ -39,6 +41,7 @@ import {
 import { useEffect, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { DurationInput } from './duration-input'
+import { useFormatter } from '@/context/locale-provider'
 
 interface LogTimeSheetProps {
   open: boolean
@@ -46,6 +49,7 @@ interface LogTimeSheetProps {
 }
 
 export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
+  const fmt = useFormatter()
   // Database Options State
   const [projects, setProjects] = useState<ProjectOption[]>([])
   const [milestones, setMilestones] = useState<MilestoneOption[]>([])
@@ -85,12 +89,19 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     if (!open) return
 
     const controller = new AbortController()
-
-    fetch(`/api/dashboard/sheet-data?type=projects&orgSlug=${orgSlug}`, {
+    const query = new URLSearchParams({
+      type: 'projects',
+      orgSlug,
+      allocatedProject: 'true',
+    })
+    fetch(`/api/dashboard/sheet-data?${query.toString()}`, {
       signal: controller.signal,
     })
-      .then((res) => res.json())
-      .then((data) => setProjects(data))
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: ProjectsAndAllocationHours) => {
+        setProjects(data !== null ? data.projects : [])
+        setDailyCapacityHours(data !== null ? data.totalHours : 8)
+      })
       .catch((err) => {
         if (err.name !== 'AbortError') console.error(err)
       })
@@ -98,20 +109,27 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     return () => controller.abort()
   }, [open, orgSlug])
 
-  // Fetch Daily Capacity when date changes (with AbortController to prevent race conditions)
   useEffect(() => {
-    if (!open || !selectedDate) return
+    if (!open || !selectedDate || !selectedProject) return
 
     const controller = new AbortController()
     const dateStr = toISODate(selectedDate)
 
-    fetch(
-      `/api/dashboard/sheet-data?type=capacity&orgSlug=${orgSlug}&dateStr=${dateStr}`,
-      { signal: controller.signal }
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        setDailyCapacityHours(data.dailyCapacityHours ?? 8)
+    const query = new URLSearchParams({
+      type: 'capacity',
+      orgSlug,
+      dateStr,
+      projectId: selectedProject.id,
+    })
+
+    fetch(`/api/dashboard/sheet-data?${query.toString()}`, {
+      signal: controller.signal,
+    })
+      .then((res: Response) =>
+        res.ok ? res.json() : ({} as CapacityAndLoggedData)
+      )
+      .then((data: CapacityAndLoggedData) => {
+        setDailyCapacityHours(data !== null ? data.dailyCapacityHours : 8)
         setAlreadyLoggedMinutes(data.alreadyLoggedMinutes ?? 0)
       })
       .catch((err) => {
@@ -119,19 +137,33 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
       })
 
     return () => controller.abort()
-  }, [open, selectedDate, orgSlug])
-
+  }, [open, selectedDate, orgSlug, selectedProject])
+  console.log(
+    dailyCapacityHours,
+    alreadyLoggedMinutes,
+    'daily capacity hour',
+    'already loggged minutes'
+  )
   // Fetch Milestones when project changes
   const handleProjectSelect = (project: ProjectOption) => {
     setSelectedProject(project)
     setSelectedMilestone(null)
 
-    fetch(
-      `/api/dashboard/sheet-data?type=milestones&orgSlug=${orgSlug}&projectId=${project.id}`
-    )
-      .then((res) => res.json())
-      .then((msList) => setMilestones(msList))
-      .catch(console.error)
+    const controller = new AbortController()
+    const query = new URLSearchParams({
+      type: 'milestones',
+      orgSlug,
+      projectId: project.id,
+    })
+
+    fetch(`/api/dashboard/sheet-data?${query.toString()}`, {
+      signal: controller.signal,
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((msList) => setMilestones(Array.isArray(msList) ? msList : []))
+      .catch((err) => {
+        if (err.name !== 'AbortError') console.error(err)
+      })
   }
 
   const handleLogTime = () => {
@@ -143,7 +175,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
     ) {
       return
     }
-
+    console.log(dailyCapacityHours)
     const dateStr = toISODate(selectedDate)
 
     startTransition(async () => {
@@ -167,11 +199,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
   }
 
   const formattedDate = selectedDate
-    ? selectedDate.toLocaleDateString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric',
-      })
+    ? fmt.date(toISODate(selectedDate), 'numeric')
     : 'Select date'
 
   const isSubmitDisabled =
@@ -348,10 +376,6 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
               placeholder='What did you work on? e.g. "M2 auth: RLS policies for memberships"'
               className="text-[13px]"
             />
-            {/* <p className="text-muted-foreground mt-1.5 text-[11.5px]">
-              Required — &quot;development&quot; is not a receipt. Be specific
-              so approvers and clients can read the work.
-            </p> */}
           </div>
         </FxSheetBody>
 
@@ -359,7 +383,7 @@ export function LogTimeSheet({ open, onOpenChange }: LogTimeSheetProps) {
         <FxSheetFooter>
           <span className="text-muted-foreground text-[12px]">
             Saved as a{' '}
-            <strong className="text-foreground font-semibold">Draft</strong> —
+            <strong className="text-foreground font-semibold">Draft</strong>
             submit for approval later.
           </span>
 

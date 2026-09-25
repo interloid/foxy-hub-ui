@@ -1,5 +1,6 @@
 import type { FooterProps } from '@/components/layout/app-footer'
 import type { NavSection } from '@/components/layout/app-sidebar'
+import type { UserRole } from '@/lib/role'
 
 export function getNavSections(org: string): NavSection[] {
   const prefix = org ? `/${org}` : ''
@@ -7,18 +8,28 @@ export function getNavSections(org: string): NavSection[] {
   return [
     {
       items: [
-        { label: 'Dashboard', icon: 'dashboard', href: `${prefix}` },
+        {
+          label: 'Dashboard',
+          icon: 'dashboard',
+          href: `${prefix}`,
+          exact: true,
+        },
         { label: 'Projects', icon: 'projects', href: `${prefix}/projects` },
         { label: 'Time', icon: 'time', href: `${prefix}/time` },
         { label: 'Invoices', icon: 'invoices', href: `${prefix}/invoices` },
-        { label: 'Reports', icon: 'reports', href: `${prefix}/reports` },
-        { label: 'AI updates', icon: 'ai', href: `${prefix}/ai-updates` },
+        { label: 'Reports', icon: 'reports', href: `#` },
+        { label: 'AI updates', icon: 'ai', href: `#` },
       ],
     },
     {
       label: 'Workspace',
       items: [
-        { label: 'Billing & plan', icon: 'billing', href: `${prefix}/billing` },
+        { label: 'Billing & plan', icon: 'billing', href: `#` },
+        {
+          label: 'People',
+          icon: 'user',
+          href: `${prefix}/people`,
+        },
         { label: 'Settings', icon: 'settings', href: `${prefix}/settings` },
         { label: 'Auth & demo', icon: 'auth', href: '/sign-in' },
       ],
@@ -26,8 +37,89 @@ export function getNavSections(org: string): NavSection[] {
   ]
 }
 
-export function withInvoiceCount(count: number = 0, org: string): NavSection[] {
-  const sections = getNavSections(org)
+export function getClientNavSections(org: string): NavSection[] {
+  const prefix = org ? `/portal/${org}` : '/portal'
+
+  return [
+    {
+      items: [
+        {
+          label: 'Dashboard',
+          icon: 'dashboard',
+          href: `${prefix}`,
+          exact: true,
+        },
+        { label: 'Projects', icon: 'projects', href: `${prefix}/projects` },
+      ],
+    },
+  ]
+}
+
+export function getClientFooter(org: string, orgName?: string): FooterProps {
+  const prefix = org ? `/portal/${org}` : '/portal'
+  const staff = getFooter(org, orgName)
+
+  return {
+    ...staff,
+    groups: [
+      {
+        title: 'Your workspace',
+        items: [
+          { label: 'Dashboard', href: `${prefix}` },
+          { label: 'Projects', href: `${prefix}/projects` },
+        ],
+      },
+      {
+        title: 'Resources',
+        items: [
+          { label: 'Support', href: '#' },
+          { label: 'Docs', href: '#' },
+        ],
+      },
+      {
+        title: 'Legal',
+        items: [
+          { label: 'Privacy', href: '#' },
+          { label: 'Terms', href: '#' },
+        ],
+      },
+    ],
+  }
+}
+
+const CONTRIBUTOR_NAV = ['Dashboard', 'Projects', 'Time'] as const
+
+const MANAGER_HIDDEN_NAV = ['Reports'] as const
+
+export function filterNavForRole(
+  sections: NavSection[],
+  role: UserRole | string | null | undefined
+): NavSection[] {
+  const normalized = role?.toLowerCase().trim()
+
+  const isVisible =
+    normalized === 'contributor'
+      ? (label: string) =>
+          (CONTRIBUTOR_NAV as readonly string[]).includes(label)
+      : normalized === 'manager'
+        ? (label: string) =>
+            !(MANAGER_HIDDEN_NAV as readonly string[]).includes(label)
+        : () => true
+
+  return sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => isVisible(item.label)),
+    }))
+    .filter((section) => section.items.length > 0)
+}
+
+export function withInvoiceCount(
+  count: number = 0,
+  org: string,
+  role?: UserRole | string | null
+): NavSection[] {
+  const sections = filterNavForRole(getNavSections(org), role)
   if (!count) return sections
 
   return sections.map((section) => ({
@@ -51,7 +143,7 @@ export function getFooter(org: string, orgName?: string): FooterProps {
       org: displayOrgName,
       year: new Date().getFullYear(),
       tagline:
-        'Projects, time and invoices in one workspace — for studios that bill by the hour.',
+        'Projects, time and invoices in one workspace for studios that bill by the hour.',
     },
     groups: [
       {
@@ -61,27 +153,27 @@ export function getFooter(org: string, orgName?: string): FooterProps {
           { label: 'Projects', href: `${prefix}/projects` },
           { label: 'Time', href: `${prefix}/time` },
           { label: 'Invoices', href: `${prefix}/invoices` },
-          { label: 'Reports', href: `${prefix}/reports` },
+          { label: 'Reports', href: `#` },
         ],
       },
       {
         title: 'Workspace',
         items: [
-          { label: 'Billing & plan', href: `${prefix}/billing` },
-          { label: 'Settings', href: `${prefix}/settings` },
-          { label: 'Profile', href: `${prefix}/profile` },
-          { label: 'AI updates', href: `${prefix}/ai-updates` },
+          { label: 'Billing & plan', href: `#` },
+          { label: 'Settings', href: `#` },
+          { label: 'Profile', href: `#` },
+          { label: 'AI updates', href: `#` },
         ],
       },
       {
         title: 'Resources',
         items: [
-          { label: 'Support', href: `${prefix}/support` },
-          { label: 'Docs', href: `${prefix}/docs` },
-          { label: 'Changelog', href: `${prefix}/changelog` },
+          { label: 'Support', href: `#` },
+          { label: 'Docs', href: `#` },
+          { label: 'Changelog', href: `#` },
           {
             label: 'Status',
-            href: 'https://status.interloid.co',
+            href: '#',
             external: true,
           },
         ],
@@ -89,10 +181,10 @@ export function getFooter(org: string, orgName?: string): FooterProps {
       {
         title: 'Legal',
         items: [
-          { label: 'Privacy', href: `${prefix}/privacy` },
-          { label: 'Terms', href: `${prefix}/terms` },
-          { label: 'Security', href: `${prefix}/security` },
-          { label: 'Cookies', href: `${prefix}/cookies` },
+          { label: 'Privacy', href: `#` },
+          { label: 'Terms', href: `#` },
+          { label: 'Security', href: `#` },
+          { label: 'Cookies', href: `#` },
         ],
       },
     ],
@@ -113,7 +205,7 @@ export function getFooter(org: string, orgName?: string): FooterProps {
     status: {
       label: 'All systems operational',
       tone: 'success',
-      href: `${prefix}/status`,
+      href: `#`,
     },
     meta: { version: `v${APP_VERSION}` },
   }

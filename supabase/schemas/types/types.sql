@@ -5,7 +5,22 @@ create type public.project_status as enum (
 
 create type public.roles as enum ('admin', 'user');
 
-create type public.user_role as enum ('owner', 'admin', 'member', 'client');
+-- The workspace privilege ladder, in order.
+--
+-- `primary_admin` and `contributor` were originally spelled `owner` and `member`; they were
+-- renamed in place with `alter type ... rename value`, which keeps each pg_enum row's OID, so
+-- no `memberships` or `invitations` row was rewritten and every stored policy expression
+-- followed automatically. See migrations/20260922150000_rename_user_role_values.sql.
+--
+-- `manager` sits between `admin` and `contributor`: it does everything an admin does EXCEPT
+-- billing. Concretely, manager is absent from exactly four places and present everywhere else —
+-- `08_rls_invoices` (insert/update), `18_rls_invoice_lines` (insert), `11_rls_subscriptions`
+-- (select) and `create_invoice_with_entries`. It still READS invoices, because the staff read
+-- policy is the same one `contributor` sits in.
+--
+-- `primary_admin` remains the only role that can delete a membership
+-- (`owners_can_delete_members`) and the only one that cannot be assigned through an invitation.
+create type public.user_role as enum ('primary_admin', 'admin', 'manager', 'contributor', 'client');
 
 CREATE TYPE public.delivery_status as enum (
   'pending',

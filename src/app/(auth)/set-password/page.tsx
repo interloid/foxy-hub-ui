@@ -5,6 +5,7 @@ import { AuthHeroPanel } from '@/components/shared/app/auth-hero-panel'
 import { SetPasswordForm } from '@/features/auth/components/set-password-form'
 import { AUTH_CARD_TAGLINE, AUTH_HERO, SIGN_IN } from '@/features/auth/data'
 import { verifySession } from '@/lib/dal'
+import { safeNextPath } from '@/lib/safe-redirect'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ export default async function SetPasswordPage({
 
   const { next, reset, forgot } = await searchParams
   const isReset = reset === '1' || forgot === '1'
-  const safeNext = next?.startsWith('/') && !next.startsWith('//') ? next : '/'
+  const safeNext = safeNextPath(next)
 
   return (
     <AuthLayout

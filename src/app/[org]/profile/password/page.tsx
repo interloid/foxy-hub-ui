@@ -1,5 +1,6 @@
 import { BackLink } from '@/components/shared/app/back-link'
 import { ChangePasswordForm } from '@/features/auth/components/change-password-form'
+import { PasswordTipsCard } from '@/features/auth/components/password-tips-card'
 import { CHANGE_PASSWORD } from '@/features/auth/data'
 import { getAccount } from '@/lib/dal'
 import { ChangePasswordSkeleton } from '@/skeleton/change-password'
@@ -21,7 +22,7 @@ export default async function ChangePasswordPage({
   const { org } = await params
 
   return (
-    <div className="mx-auto w-full max-w-130">
+    <div className="w-full">
       <BackLink asChild className="mb-3.5">
         <Link href={`/${org}/profile`}>{CHANGE_PASSWORD.back.label}</Link>
       </BackLink>
@@ -30,9 +31,12 @@ export default async function ChangePasswordPage({
         {CHANGE_PASSWORD.subtitle}
       </p>
 
-      <Suspense fallback={<ChangePasswordSkeleton />}>
-        <AsyncChangePasswordForm org={org} />
-      </Suspense>
+      <div className="grid items-start gap-5 lg:grid-cols-[1.3fr_1fr]">
+        <Suspense fallback={<ChangePasswordSkeleton />}>
+          <AsyncChangePasswordForm org={org} />
+        </Suspense>
+        <PasswordTipsCard />
+      </div>
     </div>
   )
 }
@@ -41,5 +45,5 @@ async function AsyncChangePasswordForm({ org }: { org: string }) {
   const account = await getAccount(org)
   if (!account) redirect('/sign-in?error=session_expired')
 
-  return <ChangePasswordForm org={org} />
+  return <ChangePasswordForm />
 }

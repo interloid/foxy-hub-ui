@@ -8,6 +8,20 @@ create table public.projects (
   start_date  date,
   start_from  text,
   due_date    timestamptz,
+  -- ── Who opened this project ───────────────────────────────────────────────────────────
+  --
+  -- Backs the "Owns N" figure on the People screen. There was no notion of project
+  -- ownership at all before this: the table could say who was ALLOCATED to a project
+  -- (`project_allocations`) but not whose project it was.
+  --
+  -- `on delete set null` rather than cascade — deleting the person must not delete the
+  -- project. A null here reads as "opened by someone no longer in the system", which is
+  -- also the honest value for every project created before this column existed.
+  --
+  -- Set by `create_project_with_allocations` from `auth.uid()`, never from the payload:
+  -- a caller-supplied creator is a caller-supplied lie.
+  created_by uuid references auth.users(id) on delete set null,
+
   created_at  timestamptz           not null    default now(),
   updated_at  timestamptz,
 
@@ -37,6 +51,20 @@ create table public.projects (
   retainer_period  public.retainer_period,
   retainer_amount  numeric(12, 2) check (retainer_amount is null or retainer_amount >= 0),
   retainer_overage numeric(4, 2)  check (retainer_overage is null or retainer_overage >= 0),
+
+  -- How big the job is thought to be, for a FIXED project.
+  --
+  -- Fixed work is scoped in HOURS, not dates: "this site build is about 80 hours". The other
+  -- three engagements can derive a duration from `due_date` and their allocations, but a fixed
+  -- fee has no rate to multiply by a span — so without this there is nothing to estimate a
+  -- price from, and nothing to compare the actual hours against once the work is done.
+  --
+  -- Nullable, and nullable even for `fixed`: a fee that was negotiated rather than estimated is
+  -- perfectly normal, and demanding an estimate to record it would be inventing one.
+  --
+  -- `numeric(8, 2)` rather than `retainer_hours`'s `(6, 2)`: a bucket is one period's worth and
+  -- fits in four digits, while a fixed project can legitimately run to tens of thousands.
+  estimated_hours  numeric(8, 2) check (estimated_hours is null or estimated_hours > 0),
 
   -- Why an over-commit was accepted. The design blocks Create when an allocation pushes
   -- someone past a working day and demands a reason to proceed — so this column is the audit

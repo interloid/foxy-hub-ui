@@ -64,5 +64,5 @@ export async function describeFunctionError(error: Error): Promise<string> {
   if (!(context instanceof Response)) return error.message
 
   const body = await context.text().catch(() => '')
-  return `${error.message} — HTTP ${context.status}${body ? ` ${body}` : ''}`
+  return `${error.message} HTTP ${context.status}${body ? ` ${body}` : ''}`
 }

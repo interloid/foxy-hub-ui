@@ -17,7 +17,6 @@ export const ONBOARD_ACCOUNT = {
     slug: {
       label: 'Workspace URL',
       placeholder: 'interloid',
-      suffix: '.foxyhub.app',
     },
   },
 } as const
@@ -91,8 +90,8 @@ export const ONBOARD_TEAM = {
   title: 'Invite your team',
   subtitle: 'Add teammates now, or skip and do it later from Settings.',
   placeholder: 'teammate@agency.com',
-  roles: ['Admin', 'Member'] as const,
-  initialRows: [{ role: 'Admin' }, { role: 'Member' }] as const,
+  roles: ['Admin', 'Manager', 'Contributor'] as const,
+  initialRows: [{ role: 'Admin' }, { role: 'Contributor' }] as const,
   addLabel: 'Add another',
 } as const
 

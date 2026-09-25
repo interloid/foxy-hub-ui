@@ -11,11 +11,11 @@ interface TeamCapacityProps {
 }
 
 const AVATAR_PALETTES = [
-  'bg-chart-1 text-white',
-  'bg-chart-2 text-white',
-  'bg-chart-3 text-white',
-  'bg-chart-4 text-white',
-  'bg-chart-5 text-white',
+  'bg-chart-1 text-brand-white',
+  'bg-chart-2 text-brand-white',
+  'bg-chart-3 text-brand-white',
+  'bg-chart-4 text-brand-white',
+  'bg-chart-5 text-brand-white',
   'bg-accent text-accent-foreground',
 ]
 

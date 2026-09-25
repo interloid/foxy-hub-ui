@@ -4,14 +4,14 @@ export const SIGN_IN = {
   brand: { name: 'Foxy HUB', mark: 'F' },
   title: 'Sign in to your workspace',
   subtitle:
-    'Manage projects, collaborate with clients, and get paid — all in one portal.',
+    'Manage projects, collaborate with clients, and get paid all in one portal.',
 
-  email: { label: 'Email', placeholder: 'you@agency.com' },
-  password: { label: 'Password' },
+  email: { label: 'Email', placeholder: 'Email address' },
+  password: { label: 'Password', placeholder: 'Password' },
   submit: 'Sign in',
   divider: 'or',
   demo: {
-    label: 'Log in as demo — no sign-up',
+    label: 'Log in as demo no sign-up',
     note: 'Demo drops you into a fully seeded agency in seconds. Test-mode Stripe; no real data.',
   },
 
@@ -46,10 +46,19 @@ export const CHANGE_PASSWORD = {
   cancel: 'Cancel',
   submit: 'Update password',
   saved: 'Password updated successfully.',
+  tips: {
+    title: 'What makes a password hold',
+    items: [
+      'Eight characters minimum, with letters and numbers mixed in.',
+      'Not reused from another tool — a leak elsewhere should not reach client work.',
+      'Changing it signs out every other device on this account.',
+    ],
+    note: 'Client portal contacts manage their own passwords from the portal, not here.',
+  },
 } as const
 
 export const AUTH_CARD_TAGLINE =
-  'Projects, approvals & invoices — one polished client portal.'
+  'Projects, approvals & invoices one polished client portal.'
 
 export type AuthHeroPoint = { icon: NavIconName; label: string }
 
@@ -62,7 +71,7 @@ export const AUTH_HERO = {
   },
   eyebrow: 'The agency client portal',
   headline:
-    'One polished place for projects, approvals, and invoices — so clients see exactly where things stand.',
+    'One polished place for projects, approvals, and invoices so clients see exactly where things stand.',
   points: [
     { icon: 'approvals', label: 'Real-time approvals & updates' },
     { icon: 'invoices', label: 'Stripe subscriptions & invoices' },

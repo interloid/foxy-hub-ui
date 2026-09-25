@@ -15,12 +15,13 @@ create policy "staff_view_project_allocations"
     exists (
       select 1 from public.projects p
       where p.id = project_allocations.project_id
-        and public.has_org_role(p.org_id, array['owner', 'admin', 'member']::public.user_role[])
+        and public.has_org_role(p.org_id, array['primary_admin', 'admin', 'manager', 'contributor']::public.user_role[])
     )
   );
 
--- Owners/admins write. Members can SEE the plan — they need to know what they are booked on —
--- but staffing somebody is an admin act, the same division `owners_admins_insert_projects`
+-- Primary admins, admins and managers write. Contributors can SEE the plan — they need to know
+-- what they are booked on — but staffing somebody is an admin act, the same division
+-- `owners_admins_insert_projects`
 -- draws on the parent row.
 --
 -- `for all` covers insert, update and delete in one policy: the three answer identically here,
@@ -33,13 +34,13 @@ create policy "owners_admins_write_project_allocations"
     exists (
       select 1 from public.projects p
       where p.id = project_allocations.project_id
-        and public.has_org_role(p.org_id, array['owner', 'admin']::public.user_role[])
+        and public.has_org_role(p.org_id, array['primary_admin', 'admin', 'manager']::public.user_role[])
     )
   )
   with check (
     exists (
       select 1 from public.projects p
       where p.id = project_allocations.project_id
-        and public.has_org_role(p.org_id, array['owner', 'admin']::public.user_role[])
+        and public.has_org_role(p.org_id, array['primary_admin', 'admin', 'manager']::public.user_role[])
     )
   );

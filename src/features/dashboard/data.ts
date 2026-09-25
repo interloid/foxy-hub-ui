@@ -1,7 +1,7 @@
-import { getDashboardMetrics } from '@/lib/dal'
+import { getDashboardMetrics, getFormatter, getUserTimeZone } from '@/lib/dal'
+import { startOfWeekIn } from '@/lib/date'
 import { initialsOf } from '@/lib/initials'
 import { createClient } from '@/lib/supabase/server'
-import { getStartOfWeekISO } from '@/lib/week'
 import { notFound } from 'next/navigation'
 import {
   ActiveProject,
@@ -16,6 +16,7 @@ export async function getDashboardData(
   orgSlug: string
 ): Promise<DashboardData> {
   const supabase = await createClient()
+  const fmt = await getFormatter()
 
   // 1. Authenticate user
   const {
@@ -66,7 +67,7 @@ export async function getDashboardData(
   }
 
   const org = membership.organization
-  const role: UserRole = (membership.role as UserRole) ?? 'member'
+  const role: UserRole = (membership.role as UserRole) ?? 'contributor'
 
   const metrics = await getDashboardMetrics(orgSlug)
   if (!metrics) {
@@ -96,11 +97,13 @@ export async function getDashboardData(
 
     supabase
       .from('deliveries')
-      .select('id, title, status, projects!inner(name, clients(name))')
+      .select(
+        'id, title, status, project_id, due_date, projects!inner(name, clients(name))'
+      )
       .eq('org_id', org.id)
       .in('status', ['pending', 'submitted'])
       .order('created_at', { ascending: false })
-      .limit(4),
+      .limit(5),
 
     supabase
       .from('activity_events')
@@ -146,7 +149,7 @@ export async function getDashboardData(
       client: clientName,
       status: p.status,
       progress: STATUS_PROGRESS_MAP[p.status] ?? '0',
-      value: val > 0 ? `$${val.toLocaleString()}` : '—',
+      value: val > 0 ? `$${fmt.number(val)}` : '—',
     }
   })
 
@@ -163,8 +166,9 @@ export async function getDashboardData(
       id: d.id,
       name: d.title,
       project: projObj?.name || 'General',
+      projectId: d.project_id,
       client: clientName,
-      ext: 'DEL',
+      dueDate: d.due_date,
     }
   })
 
@@ -178,10 +182,7 @@ export async function getDashboardData(
     let timeLabel = `${diffHours}h ago`
     if (diffHours >= 24 && diffHours < 48) timeLabel = 'Yesterday'
     else if (diffHours >= 48) {
-      timeLabel = createdDate.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      })
+      timeLabel = fmt.date(createdDate, 'day')
     }
 
     return {
@@ -209,7 +210,7 @@ export async function getDashboardData(
     .from('time_entries')
     .select('user_id, duration_minutes, projects!inner(org_id)')
     .eq('projects.org_id', org.id)
-    .gte('work_date', getStartOfWeekISO())
+    .gte('work_date', startOfWeekIn(await getUserTimeZone()))
     .in('user_id', memberUserIds.length > 0 ? memberUserIds : [user.id])
 
   const dailyCapacity = org.daily_capacity_hours ?? 8
@@ -281,7 +282,7 @@ export async function getDashboardData(
       },
       {
         label: 'Outstanding',
-        value: formatCurrency(metrics.outstandingAmount, metrics.currency),
+        value: fmt.currency(metrics.outstandingAmount, metrics.currency),
         delta: `${metrics.overdueInvoices} overdue`,
         deltaType: 'destructive',
         iconType: 'destructive',
@@ -289,7 +290,7 @@ export async function getDashboardData(
       },
       {
         label: 'Studio MRR',
-        value: formatCurrency(metrics.mrrCents / 100, metrics.currency),
+        value: fmt.currency(metrics.mrrCents / 100, metrics.currency),
         delta: `${metrics.activeSeats} seats active`,
         icon: 'external',
         iconType: 'success',
@@ -309,12 +310,4 @@ export async function getDashboardData(
       renewsAt: subscription?.current_period_end || null,
     },
   }
-}
-
-function formatCurrency(amount: number, currency = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount)
 }

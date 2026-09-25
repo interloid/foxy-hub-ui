@@ -7,6 +7,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Switch } from '@/components/ui/switch'
 import {
   Tooltip,
   TooltipContent,
@@ -31,11 +32,30 @@ export function ThemeToggle({
   variant = 'dropdown',
 }: {
   className?: string
-  variant?: 'dropdown' | 'segmented' | 'button' | 'icon'
+  variant?: 'dropdown' | 'segmented' | 'button' | 'icon' | 'switch'
 }) {
   const { theme, resolvedTheme, setTheme } = useTheme()
 
   const next = resolvedTheme === 'dark' ? 'light' : 'dark'
+
+  if (variant === 'switch') {
+    const isDark = resolvedTheme === 'dark'
+    const label = isDark ? 'Dark' : 'Light'
+
+    return (
+      <>
+        <span className="text-muted-foreground text-[14px]">
+          {theme === 'system' ? `System · ${label}` : label}
+        </span>
+        <Switch
+          aria-label="Dark appearance"
+          className={className}
+          checked={isDark}
+          onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+        />
+      </>
+    )
+  }
 
   if (variant === 'dropdown') {
     const current =

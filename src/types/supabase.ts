@@ -7,8 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: '14.5'
   }
@@ -104,6 +102,9 @@ export type Database = {
           id: string
           name: string
           org_id: string
+          portal: boolean
+          status: boolean
+          stripe_customer_id: string | null
         }
         Insert: {
           contact_email?: string | null
@@ -112,6 +113,9 @@ export type Database = {
           id?: string
           name: string
           org_id: string
+          portal?: boolean
+          status?: boolean
+          stripe_customer_id?: string | null
         }
         Update: {
           contact_email?: string | null
@@ -120,6 +124,9 @@ export type Database = {
           id?: string
           name?: string
           org_id?: string
+          portal?: boolean
+          status?: boolean
+          stripe_customer_id?: string | null
         }
         Relationships: [
           {
@@ -134,9 +141,12 @@ export type Database = {
       deliveries: {
         Row: {
           approved_at: string | null
+          author_id: string | null
           created_at: string
           description: string | null
           due_date: string | null
+          file_size: string | null
+          file_type: string | null
           id: string
           milestone_id: string | null
           org_id: string
@@ -146,9 +156,12 @@ export type Database = {
         }
         Insert: {
           approved_at?: string | null
+          author_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
+          file_size?: string | null
+          file_type?: string | null
           id?: string
           milestone_id?: string | null
           org_id: string
@@ -158,9 +171,12 @@ export type Database = {
         }
         Update: {
           approved_at?: string | null
+          author_id?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
+          file_size?: string | null
+          file_type?: string | null
           id?: string
           milestone_id?: string | null
           org_id?: string
@@ -169,6 +185,13 @@ export type Database = {
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'deliveries_author_id_fkey'
+            columns: ['author_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'deliveries_milestone_id_fkey'
             columns: ['milestone_id']
@@ -227,6 +250,7 @@ export type Database = {
           expires_at: string
           id: string
           invited_by: string | null
+          job_title: string | null
           org_id: string
           project_id: string | null
           role: Database['public']['Enums']['user_role']
@@ -240,6 +264,7 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string | null
+          job_title?: string | null
           org_id: string
           project_id?: string | null
           role: Database['public']['Enums']['user_role']
@@ -253,6 +278,7 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string | null
+          job_title?: string | null
           org_id?: string
           project_id?: string | null
           role?: Database['public']['Enums']['user_role']
@@ -275,6 +301,47 @@ export type Database = {
           },
         ]
       }
+      invoice_lines: {
+        Row: {
+          amount: number
+          description: string
+          id: string
+          invoice_id: string
+          quantity: number | null
+          sort_order: number
+          type_label: string
+          unit_rate: number | null
+        }
+        Insert: {
+          amount: number
+          description: string
+          id?: string
+          invoice_id: string
+          quantity?: number | null
+          sort_order?: number
+          type_label: string
+          unit_rate?: number | null
+        }
+        Update: {
+          amount?: number
+          description?: string
+          id?: string
+          invoice_id?: string
+          quantity?: number | null
+          sort_order?: number
+          type_label?: string
+          unit_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'invoice_lines_invoice_id_fkey'
+            columns: ['invoice_id']
+            isOneToOne: false
+            referencedRelation: 'invoices'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       invoices: {
         Row: {
           amount: number
@@ -288,8 +355,11 @@ export type Database = {
           org_id: string
           paid_at: string | null
           payment_intent: string | null
+          period_end: string | null
+          period_start: string | null
           project_id: string
           status: Database['public']['Enums']['invoice_status']
+          stripe_invoice_id: string | null
           subtotal: number
           tax_amount: number
         }
@@ -305,8 +375,11 @@ export type Database = {
           org_id: string
           paid_at?: string | null
           payment_intent?: string | null
+          period_end?: string | null
+          period_start?: string | null
           project_id: string
           status?: Database['public']['Enums']['invoice_status']
+          stripe_invoice_id?: string | null
           subtotal?: number
           tax_amount?: number
         }
@@ -322,8 +395,11 @@ export type Database = {
           org_id?: string
           paid_at?: string | null
           payment_intent?: string | null
+          period_end?: string | null
+          period_start?: string | null
           project_id?: string
           status?: Database['public']['Enums']['invoice_status']
+          stripe_invoice_id?: string | null
           subtotal?: number
           tax_amount?: number
         }
@@ -346,24 +422,36 @@ export type Database = {
       }
       memberships: {
         Row: {
+          cost_rate: number | null
           created_at: string
+          default_rate: number | null
           id: string
+          job_title: string | null
           org_id: string
           role: Database['public']['Enums']['user_role']
+          status: boolean
           user_id: string
         }
         Insert: {
+          cost_rate?: number | null
           created_at?: string
+          default_rate?: number | null
           id?: string
+          job_title?: string | null
           org_id: string
           role: Database['public']['Enums']['user_role']
+          status?: boolean
           user_id: string
         }
         Update: {
+          cost_rate?: number | null
           created_at?: string
+          default_rate?: number | null
           id?: string
+          job_title?: string | null
           org_id?: string
           role?: Database['public']['Enums']['user_role']
+          status?: boolean
           user_id?: string
         }
         Relationships: [
@@ -420,6 +508,7 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          payment_terms_days: number
           rounding_minutes: number
           slug: string
           user_id: string | null
@@ -433,6 +522,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          payment_terms_days?: number
           rounding_minutes?: number
           slug: string
           user_id?: string | null
@@ -446,6 +536,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          payment_terms_days?: number
           rounding_minutes?: number
           slug?: string
           user_id?: string | null
@@ -509,6 +600,7 @@ export type Database = {
       }
       project_allocations: {
         Row: {
+          cost_rate: number | null
           created_at: string
           days_per_week: number
           effective_from: string
@@ -520,6 +612,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cost_rate?: number | null
           created_at?: string
           days_per_week?: number
           effective_from: string
@@ -531,6 +624,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cost_rate?: number | null
           created_at?: string
           days_per_week?: number
           effective_from?: string
@@ -557,9 +651,11 @@ export type Database = {
           client_org_id: string | null
           contract_value: number | null
           created_at: string
+          created_by: string | null
           description: string | null
           due_date: string | null
           engagement: Database['public']['Enums']['engagement_model']
+          estimated_hours: number | null
           id: string
           name: string
           org_id: string
@@ -578,9 +674,11 @@ export type Database = {
           client_org_id?: string | null
           contract_value?: number | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           engagement?: Database['public']['Enums']['engagement_model']
+          estimated_hours?: number | null
           id?: string
           name: string
           org_id: string
@@ -600,9 +698,11 @@ export type Database = {
           client_org_id?: string | null
           contract_value?: number | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           engagement?: Database['public']['Enums']['engagement_model']
+          estimated_hours?: number | null
           id?: string
           name?: string
           org_id?: string
@@ -718,6 +818,7 @@ export type Database = {
           description: string
           duration_minutes: number
           id: string
+          invoice_id: string | null
           milestone_id: string | null
           project_id: string
           status: Database['public']['Enums']['time_entry_status']
@@ -729,6 +830,7 @@ export type Database = {
           description: string
           duration_minutes: number
           id?: string
+          invoice_id?: string | null
           milestone_id?: string | null
           project_id: string
           status?: Database['public']['Enums']['time_entry_status']
@@ -740,6 +842,7 @@ export type Database = {
           description?: string
           duration_minutes?: number
           id?: string
+          invoice_id?: string | null
           milestone_id?: string | null
           project_id?: string
           status?: Database['public']['Enums']['time_entry_status']
@@ -747,6 +850,13 @@ export type Database = {
           work_date?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'time_entries_invoice_id_fkey'
+            columns: ['invoice_id']
+            isOneToOne: false
+            referencedRelation: 'invoices'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'time_entries_milestone_id_fkey'
             columns: ['milestone_id']
@@ -795,15 +905,103 @@ export type Database = {
           },
         ]
       }
+      user_preferences: {
+        Row: {
+          created_at: string
+          last_device_time_zone: string | null
+          locale: string
+          theme: string | null
+          time_zone: string | null
+          updated_at: string
+          user_id: string
+          weekly_digest: boolean
+        }
+        Insert: {
+          created_at?: string
+          last_device_time_zone?: string | null
+          locale?: string
+          theme?: string | null
+          time_zone?: string | null
+          updated_at?: string
+          user_id: string
+          weekly_digest?: boolean
+        }
+        Update: {
+          created_at?: string
+          last_device_time_zone?: string | null
+          locale?: string
+          theme?: string | null
+          time_zone?: string | null
+          updated_at?: string
+          user_id?: string
+          weekly_digest?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_preferences_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      user_sessions: {
+        Row: {
+          city: string | null
+          country: string | null
+          created_at: string
+          last_seen_at: string
+          session_id: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          last_seen_at?: string
+          session_id: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          last_seen_at?: string
+          session_id?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       approve_time_entry: { Args: { entry_id: string }; Returns: undefined }
+      check_email_exists: { Args: { p_email: string }; Returns: boolean }
+      create_invoice_with_entries: {
+        Args: { entry_ids?: string[]; invoice_data: Json }
+        Returns: string
+      }
       create_project_with_allocations: {
         Args: { allocations_data?: Json; project_data: Json }
         Returns: string
+      }
+      create_time_entry_with_capacity_check: {
+        Args: {
+          p_description: string
+          p_duration_minutes: number
+          p_milestone_id: string
+          p_org_id: string
+          p_project_id: string
+          p_user_id: string
+          p_work_date: string
+        }
+        Returns: Json
       }
       current_user_orgs: { Args: never; Returns: string[] }
       has_org_role: {
@@ -815,12 +1013,67 @@ export type Database = {
       }
       is_org_member: { Args: { target_org_id: string }; Returns: boolean }
       is_slug_available: { Args: { candidate: string }; Returns: boolean }
+      list_my_sessions: {
+        Args: never
+        Returns: {
+          city: string
+          country: string
+          created_at: string
+          is_current: boolean
+          last_seen_at: string
+          session_id: string
+          user_agent: string
+        }[]
+      }
+      reject_time_entry: { Args: { entry_id: string }; Returns: undefined }
+      revoke_my_session: {
+        Args: { target_session_id: string }
+        Returns: undefined
+      }
+      revoke_user_sessions: { Args: { p_user_id: string }; Returns: undefined }
+      set_member_rates: {
+        Args: {
+          new_cost_rate?: number
+          new_default_rate?: number
+          target_org_id: string
+          target_user_id: string
+        }
+        Returns: undefined
+      }
       submit_time_entry: { Args: { entry_id: string }; Returns: undefined }
+      touch_my_session: {
+        Args: { p_city: string; p_country: string; p_user_agent: string }
+        Returns: undefined
+      }
+      transfer_primary_admin: {
+        Args: { target_membership_id: string }
+        Returns: undefined
+      }
       update_delivery_status: {
         Args: {
           p_delivery_id: string
           p_project_id: string
           p_status: Database['public']['Enums']['delivery_status']
+        }
+        Returns: undefined
+      }
+      update_membership_details: {
+        Args: {
+          new_full_name?: string
+          new_job_title?: string
+          new_role?: Database['public']['Enums']['user_role']
+          target_membership_id: string
+        }
+        Returns: undefined
+      }
+      update_workspace_settings: {
+        Args: {
+          new_currency?: string
+          new_daily_capacity_hours?: number
+          new_days_per_week?: number
+          new_name?: string
+          new_rounding_minutes?: number
+          target_org_id: string
         }
         Returns: undefined
       }
@@ -852,7 +1105,8 @@ export type Database = {
         | 'unpaid'
         | 'paused'
       time_entry_status: 'draft' | 'submitted' | 'approved' | 'rejected'
-      user_role: 'owner' | 'admin' | 'member' | 'client'
+      user_role:
+        'primary_admin' | 'admin' | 'manager' | 'contributor' | 'client'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1008,7 +1262,7 @@ export const Constants = {
         'paused',
       ],
       time_entry_status: ['draft', 'submitted', 'approved', 'rejected'],
-      user_role: ['owner', 'admin', 'member', 'client'],
+      user_role: ['primary_admin', 'admin', 'manager', 'contributor', 'client'],
     },
   },
 } as const

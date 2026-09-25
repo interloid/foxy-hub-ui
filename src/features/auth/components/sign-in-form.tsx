@@ -34,6 +34,24 @@ export function SignInForm({ initialError }: { initialError?: string }) {
     }
   }, [initialError])
 
+  // Supabase reports link failures in the URL fragment, which never reaches the
+  // server, so without this the page just looks like an ordinary sign-in.
+  useEffect(() => {
+    if (!window.location.hash.includes('error')) return
+
+    const params = new URLSearchParams(window.location.hash.slice(1))
+
+    toast.error(
+      params.get('error_description') || 'That link is invalid or has expired.'
+    )
+
+    history.replaceState(
+      null,
+      '',
+      window.location.pathname + window.location.search
+    )
+  }, [])
+
   const form = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
     mode: 'onTouched',
@@ -44,7 +62,12 @@ export function SignInForm({ initialError }: { initialError?: string }) {
   const hasErrors = Object.keys(form.formState.errors).length > 0
 
   const run = (
-    fn: () => Promise<{ ok: boolean; error?: string; redirectTo?: string }>
+    fn: () => Promise<{
+      ok: boolean
+      error?: string
+      redirectTo?: string
+      mfaRequired?: boolean
+    }>
   ) => {
     startTransition(async () => {
       try {
@@ -53,7 +76,8 @@ export function SignInForm({ initialError }: { initialError?: string }) {
           toast.error(result.error ?? 'An error occurred')
           return
         }
-        toast.success('Logged in successfully')
+        // With 2FA the sign-in is not finished yet — the code page shows this toast.
+        if (!result.mfaRequired) toast.success('Logged in successfully')
         if (result.redirectTo) {
           router.push(result.redirectTo)
         }
@@ -111,6 +135,7 @@ export function SignInForm({ initialError }: { initialError?: string }) {
             <FxInput
               id="password"
               type={showPassword ? 'text' : 'password'}
+              placeholder={SIGN_IN.password.placeholder}
               autoComplete="current-password"
               aria-invalid={
                 Boolean(form.formState.errors.password) || undefined
@@ -154,16 +179,27 @@ export function SignInForm({ initialError }: { initialError?: string }) {
           <div className="bg-border h-px flex-1" />
         </div>
 
-        <FxButton
-          type="button"
-          variant="outline"
-          className="bg-card text-md h-11 w-full rounded-lg px-4"
-          disabled={pending}
-          onClick={() => run(signInAsDemo)}
-        >
-          <NAV_ICONS.zap className="text-primary size-4.25" strokeWidth={1.7} />
-          {SIGN_IN.demo.label}
-        </FxButton>
+        <div className="contents md:flex md:w-full md:gap-3">
+          <FxButton
+            type="button"
+            variant="outline"
+            className="bg-card text-md h-11 w-full rounded-lg px-4 md:min-w-0 md:flex-1"
+            disabled={pending}
+            onClick={() => run(signInAsDemo)}
+          >
+            Log in as admin
+          </FxButton>
+
+          <FxButton
+            type="button"
+            variant="outline"
+            className="bg-card text-md h-11 w-full rounded-lg px-4 md:min-w-0 md:flex-1"
+            disabled={pending}
+            onClick={() => run(signInAsDemo)}
+          >
+            Log in as client
+          </FxButton>
+        </div>
       </form>
 
       <p className="text-subtle-foreground mt-6 text-sm">{SIGN_IN.demo.note}</p>

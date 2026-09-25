@@ -21,6 +21,18 @@ const serverEnvSchema = z.object({
     .enum(['development', 'preview', 'production'])
     .optional()
     .or(z.literal('')),
+
+  UPSTASH_REDIS_REST_URL: z
+    .string()
+    .min(1, 'UPSTASH_REDIS_REST_URL is required'),
+  UPSTASH_REDIS_REST_TOKEN: z
+    .string()
+    .min(1, 'UPSTASH_REDIS_REST_TOKEN is required'),
+
+  // Signs the weekly digest's unsubscribe links. Must equal the weekly-digest Edge
+  // Function's DIGEST_UNSUBSCRIBE_SECRET. Optional so the app still boots without it —
+  // unsubscribe links are then rejected rather than trusted.
+  DIGEST_UNSUBSCRIBE_SECRET: z.string().optional().or(z.literal('')),
 })
 
 export const serverEnv = serverEnvSchema.parse({
@@ -33,6 +45,9 @@ export const serverEnv = serverEnvSchema.parse({
   SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
   VERCEL_ENV: process.env.VERCEL_ENV,
   NODE_ENV: process.env.NODE_ENV,
+  UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+  UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+  DIGEST_UNSUBSCRIBE_SECRET: process.env.DIGEST_UNSUBSCRIBE_SECRET,
 })
 
 export const isDemoModeEnabled = (): boolean => {
