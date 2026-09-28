@@ -165,6 +165,8 @@ export async function changePlanAction(
 export type PlanChangePreview = {
   newPrice: number
   credit: number
+  /** Existing account credit Stripe applies to this invoice. */
+  accountCredit: number
   dueNow: number
   leftoverCredit: number
   currency: string

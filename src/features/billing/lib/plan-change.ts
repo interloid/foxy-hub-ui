@@ -10,6 +10,7 @@ export type PlanChangeQuote =
       cycle: BillingCycle
       newPrice: number
       credit: number
+      accountCredit: number
       dueNow: number
       leftoverCredit: number
       renewsAt: string
@@ -82,12 +83,14 @@ export function quotePlanChange({
   plans,
   target,
   cycle,
+  accountCredit = 0,
   today = new Date(),
 }: {
   current: BillingPlan
   plans: PlanOption[]
   target: PlanOption
   cycle: BillingCycle
+  accountCredit?: number
   today?: Date
 }): PlanChangeQuote {
   const currentOption = plans.find((p) => p.id === current.planId)
@@ -111,13 +114,18 @@ export function quotePlanChange({
   }
 
   const credit = unusedCredit(current, today)
+  const afterUnused = newPrice - credit
+  const appliedAccountCredit = cents(
+    Math.min(Math.max(accountCredit, 0), Math.max(afterUnused, 0))
+  )
   return {
     timing,
     target,
     cycle,
     newPrice,
     credit,
-    dueNow: cents(Math.max(newPrice - credit, 0)),
+    accountCredit: appliedAccountCredit,
+    dueNow: cents(Math.max(afterUnused - appliedAccountCredit, 0)),
     leftoverCredit: cents(Math.max(credit - newPrice, 0)),
     renewsAt: addPeriod(toUtcDay(today.toISOString()), cycle),
     downgrade: target.rank < (currentOption?.rank ?? 0),

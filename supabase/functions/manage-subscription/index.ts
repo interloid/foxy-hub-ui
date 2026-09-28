@@ -302,6 +302,10 @@ serve(async (req) => {
         preview: {
           newPrice: charge / 100,
           credit: credit / 100,
+          // Credit already on the account (e.g. left over from a yearly plan) that Stripe
+          // takes off this invoice: the difference between its total and what is due.
+          accountCredit:
+            Math.max(upcoming.total - upcoming.amount_due, 0) / 100,
           // After any credit already on the account.
           dueNow: upcoming.amount_due / 100,
           leftoverCredit: Math.max(-upcoming.total, 0) / 100,

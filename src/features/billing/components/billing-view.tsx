@@ -180,6 +180,7 @@ export function BillingView({
         current={plan}
         plans={data.plans}
         orgSlug={orgSlug}
+        accountCredit={data.credit?.amount ?? 0}
         onConfirm={applyChange}
       />
 

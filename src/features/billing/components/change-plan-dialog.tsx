@@ -37,6 +37,7 @@ export function ChangePlanDialog({
   current,
   plans,
   orgSlug,
+  accountCredit = 0,
   onConfirm,
 }: {
   open: boolean
@@ -44,7 +45,7 @@ export function ChangePlanDialog({
   current: BillingPlan
   plans: PlanOption[]
   orgSlug: string
-
+  accountCredit?: number
   onConfirm: (
     quote: Quote,
     requestId: string,
@@ -209,6 +210,7 @@ export function ChangePlanDialog({
                         plans,
                         target: selected.target,
                         cycle: 'yearly',
+                        accountCredit,
                       })
                       if (yearly.timing === 'none') return
                       setCycle('yearly')
@@ -239,6 +241,16 @@ export function ChangePlanDialog({
                     {checking ? '…' : `-${exact(amounts!.credit)}`}
                   </span>
                 </div>
+                {amounts!.accountCredit > 0 && (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">
+                      Account credit
+                    </span>
+                    <span className="text-success">
+                      {checking ? '…' : `-${exact(amounts!.accountCredit)}`}
+                    </span>
+                  </div>
+                )}
                 <div className="border-border flex items-center justify-between gap-3 border-t pt-2.5">
                   <span className="text-foreground font-semibold">
                     Due today
@@ -325,6 +337,7 @@ export function ChangePlanDialog({
                   plans,
                   target: plan,
                   cycle,
+                  accountCredit,
                 })
                 const isUpcoming =
                   current.upcoming?.planId === plan.id &&
