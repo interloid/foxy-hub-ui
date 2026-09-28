@@ -71,6 +71,7 @@ export async function getMembersClientsData(
     clientsRes,
     clientProjectsRes,
     allocationsRes,
+    clientMembersRes,
   ] = await Promise.all([
     supabase
       .from('memberships')
@@ -105,6 +106,13 @@ export async function getMembersClientsData(
       .from('project_allocations')
       .select('project_id, user_id, effective_to, projects!inner(org_id)')
       .eq('projects.org_id', orgId),
+
+    // Portal logins, so a client company can show its contact's profile photo.
+    supabase
+      .from('memberships')
+      .select('user_id')
+      .eq('org_id', orgId)
+      .eq('role', 'client'),
   ])
 
   required(membershipsRes, 'team members')
@@ -112,19 +120,23 @@ export async function getMembersClientsData(
   required(clientsRes, 'clients')
   required(clientProjectsRes, 'projects')
   required(allocationsRes, 'project allocations')
+  required(clientMembersRes, 'client logins')
 
   const memberships = membershipsRes.data ?? []
   const userIds = memberships.map((m) => m.user_id)
+  const clientUserIds = (clientMembersRes.data ?? []).map((m) => m.user_id)
+  const allUserIds = [...userIds, ...clientUserIds]
 
   const [profilesRes, authProfiles] = await Promise.all([
-    supabase.from('profiles').select('id, full_name').in('id', userIds),
-    getAuthProfiles(userIds),
+    supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url')
+      .in('id', allUserIds),
+    getAuthProfiles(allUserIds),
   ])
   required(profilesRes, 'profiles')
 
-  const profileMap = new Map(
-    (profilesRes.data ?? []).map((p) => [p.id, p.full_name])
-  )
+  const profileMap = new Map((profilesRes.data ?? []).map((p) => [p.id, p]))
   const today = new Date().toISOString().slice(0, 10)
   const allocatedProjects = new Map<string, Set<string>>()
   for (const row of allocationsRes.data ?? []) {
@@ -151,7 +163,8 @@ export async function getMembersClientsData(
   const members: PersonRow[] = memberships.map((membership) => {
     // The placeholder is for display only. It used to be the form's starting value too,
     // so saving any change wrote "Unnamed teammate" into the real profile (RISK-006).
-    const savedName = profileMap.get(membership.user_id)?.trim() || null
+    const profile = profileMap.get(membership.user_id)
+    const savedName = profile?.full_name?.trim() || null
     const auth = authProfiles.get(membership.user_id)
 
     return {
@@ -174,6 +187,7 @@ export async function getMembersClientsData(
         allocatedProjects.get(membership.user_id)?.size ?? 0,
       ownedProjectCount: ownedProjects.get(membership.user_id) ?? 0,
       jobTitle: membership.job_title,
+      avatarUrl: profile?.avatar_url ?? null,
     }
   })
 
@@ -201,6 +215,15 @@ export async function getMembersClientsData(
       new Date(row.expires_at).getTime() > now
   ).length
 
+  // Contact email → that portal login's photo. A company's contact is plain text, not a
+  // user id, so the email is the only link between the two.
+  const clientAvatarByEmail = new Map<string, string>()
+  for (const userId of clientUserIds) {
+    const email = authProfiles.get(userId)?.email?.toLowerCase()
+    const avatarUrl = profileMap.get(userId)?.avatar_url
+    if (email && avatarUrl) clientAvatarByEmail.set(email, avatarUrl)
+  }
+
   const clients: ClientCompanyRow[] = (clientsRes.data ?? []).map((client) => ({
     id: client.id,
     name: client.name,
@@ -209,6 +232,9 @@ export async function getMembersClientsData(
     projectCount: projectCounts.get(client.id) ?? 0,
     isActive: client.status,
     hasPortal: client.portal,
+    avatarUrl: client.contact_email
+      ? (clientAvatarByEmail.get(client.contact_email.toLowerCase()) ?? null)
+      : null,
   }))
 
   return {
@@ -232,6 +258,11 @@ export interface SeatUsage {
   planName: string
   maxMembers: number | null
   used: number
+  upcoming: {
+    planName: string
+    maxMembers: number | null
+    effectiveAt: string | null
+  } | null
 }
 
 export interface ClientUsage {
@@ -250,7 +281,9 @@ async function getPlan(orgId: string) {
   const { data } = required(
     await supabase
       .from('subscriptions')
-      .select('plan:plans(name, features)')
+      .select(
+        'pending_change_at, plan:plans!subscriptions_plan_id_fkey(name, features), pending:plans!subscriptions_pending_plan_id_fkey(name, features)'
+      )
       .eq('org_id', orgId)
       .eq('status', 'active')
       .maybeSingle(),
@@ -259,15 +292,23 @@ async function getPlan(orgId: string) {
 
   const plan = data?.plan
   const planRow = Array.isArray(plan) ? plan[0] : plan
+  const pending = data?.pending
+  const pendingRow = Array.isArray(pending) ? pending[0] : pending
 
   return {
     name: planRow?.name || 'Free',
-    features: (planRow?.features ?? null) as {
-      max_members?: unknown
-      max_clients?: unknown
-    } | null,
+    features: (planRow?.features ?? null) as PlanFeatures | null,
+    pending: pendingRow
+      ? {
+          name: pendingRow.name,
+          features: (pendingRow.features ?? null) as PlanFeatures | null,
+          effectiveAt: data?.pending_change_at ?? null,
+        }
+      : null,
   }
 }
+
+type PlanFeatures = { max_members?: unknown; max_clients?: unknown }
 
 export async function getClientUsage(orgId: string): Promise<ClientUsage> {
   const supabase = await createClient()
@@ -319,6 +360,13 @@ export async function getSeatUsage(orgId: string): Promise<SeatUsage> {
     planName: plan.name,
     maxMembers: toLimit(plan.features?.max_members),
     used: (membersRes.count ?? 0) + (invitesRes.count ?? 0),
+    upcoming: plan.pending
+      ? {
+          planName: plan.pending.name,
+          maxMembers: toLimit(plan.pending.features?.max_members),
+          effectiveAt: plan.pending.effectiveAt,
+        }
+      : null,
   }
 }
 

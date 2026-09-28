@@ -1077,6 +1077,13 @@ begin
       using errcode = '42501';
   end if;
 
+  -- Only the primary admin makes admins.
+  if new_role = 'admin' and v_role <> 'admin'
+     and not public.has_org_role(v_org_id, array['primary_admin']::public.user_role[]) then
+    raise exception 'Only the primary admin can make someone an admin'
+      using errcode = '42501';
+  end if;
+
   -- Nobody changes their own role here.
   if v_user_id = auth.uid() and new_role <> v_role then
     raise exception 'You cannot change your own role' using errcode = '42501';
@@ -1382,6 +1389,11 @@ $$;
 -- No active subscription, or a limit of -1 / missing, means unlimited —
 -- the same as the app's toLimit().
 --
+-- Seats also respect a booked downgrade (`subscriptions.pending_plan_id`):
+-- the limit is the SMALLER of the current and upcoming plan, so the team
+-- cannot grow past what the plan it is moving to allows. Stripe applies
+-- the change on its own at renewal and would not stop for a full team.
+--
 -- Real users only. Internal work — the Stripe webhook creating the
 -- invitations chosen at sign-up, with the service role — has no
 -- auth.uid() and is not blocked here: a refusal there would fail the
@@ -1394,9 +1406,11 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_key   text;
-  v_limit integer;
-  v_used  integer;
+  v_key           text;
+  v_limit         integer;
+  v_pending_limit integer;
+  v_pending_name  text;
+  v_used          integer;
 begin
   if (select auth.uid()) is null then
     return new;
@@ -1431,15 +1445,26 @@ begin
     hashtextextended('plan-limit:' || v_key || ':' || new.org_id::text, 0)
   );
 
-  select nullif(p.features ->> v_key, '')::integer
-    into v_limit
+  select nullif(p.features ->> v_key, '')::integer,
+         nullif(pp.features ->> v_key, '')::integer,
+         pp.name
+    into v_limit, v_pending_limit, v_pending_name
     from public.subscriptions s
     join public.plans p on p.id = s.plan_id
+    left join public.plans pp on pp.id = s.pending_plan_id
    where s.org_id = new.org_id
      and s.status = 'active'
    limit 1;
 
-  if v_limit is null or v_limit < 0 then
+  -- Unlimited (null / -1) never tightens the limit.
+  if v_limit is not null and v_limit < 0 then
+    v_limit := null;
+  end if;
+  if v_key <> 'max_members' or v_pending_limit is null or v_pending_limit < 0 then
+    v_pending_limit := null;
+  end if;
+
+  if v_limit is null and v_pending_limit is null then
     return new;
   end if;
 
@@ -1456,7 +1481,15 @@ begin
           and i.role in ('primary_admin', 'admin', 'manager', 'contributor'))
       into v_used;
 
-    if v_used >= v_limit then
+    if v_pending_limit is not null
+       and v_used >= v_pending_limit
+       and (v_limit is null or v_pending_limit < v_limit) then
+      raise exception 'Your plan is changing to %, which has % seats, and they are all taken. Cancel the change or deactivate someone first.',
+        v_pending_name, v_pending_limit
+        using errcode = 'P0001';
+    end if;
+
+    if v_limit is not null and v_used >= v_limit then
       raise exception 'Your plan''s seats are all taken. Upgrade the plan or deactivate someone first.'
         using errcode = 'P0001';
     end if;

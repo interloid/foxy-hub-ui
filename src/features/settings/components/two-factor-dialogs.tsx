@@ -4,6 +4,7 @@ import { Copy, Loader2, X } from 'lucide-react'
 import { useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
+import { FX_DIALOG_CLOSE_CLASS } from '@/components/shared/fx-dialog-close'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxField, FxFieldError, FxLabel } from '@/components/shared/fx-field'
 import {
@@ -51,9 +52,9 @@ function DialogShell({
             goes through onOpenChange, so each dialog's cleanup still runs. */}
         <DialogClose
           aria-label="Close"
-          className="text-muted-foreground hover:text-foreground absolute top-3.5 right-3.5 flex size-7 cursor-pointer items-center justify-center rounded-md transition-colors"
+          className={cn(FX_DIALOG_CLOSE_CLASS, 'absolute top-3 right-3')}
         >
-          <X className="size-4" />
+          <X aria-hidden />
         </DialogClose>
         <div className="border-border space-y-2 border-b px-5 py-4 pr-12">
           <DialogTitle className="text-foreground text-[15.5px] font-semibold">

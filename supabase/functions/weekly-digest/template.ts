@@ -27,6 +27,8 @@ function money(amount: number, currency: string): string {
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
       currency,
+      // Plain "$", not en-GB's "US$".
+      currencyDisplay: 'narrowSymbol',
       maximumFractionDigits: 0,
     }).format(amount)
   } catch {

@@ -21,6 +21,7 @@ export function FxConfirmDialog({
   title,
   description,
   confirmLabel,
+  cancelLabel = 'Cancel',
   pendingLabel,
   onConfirm,
   destructive = true,
@@ -32,6 +33,8 @@ export function FxConfirmDialog({
   title: ReactNode
   description: ReactNode
   confirmLabel: string
+  /** The dismiss button. Rename it when "Cancel" would read as the action itself. */
+  cancelLabel?: string
   pendingLabel?: string
   onConfirm: () => void
   destructive?: boolean
@@ -71,7 +74,7 @@ export function FxConfirmDialog({
             className="bg-card hover:bg-card cursor-pointer p-4"
             disabled={isPending}
           >
-            Cancel
+            {cancelLabel}
           </AlertDialogCancel>
           <AlertDialogAction
             size="lg"

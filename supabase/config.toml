@@ -491,6 +491,15 @@ verify_jwt = true
 import_map = "./functions/issue-invoice/deno.json"
 entrypoint = "./functions/issue-invoice/index.ts"
 
+# The agency's own subscription (change plan, cancel an upcoming change, list charges).
+# Must stay true: it authorises the caller by reading their `subscriptions` row through
+# their own token, which only works if a real user token reaches it.
+[functions.manage-subscription]
+enabled = true
+verify_jwt = true
+import_map = "./functions/manage-subscription/deno.json"
+entrypoint = "./functions/manage-subscription/index.ts"
+
 [functions.invoice-overdue-handler]
 enabled = true
 verify_jwt = false

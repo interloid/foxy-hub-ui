@@ -1,0 +1,15 @@
+CREATE TYPE public.billing_payment_status AS ENUM ('pending', 'requires_action', 'paid', 'failed', 'refunded', 'partially_refunded', 'disputed', 'dispute_lost', 'void');
+CREATE TABLE public.billing_payments (id uuid DEFAULT gen_random_uuid() NOT NULL, org_id uuid NOT NULL, subscription_id uuid, plan_id uuid, stripe_invoice_id text NOT NULL, stripe_payment_intent_id text, stripe_charge_id text, billing_reason text, description text, amount_due_cents integer DEFAULT 0 NOT NULL, amount_paid_cents integer DEFAULT 0 NOT NULL, amount_refunded_cents integer DEFAULT 0 NOT NULL, currency text NOT NULL, status public.billing_payment_status NOT NULL, failure_code text, failure_message text, attempt_count integer DEFAULT 0 NOT NULL, next_attempt_at timestamp with time zone, hosted_invoice_url text, period_start timestamp with time zone, period_end timestamp with time zone, paid_at timestamp with time zone, failed_at timestamp with time zone, refunded_at timestamp with time zone, last_event_id text, last_event_at timestamp with time zone, created_at timestamp with time zone DEFAULT now() NOT NULL, updated_at timestamp with time zone DEFAULT now() NOT NULL);
+ALTER TABLE public.billing_payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.billing_payments ADD CONSTRAINT billing_payments_org_id_fkey FOREIGN KEY (org_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+ALTER TABLE public.billing_payments ADD CONSTRAINT billing_payments_pkey PRIMARY KEY (id);
+ALTER TABLE public.billing_payments ADD CONSTRAINT billing_payments_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.plans(id) ON DELETE SET NULL;
+ALTER TABLE public.billing_payments ADD CONSTRAINT billing_payments_stripe_charge_id_key UNIQUE (stripe_charge_id);
+ALTER TABLE public.billing_payments ADD CONSTRAINT billing_payments_stripe_invoice_id_key UNIQUE (stripe_invoice_id);
+ALTER TABLE public.billing_payments ADD CONSTRAINT billing_payments_stripe_payment_intent_id_key UNIQUE (stripe_payment_intent_id);
+ALTER TABLE public.billing_payments ADD CONSTRAINT billing_payments_subscription_id_fkey FOREIGN KEY (subscription_id) REFERENCES public.subscriptions(id) ON DELETE SET NULL;
+GRANT ALL ON public.billing_payments TO anon;
+GRANT ALL ON public.billing_payments TO authenticated;
+GRANT ALL ON public.billing_payments TO service_role;
+CREATE INDEX billing_payments_org_created_idx ON public.billing_payments (org_id, created_at DESC);
+CREATE POLICY owners_admins_view_billing_payments ON public.billing_payments FOR SELECT TO authenticated USING (public.has_org_role(org_id, ARRAY['primary_admin'::public.user_role, 'admin'::public.user_role]));

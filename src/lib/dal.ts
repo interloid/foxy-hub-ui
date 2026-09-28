@@ -356,7 +356,9 @@ export const getDashboardMetrics = cache(
 
       supabase
         .from('subscriptions')
-        .select('plans(price_cents, duration_months)')
+        .select(
+          'plans!subscriptions_plan_id_fkey(price_cents, duration_months)'
+        )
         .eq('org_id', orgId)
         .eq('status', 'active')
         .maybeSingle(),

@@ -40,20 +40,17 @@ import {
   contactNameSchema,
   fieldError,
 } from '../schemas'
-import type { ProjectOption } from '../types'
 
 const NO_PROJECT = 'none'
 
 interface NewClientSheetProps {
   orgSlug: string
-  projectOptions: ProjectOption[]
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
 export function NewClientSheet({
   orgSlug,
-  projectOptions,
   open,
   onOpenChange,
 }: NewClientSheetProps) {
@@ -62,9 +59,6 @@ export function NewClientSheet({
   const [contactEmail, setContactEmail] = useState('')
   const [portal, setPortal] = useState(true)
 
-  // Not a user choice while the invite checkbox is hidden: it follows portal + email
-  // (handleEmailChange / handlePortalChange). So it starts off, like resetForm, and is not
-  // part of isDirty — it made an untouched form ask "Discard this client?" (RISK-029).
   const [invite, setInvite] = useState(false)
   const [projectId, setProjectId] = useState(NO_PROJECT)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -287,73 +281,6 @@ export function NewClientSheet({
                 </span>
               </span>
             </label>
-
-            {/* <label className="border-border flex cursor-pointer items-start gap-2.5 rounded-lg border p-3">
-              <Checkbox
-                checked={invite}
-                onCheckedChange={(checked) => setInvite(checked === true)}
-                disabled={!portal || !contactEmail.trim()}
-                className="mt-0.5 cursor-pointer"
-              />
-              <span className="space-y-1">
-                <span className="text-foreground block text-[13px] font-medium">
-                  Email them a portal invite
-                </span>
-                <span className="text-muted-foreground block text-xs">
-                  {!portal
-                    ? 'Turn on portal access first.'
-                    : contactEmail.trim()
-                      ? 'They set a password and see only what you share with them.'
-                      : 'Add a contact email first.'}
-                </span>
-              </span>
-            </label>
-
-            {invite && (
-              <FxField className="pt-1 pb-2">
-                <FxLabel htmlFor="new-client-project">
-                  Project access{' '}
-                  <span className="text-muted-foreground font-normal">
-                    (optional)
-                  </span>
-                </FxLabel>
-                <Select value={projectId} onValueChange={setProjectId}>
-                  <SelectTrigger
-                    id="new-client-project"
-                    className="h-9! w-full cursor-pointer p-2"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent
-                    position="popper"
-                    align="start"
-                    sideOffset={6}
-                    className="p-1"
-                  >
-                    <SelectItem
-                      value={NO_PROJECT}
-                      className="cursor-pointer p-2"
-                    >
-                      No project yet
-                    </SelectItem>
-                    {projectOptions.map((project) => (
-                      <SelectItem
-                        key={project.id}
-                        value={project.id}
-                        className="cursor-pointer p-2"
-                      >
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FxField>
-            )} */}
-
-            {/* <p className="text-muted-foreground text-xs">
-              Without a project their portal stays empty until you point one at
-              them.
-            </p> */}
           </FxSheetBody>
 
           <FxSheetFooter className="flex justify-end">

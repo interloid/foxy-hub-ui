@@ -10,10 +10,15 @@ create policy "owners_admins_view_invitations"
 -- someone else. `accepted_at` / `accepted_by` are written only by
 -- `handle_new_user_signup`, which is SECURITY DEFINER and bypasses RLS.
 -- Primary admins and admins only (RISK-002) — managers could invite with role = 'admin'.
+-- Only the primary admin invites admins; an admin invites managers, contributors and clients.
 create policy "owners_admins_create_invitations"
   on public.invitations for insert to authenticated
   with check (
     public.has_org_role(org_id, array['primary_admin', 'admin']::public.user_role[])
+    and (
+      role <> 'admin'
+      or public.has_org_role(org_id, array['primary_admin']::public.user_role[])
+    )
     and invited_by  = (select auth.uid())
     and accepted_at is null
     and accepted_by is null

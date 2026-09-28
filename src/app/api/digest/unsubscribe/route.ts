@@ -5,22 +5,6 @@ import { siteConfig } from '@/config/site'
 import { isValidUnsubscribeToken } from '@/lib/digest-token'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-/**
- * Unsubscribe from the weekly digest — no sign-in needed. The link carries the user id and
- * an HMAC of it, so it can only ever turn off that one person's digest.
- *
- *   GET  — the link in the email footer. Changes NOTHING: it shows a confirm button. Mail
- *          security scanners (Microsoft Safe Links, Mimecast…) and link previewers open
- *          every link in an email automatically, so a GET that unsubscribed turned people's
- *          digest off without them clicking anything (RISK-008). Scanners do not submit
- *          forms.
- *   POST — does the unsubscribe: the confirm button, and RFC 8058 one-click
- *          (`List-Unsubscribe-Post`, sent by Gmail/Outlook's own Unsubscribe button).
- *
- * proxy.ts lets this path through untouched: it must work signed in, signed out, or as
- * someone else.
- */
-
 type Link = { userId: string; token: string }
 
 /** The link's user id and token, if they are well-formed and the token is genuine. */
@@ -89,8 +73,6 @@ export async function GET(request: NextRequest) {
   const link = readLink(request)
   if (!link) return invalidLink()
 
-  // Posts back to this same URL. Both values are safe to embed: the id is a validated UUID
-  // and the token matched its HMAC, so it is plain base64url.
   const action = `/api/digest/unsubscribe?u=${encodeURIComponent(link.userId)}&t=${encodeURIComponent(link.token)}`
   return page(
     'Unsubscribe from the weekly digest?',

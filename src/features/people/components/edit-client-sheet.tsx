@@ -4,6 +4,7 @@ import { Check } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 
+import { UserAvatar } from '@/components/shared/app/user-avatar'
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxConfirmDialog } from '@/components/shared/fx-confirm-dialog'
@@ -169,12 +170,11 @@ function EditClientSheetForm({
       >
         <FxSheetHeader>
           <div className="flex items-start gap-3">
-            {/* <span
-              aria-hidden="true"
-              className="text-brand-white bg-info flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-            >
-              {initialsOf(client.name)}
-            </span> */}
+            <UserAvatar
+              initials={initialsOf(client.name)}
+              avatarUrl={client.avatarUrl}
+              className="text-brand-white bg-info size-9 bg-none text-xs font-bold"
+            />
             <div className="min-w-0 space-y-0.5">
               <div className="flex items-center gap-2">
                 <span className="text-foreground truncate text-[15px] font-semibold">
@@ -198,111 +198,150 @@ function EditClientSheetForm({
         </FxSheetHeader>
 
         <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col">
-          <FxSheetBody className="space-y-1">
-            <FxField>
-              <FxLabel htmlFor="edit-client-name">
-                Client name <span className="text-destructive">*</span>
-              </FxLabel>
-              <FxInput
-                ref={nameRef}
-                id="edit-client-name"
-                required
-                disabled={!canManage}
-                maxLength={80}
-                value={name}
-                aria-invalid={touched.name && nameError !== null}
-                aria-describedby={
-                  touched.name && nameError
-                    ? 'edit-client-name-error'
-                    : undefined
-                }
-                onChange={(e) => setName(e.target.value)}
-                onBlur={() => setTouched((p) => ({ ...p, name: true }))}
-              />
-              {touched.name && nameError && (
-                <FxFieldError id="edit-client-name-error">
-                  {nameError}
-                </FxFieldError>
-              )}
-            </FxField>
+          <FxSheetBody className="space-y-6">
+            <div className="space-y-1">
+              <FxField>
+                <FxLabel htmlFor="edit-client-name">
+                  Client name <span className="text-destructive">*</span>
+                </FxLabel>
+                <FxInput
+                  ref={nameRef}
+                  id="edit-client-name"
+                  required
+                  disabled={!canManage}
+                  maxLength={80}
+                  value={name}
+                  aria-invalid={touched.name && nameError !== null}
+                  aria-describedby={
+                    touched.name && nameError
+                      ? 'edit-client-name-error'
+                      : undefined
+                  }
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={() => setTouched((p) => ({ ...p, name: true }))}
+                />
+                {touched.name && nameError && (
+                  <FxFieldError id="edit-client-name-error">
+                    {nameError}
+                  </FxFieldError>
+                )}
+              </FxField>
 
-            <FxField>
-              <FxLabel htmlFor="edit-client-contact-name">
-                Primary contact
-              </FxLabel>
-              <FxInput
-                id="edit-client-contact-name"
-                maxLength={80}
-                disabled={!canManage}
-                placeholder="Erik Lund"
-                value={contactName}
-                aria-invalid={touched.contactName && contactNameError !== null}
-                aria-describedby={
-                  touched.contactName && contactNameError
-                    ? 'edit-client-contact-name-error'
-                    : undefined
-                }
-                onChange={(e) => setContactName(e.target.value)}
-                onBlur={() => setTouched((p) => ({ ...p, contactName: true }))}
-              />
-              {touched.contactName && contactNameError && (
-                <FxFieldError id="edit-client-contact-name-error">
-                  {contactNameError}
-                </FxFieldError>
-              )}
-            </FxField>
+              <FxField>
+                <FxLabel htmlFor="edit-client-contact-name">
+                  Primary contact
+                </FxLabel>
+                <FxInput
+                  id="edit-client-contact-name"
+                  maxLength={80}
+                  disabled={!canManage}
+                  placeholder="Erik Lund"
+                  value={contactName}
+                  aria-invalid={
+                    touched.contactName && contactNameError !== null
+                  }
+                  aria-describedby={
+                    touched.contactName && contactNameError
+                      ? 'edit-client-contact-name-error'
+                      : undefined
+                  }
+                  onChange={(e) => setContactName(e.target.value)}
+                  onBlur={() =>
+                    setTouched((p) => ({ ...p, contactName: true }))
+                  }
+                />
+                {touched.contactName && contactNameError && (
+                  <FxFieldError id="edit-client-contact-name-error">
+                    {contactNameError}
+                  </FxFieldError>
+                )}
+              </FxField>
 
-            <label className="border-border bg-muted flex cursor-pointer items-center gap-3 rounded-lg border p-3">
-              <Switch
-                checked={portal}
-                disabled={!canManage}
-                onCheckedChange={setPortal}
-                className="[&>span]:data-[state=checked]:bg-brand-white [&>span]:data-[state=unchecked]:bg-brand-white"
-                aria-label="Portal access"
-              />
-              <span className="space-y-0.5">
-                <span className="text-foreground block text-[13px] font-medium">
-                  Portal access
+              <label className="border-border bg-muted flex cursor-pointer items-center gap-3 rounded-lg border p-3">
+                <Switch
+                  checked={portal}
+                  disabled={!canManage}
+                  onCheckedChange={setPortal}
+                  className="[&>span]:data-[state=checked]:bg-brand-white [&>span]:data-[state=unchecked]:bg-brand-white"
+                  aria-label="Portal access"
+                />
+                <span className="space-y-0.5">
+                  <span className="text-foreground block text-[13px] font-medium">
+                    Portal access
+                  </span>
+                  <span className="text-muted-foreground block text-xs">
+                    Turning this off hides approvals and invoices from the
+                    contact immediately.
+                  </span>
                 </span>
-                <span className="text-muted-foreground block text-xs">
-                  Turning this off hides approvals and invoices from the contact
-                  immediately.
-                </span>
-              </span>
-            </label>
-          </FxSheetBody>
+              </label>
+            </div>
 
-          <FxSheetFooter className="justify-between">
-            {canManage && (
-              <FxButton
-                type="button"
-                variant="secondary"
-                disabled={isTogglingStatus}
-                onClick={() => setShowStatusConfirm(true)}
-              >
-                {client.isActive ? 'Deactivate' : 'Reactivate'}
-              </FxButton>
+            {canManage && client.isActive && (
+              <section className="border-destructive/25 bg-destructive-subtle space-y-3 rounded-lg border p-3.5">
+                <div className="space-y-1">
+                  <h3 className="text-destructive text-2xs font-semibold tracking-wide uppercase">
+                    Danger zone
+                  </h3>
+                  <p className="text-destructive/80 text-xs leading-relaxed">
+                    Deactivating revokes their portal access immediately.
+                    Projects and invoices stay, and this can be undone later.
+                  </p>
+                </div>
+                <FxButton
+                  type="button"
+                  variant="secondary"
+                  className="border-destructive/30 text-destructive hover:border-destructive hover:bg-card w-full"
+                  disabled={isTogglingStatus}
+                  onClick={() => setShowStatusConfirm(true)}
+                >
+                  Deactivate client
+                </FxButton>
+              </section>
             )}
 
-            <div className="flex items-center gap-2">
-              <FxButton
-                type="button"
-                variant="secondary"
-                onClick={() => handleOpenChange(false)}
-              >
-                Close
-              </FxButton>
-              {canManage && (
+            {canManage && !client.isActive && (
+              <section className="border-success/25 bg-success-subtle space-y-3 rounded-lg border p-3.5">
+                <div className="space-y-1">
+                  <h3 className="text-success text-2xs font-semibold tracking-wide uppercase">
+                    Deactivated
+                  </h3>
+                  <p className="text-success/80 text-xs leading-relaxed">
+                    Reactivating puts them back on your client list and counts
+                    against your plan again.
+                  </p>
+                </div>
                 <FxButton
-                  type="submit"
-                  disabled={isSaving || hasErrors || !isDirty}
-                  className="gap-1.5"
+                  type="button"
+                  variant="secondary"
+                  className="border-success/30 text-success hover:border-success hover:bg-card w-full"
+                  disabled={isTogglingStatus}
+                  onClick={() => setShowStatusConfirm(true)}
                 >
-                  <Check className="size-4" />
-                  {isSaving ? 'Saving…' : 'Save changes'}
+                  Reactivate client
                 </FxButton>
-              )}
-            </div>
+              </section>
+            )}
+          </FxSheetBody>
+
+          <FxSheetFooter className="justify-end">
+            <FxButton
+              type="button"
+              variant="secondary"
+              onClick={() => handleOpenChange(false)}
+            >
+              Close
+            </FxButton>
+            {canManage && (
+              <FxButton
+                type="submit"
+                disabled={isSaving || hasErrors || !isDirty}
+                className="gap-1.5"
+              >
+                <Check className="size-4" />
+                {isSaving ? 'Saving…' : 'Save changes'}
+              </FxButton>
+            )}
           </FxSheetFooter>
         </form>
       </FxSheetContent>

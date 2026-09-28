@@ -63,28 +63,28 @@ export function GeneralTab({
 
   return (
     <div className="grid gap-10 text-[15px] lg:grid-cols-2 lg:gap-12">
-      <Section title="Basics">
+      <Section
+        title="Basics"
+        action={<ActionLink href={profileHref} className="text-[13.5px]" />}
+      >
         <Row label="Photo">
           <UserAvatar
             initials={account.initials}
             avatarUrl={account.avatarUrl}
             className="size-10 text-sm"
           />
-          <ActionLink href={profileHref} className="text-[13.5px]" />
         </Row>
 
         <Row label="Name">
           <span className="text-muted-foreground truncate text-[14px]">
             {account.fullName?.trim() || PROFILE.noName}
           </span>
-          <ActionLink href={profileHref} className="text-[13.5px]" />
         </Row>
 
         <Row label="Work email">
           <span className="text-muted-foreground truncate text-[14px]">
             {account.email ?? PROFILE.noName}
           </span>
-          <ActionLink href={profileHref} className="text-[13.5px]" />
         </Row>
 
         <Row

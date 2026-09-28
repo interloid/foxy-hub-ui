@@ -46,7 +46,6 @@ export function PaymentSuccessCard() {
           </DialogTitle>
           <DialogDescription className="text-muted-foreground text-sm">
             Thank you for your purchase. Your workspace is active and upgraded.
-            Pending teammate invitations have been queued for delivery.
           </DialogDescription>
         </DialogHeader>
 

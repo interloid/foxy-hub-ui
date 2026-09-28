@@ -1,6 +1,6 @@
 'use client'
 
-import { Building2, UserPlus } from 'lucide-react'
+import { Building2, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
@@ -133,6 +133,76 @@ function PortalCell({ hasPortal }: { hasPortal: boolean }) {
 
 const DEACTIVATED_ROW = 'opacity-55 [&_button]:opacity-100'
 
+/** Rows per page. The table keeps the height of a full page so paging never jumps. */
+const PAGE_SIZE = 5
+/** Header (36px) + PAGE_SIZE rows (≈63px each: 36px avatar, 13px padding top and bottom, 1px border). */
+const TABLE_MIN_HEIGHT = 'min-h-[21.9375rem]'
+
+function usePaged<T>(rows: T[]) {
+  const [page, setPage] = useState(1)
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
+  // Rows can shrink under the current page (a refresh after an edit); stay on the last one.
+  const current = Math.min(page, totalPages)
+  const offset = (current - 1) * PAGE_SIZE
+  return {
+    page: current,
+    setPage,
+    totalPages,
+    offset,
+    pageRows: rows.slice(offset, offset + PAGE_SIZE),
+  }
+}
+
+function TablePagination({
+  label,
+  page,
+  totalPages,
+  total,
+  onPageChange,
+}: {
+  label: string
+  page: number
+  totalPages: number
+  total: number
+  onPageChange: (page: number) => void
+}) {
+  return (
+    <nav
+      aria-label={`${label} pagination`}
+      className="text-muted-foreground flex items-center justify-between px-2 text-xs"
+    >
+      <p className="font-medium">
+        Page <span className="text-foreground font-semibold">{page}</span> of{' '}
+        <span className="text-foreground font-semibold">{totalPages}</span> (
+        {total} total)
+      </p>
+
+      <div className="flex items-center gap-1.5">
+        <FxButton
+          variant="outline"
+          size="sm"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          className="bg-card h-8 gap-1 px-2.5 text-xs font-medium"
+        >
+          <ChevronLeft className="size-3.5" />
+          Previous
+        </FxButton>
+        <FxButton
+          variant="outline"
+          size="sm"
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+          className="bg-card h-8 gap-1 px-2.5 text-xs font-medium"
+        >
+          Next
+          <ChevronRight className="size-3.5" />
+        </FxButton>
+      </div>
+    </nav>
+  )
+}
+
 function MemberTable({
   rows,
   viewerRole,
@@ -148,51 +218,230 @@ function MemberTable({
   onDeactivate: (row: PersonRow) => void
   onReactivate: (row: PersonRow) => void
 }) {
+  const { page, setPage, totalPages, offset, pageRows } = usePaged(rows)
+
   return (
-    <FxCard className="overflow-hidden p-0">
-      <div className="w-full overflow-x-auto">
-        <FxTable className="w-full min-w-180">
-          <FxTableHeader>
-            <FxTableRow className="bg-secondary/30 hover:bg-secondary/30">
-              <FxTableHead>Person</FxTableHead>
-              <FxTableHead>Work email</FxTableHead>
-              <FxTableHead>Projects</FxTableHead>
-              <FxTableHead>Role</FxTableHead>
-              <FxTableHead>Status</FxTableHead>
-              <FxTableHead className="text-right">Manage</FxTableHead>
-            </FxTableRow>
-          </FxTableHeader>
-
-          <TableBody className="divide-border divide-y">
-            {rows.length === 0 && (
-              <FxTableRow>
-                <FxTableCell
-                  colSpan={6}
-                  className="text-muted-foreground py-10 text-center text-sm"
-                >
-                  Nobody here yet.
-                </FxTableCell>
+    <div className="space-y-3">
+      <FxCard className="overflow-hidden p-0">
+        <div className={cn('w-full overflow-x-auto', TABLE_MIN_HEIGHT)}>
+          <FxTable className="w-full min-w-180">
+            <FxTableHeader>
+              <FxTableRow className="bg-secondary/30 hover:bg-secondary/30">
+                <FxTableHead>Person</FxTableHead>
+                <FxTableHead>Work email</FxTableHead>
+                <FxTableHead>Projects</FxTableHead>
+                <FxTableHead>Role</FxTableHead>
+                <FxTableHead>Status</FxTableHead>
+                <FxTableHead className="text-right">Manage</FxTableHead>
               </FxTableRow>
-            )}
+            </FxTableHeader>
 
-            {rows.map((row, index) => {
-              const showDeactivate = canDeactivateMember(
-                viewerRole,
-                viewerId,
-                row
-              )
-              const showReactivate = canReactivateMember(
-                viewerRole,
-                viewerId,
-                row
-              )
+            <TableBody className="divide-border divide-y">
+              {rows.length === 0 && (
+                <FxTableRow>
+                  <FxTableCell
+                    colSpan={6}
+                    className="text-muted-foreground py-10 text-center text-sm"
+                  >
+                    Nobody here yet.
+                  </FxTableCell>
+                </FxTableRow>
+              )}
 
-              return (
+              {pageRows.map((row, index) => {
+                const showDeactivate = canDeactivateMember(
+                  viewerRole,
+                  viewerId,
+                  row
+                )
+                const showReactivate = canReactivateMember(
+                  viewerRole,
+                  viewerId,
+                  row
+                )
+
+                return (
+                  <FxTableRow
+                    key={row.membershipId}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Open ${row.fullName}`}
+                    className={cn(
+                      'hover:bg-secondary/20 cursor-pointer',
+                      !row.isActive && DEACTIVATED_ROW
+                    )}
+                    onClick={() => onEdit(row)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onEdit(row)
+                      }
+                    }}
+                  >
+                    <FxTableCell>
+                      <div className="flex items-center gap-3">
+                        <div
+                          aria-hidden="true"
+                          className={`text-brand-white flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                            AVATAR_COLORS[
+                              (offset + index) % AVATAR_COLORS.length
+                            ]
+                          }`}
+                        >
+                          {initialsOf(row.fullName)}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-foreground text-[13.5px] font-semibold">
+                            {row.fullName}
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            {row.subtitle}
+                          </span>
+                        </div>
+                      </div>
+                    </FxTableCell>
+
+                    <FxTableCell>
+                      <div className="flex flex-col">
+                        <span className="text-foreground text-[13px]">
+                          {row.email ?? '-'}
+                        </span>
+                        <span className="text-muted-foreground text-xs">
+                          {row.lastActiveLabel}
+                        </span>
+                      </div>
+                    </FxTableCell>
+
+                    <FxTableCell>
+                      <div className="flex flex-col">
+                        <span className="text-foreground text-[13px]">
+                          {row.ownedProjectCount > 0
+                            ? `Owns ${row.ownedProjectCount}`
+                            : 'Owns none'}
+                        </span>
+                        <span className="text-muted-foreground text-xs">
+                          {row.allocatedProjectCount > 0
+                            ? `Works on ${row.allocatedProjectCount}`
+                            : 'Not allocated'}
+                        </span>
+                      </div>
+                    </FxTableCell>
+
+                    <FxTableCell>
+                      <FxBadge
+                        className={`${ROLE_BADGE[row.role]} whitespace-nowrap`}
+                        shape="pill"
+                      >
+                        {roleLabel(row.role)}
+                      </FxBadge>
+                    </FxTableCell>
+
+                    <FxTableCell>
+                      <StatusCell isActive={row.isActive} />
+                    </FxTableCell>
+
+                    <FxTableCell>
+                      <div className="flex items-center justify-end gap-2">
+                        <FxButton
+                          variant="secondary"
+                          className="bg-muted"
+                          size="xs"
+                          onClick={() => onEdit(row)}
+                        >
+                          View
+                        </FxButton>
+                        {showDeactivate && (
+                          <FxButton
+                            variant="secondary"
+                            size="xs"
+                            className="hover:text-destructive hover:border-destructive hover:bg-transparent"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onDeactivate(row)
+                            }}
+                          >
+                            Deactivate
+                          </FxButton>
+                        )}
+                        {showReactivate && (
+                          <FxButton
+                            variant="secondary"
+                            size="xs"
+                            className="hover:text-success hover:border-success hover:bg-transparent"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onReactivate(row)
+                            }}
+                          >
+                            Reactivate
+                          </FxButton>
+                        )}
+                      </div>
+                    </FxTableCell>
+                  </FxTableRow>
+                )
+              })}
+            </TableBody>
+          </FxTable>
+        </div>
+      </FxCard>
+      <TablePagination
+        label="Team"
+        page={page}
+        totalPages={totalPages}
+        total={rows.length}
+        onPageChange={setPage}
+      />
+    </div>
+  )
+}
+
+function ClientTable({
+  rows,
+  canManage,
+  onEdit,
+  onToggleStatus,
+}: {
+  rows: ClientCompanyRow[]
+  canManage: boolean
+  onEdit: (row: ClientCompanyRow) => void
+  onToggleStatus: (row: ClientCompanyRow) => void
+}) {
+  const { page, setPage, totalPages, offset, pageRows } = usePaged(rows)
+
+  return (
+    <div className="space-y-3">
+      <FxCard className="overflow-hidden p-0">
+        <div className={cn('w-full overflow-x-auto', TABLE_MIN_HEIGHT)}>
+          <FxTable className="w-full min-w-160">
+            <FxTableHeader>
+              <FxTableRow className="bg-secondary/30 hover:bg-secondary/30">
+                <FxTableHead>Client</FxTableHead>
+                <FxTableHead>Primary contact</FxTableHead>
+                <FxTableHead>Portal</FxTableHead>
+                <FxTableHead>Status</FxTableHead>
+                <FxTableHead className="text-right">Manage</FxTableHead>
+              </FxTableRow>
+            </FxTableHeader>
+
+            <TableBody className="divide-border divide-y">
+              {rows.length === 0 && (
+                <FxTableRow>
+                  <FxTableCell
+                    colSpan={5}
+                    className="text-muted-foreground py-10 text-center text-sm"
+                  >
+                    No clients yet.
+                  </FxTableCell>
+                </FxTableRow>
+              )}
+
+              {pageRows.map((row, index) => (
                 <FxTableRow
-                  key={row.membershipId}
+                  key={row.id}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Open ${row.fullName}`}
+                  aria-label={`Open ${row.name}`}
                   className={cn(
                     'hover:bg-secondary/20 cursor-pointer',
                     !row.isActive && DEACTIVATED_ROW
@@ -210,17 +459,19 @@ function MemberTable({
                       <div
                         aria-hidden="true"
                         className={`text-brand-white flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                          AVATAR_COLORS[index % AVATAR_COLORS.length]
+                          AVATAR_COLORS[(offset + index) % AVATAR_COLORS.length]
                         }`}
                       >
-                        {initialsOf(row.fullName)}
+                        {initialsOf(row.name)}
                       </div>
                       <div className="flex flex-col">
                         <span className="text-foreground text-[13.5px] font-semibold">
-                          {row.fullName}
+                          {row.name}
                         </span>
                         <span className="text-muted-foreground text-xs">
-                          {row.subtitle}
+                          {row.projectCount === 0
+                            ? 'No projects yet'
+                            : `${row.projectCount} project${row.projectCount === 1 ? '' : 's'}`}
                         </span>
                       </div>
                     </div>
@@ -229,36 +480,16 @@ function MemberTable({
                   <FxTableCell>
                     <div className="flex flex-col">
                       <span className="text-foreground text-[13px]">
-                        {row.email ?? '-'}
+                        {row.contactName ?? '-'}
                       </span>
                       <span className="text-muted-foreground text-xs">
-                        {row.lastActiveLabel}
+                        {row.contactEmail ?? 'No contact on file'}
                       </span>
                     </div>
                   </FxTableCell>
 
                   <FxTableCell>
-                    <div className="flex flex-col">
-                      <span className="text-foreground text-[13px]">
-                        {row.ownedProjectCount > 0
-                          ? `Owns ${row.ownedProjectCount}`
-                          : 'Owns none'}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        {row.allocatedProjectCount > 0
-                          ? `Works on ${row.allocatedProjectCount}`
-                          : 'Not allocated'}
-                      </span>
-                    </div>
-                  </FxTableCell>
-
-                  <FxTableCell>
-                    <FxBadge
-                      className={`${ROLE_BADGE[row.role]} whitespace-nowrap`}
-                      shape="pill"
-                    >
-                      {roleLabel(row.role)}
-                    </FxBadge>
+                    <PortalCell hasPortal={row.hasPortal} />
                   </FxTableCell>
 
                   <FxTableCell>
@@ -269,183 +500,46 @@ function MemberTable({
                     <div className="flex items-center justify-end gap-2">
                       <FxButton
                         variant="secondary"
-                        className="bg-muted"
                         size="xs"
+                        className="bg-muted"
                         onClick={() => onEdit(row)}
                       >
                         View
                       </FxButton>
-                      {showDeactivate && (
+                      {canManage && (
                         <FxButton
                           variant="secondary"
+                          className={cn(
+                            'hover:bg-transparent',
+                            row.isActive
+                              ? 'hover:text-destructive hover:border-destructive'
+                              : 'hover:text-success hover:border-success'
+                          )}
                           size="xs"
-                          className="hover:text-destructive hover:border-destructive hover:bg-transparent"
                           onClick={(e) => {
                             e.stopPropagation()
-                            onDeactivate(row)
+                            onToggleStatus(row)
                           }}
                         >
-                          Deactivate
-                        </FxButton>
-                      )}
-                      {showReactivate && (
-                        <FxButton
-                          variant="secondary"
-                          size="xs"
-                          className="hover:text-success hover:border-success hover:bg-transparent"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onReactivate(row)
-                          }}
-                        >
-                          Reactivate
+                          {row.isActive ? 'Deactivate' : 'Reactivate'}
                         </FxButton>
                       )}
                     </div>
                   </FxTableCell>
                 </FxTableRow>
-              )
-            })}
-          </TableBody>
-        </FxTable>
-      </div>
-    </FxCard>
-  )
-}
-
-function ClientTable({
-  rows,
-  canManage,
-  onEdit,
-  onToggleStatus,
-}: {
-  rows: ClientCompanyRow[]
-  canManage: boolean
-  onEdit: (row: ClientCompanyRow) => void
-  onToggleStatus: (row: ClientCompanyRow) => void
-}) {
-  return (
-    <FxCard className="overflow-hidden p-0">
-      <div className="w-full overflow-x-auto">
-        <FxTable className="w-full min-w-160">
-          <FxTableHeader>
-            <FxTableRow className="bg-secondary/30 hover:bg-secondary/30">
-              <FxTableHead>Client</FxTableHead>
-              <FxTableHead>Primary contact</FxTableHead>
-              <FxTableHead>Portal</FxTableHead>
-              <FxTableHead>Status</FxTableHead>
-              <FxTableHead className="text-right">Manage</FxTableHead>
-            </FxTableRow>
-          </FxTableHeader>
-
-          <TableBody className="divide-border divide-y">
-            {rows.length === 0 && (
-              <FxTableRow>
-                <FxTableCell
-                  colSpan={5}
-                  className="text-muted-foreground py-10 text-center text-sm"
-                >
-                  No clients yet.
-                </FxTableCell>
-              </FxTableRow>
-            )}
-
-            {rows.map((row, index) => (
-              <FxTableRow
-                key={row.id}
-                role="button"
-                tabIndex={0}
-                aria-label={`Open ${row.name}`}
-                className={cn(
-                  'hover:bg-secondary/20 cursor-pointer',
-                  !row.isActive && DEACTIVATED_ROW
-                )}
-                onClick={() => onEdit(row)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onEdit(row)
-                  }
-                }}
-              >
-                <FxTableCell>
-                  <div className="flex items-center gap-3">
-                    <div
-                      aria-hidden="true"
-                      className={`text-brand-white flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                        AVATAR_COLORS[index % AVATAR_COLORS.length]
-                      }`}
-                    >
-                      {initialsOf(row.name)}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-foreground text-[13.5px] font-semibold">
-                        {row.name}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        {row.projectCount === 0
-                          ? 'No projects yet'
-                          : `${row.projectCount} project${row.projectCount === 1 ? '' : 's'}`}
-                      </span>
-                    </div>
-                  </div>
-                </FxTableCell>
-
-                <FxTableCell>
-                  <div className="flex flex-col">
-                    <span className="text-foreground text-[13px]">
-                      {row.contactName ?? '-'}
-                    </span>
-                    <span className="text-muted-foreground text-xs">
-                      {row.contactEmail ?? 'No contact on file'}
-                    </span>
-                  </div>
-                </FxTableCell>
-
-                <FxTableCell>
-                  <PortalCell hasPortal={row.hasPortal} />
-                </FxTableCell>
-
-                <FxTableCell>
-                  <StatusCell isActive={row.isActive} />
-                </FxTableCell>
-
-                <FxTableCell>
-                  <div className="flex items-center justify-end gap-2">
-                    <FxButton
-                      variant="secondary"
-                      size="xs"
-                      className="bg-muted"
-                      onClick={() => onEdit(row)}
-                    >
-                      View
-                    </FxButton>
-                    {canManage && (
-                      <FxButton
-                        variant="secondary"
-                        className={cn(
-                          'hover:bg-transparent',
-                          row.isActive
-                            ? 'hover:text-destructive hover:border-destructive'
-                            : 'hover:text-success hover:border-success'
-                        )}
-                        size="xs"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onToggleStatus(row)
-                        }}
-                      >
-                        {row.isActive ? 'Deactivate' : 'Reactivate'}
-                      </FxButton>
-                    )}
-                  </div>
-                </FxTableCell>
-              </FxTableRow>
-            ))}
-          </TableBody>
-        </FxTable>
-      </div>
-    </FxCard>
+              ))}
+            </TableBody>
+          </FxTable>
+        </div>
+      </FxCard>
+      <TablePagination
+        label="Clients"
+        page={page}
+        totalPages={totalPages}
+        total={rows.length}
+        onPageChange={setPage}
+      />
+    </div>
   )
 }
 
@@ -458,7 +552,7 @@ export function MembersClientsView({
   orgSlug: string
   account: AccountDTO | null
 }) {
-  const { metrics, members, clients, projectOptions, viewerRole } = data
+  const { metrics, members, clients, viewerRole } = data
   const viewerId = account?.id ?? null
 
   const [tab, setTab] = useState<'members' | 'clients'>('members')
@@ -647,12 +741,12 @@ export function MembersClientsView({
 
       <InviteMemberSheet
         orgSlug={orgSlug}
+        viewerRole={viewerRole}
         open={isInviteOpen}
         onOpenChange={setIsInviteOpen}
       />
       <NewClientSheet
         orgSlug={orgSlug}
-        projectOptions={projectOptions}
         open={isNewClientOpen}
         onOpenChange={setIsNewClientOpen}
       />

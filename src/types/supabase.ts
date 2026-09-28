@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: '14.5'
   }
@@ -90,6 +92,124 @@ export type Database = {
             columns: ['project_id']
             isOneToOne: false
             referencedRelation: 'projects'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      billing_payments: {
+        Row: {
+          amount_due_cents: number
+          amount_paid_cents: number
+          amount_refunded_cents: number
+          attempt_count: number
+          billing_reason: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          failed_at: string | null
+          failure_code: string | null
+          failure_message: string | null
+          hosted_invoice_url: string | null
+          id: string
+          invoice_number: string | null
+          last_event_at: string | null
+          last_event_id: string | null
+          next_attempt_at: string | null
+          org_id: string
+          paid_at: string | null
+          period_end: string | null
+          period_start: string | null
+          plan_id: string | null
+          refunded_at: string | null
+          status: Database['public']['Enums']['billing_payment_status']
+          stripe_charge_id: string | null
+          stripe_invoice_id: string
+          stripe_payment_intent_id: string | null
+          subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_due_cents?: number
+          amount_paid_cents?: number
+          amount_refunded_cents?: number
+          attempt_count?: number
+          billing_reason?: string | null
+          created_at?: string
+          currency: string
+          description?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          failure_message?: string | null
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_number?: string | null
+          last_event_at?: string | null
+          last_event_id?: string | null
+          next_attempt_at?: string | null
+          org_id: string
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          plan_id?: string | null
+          refunded_at?: string | null
+          status: Database['public']['Enums']['billing_payment_status']
+          stripe_charge_id?: string | null
+          stripe_invoice_id: string
+          stripe_payment_intent_id?: string | null
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_due_cents?: number
+          amount_paid_cents?: number
+          amount_refunded_cents?: number
+          attempt_count?: number
+          billing_reason?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          failure_message?: string | null
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_number?: string | null
+          last_event_at?: string | null
+          last_event_id?: string | null
+          next_attempt_at?: string | null
+          org_id?: string
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          plan_id?: string | null
+          refunded_at?: string | null
+          status?: Database['public']['Enums']['billing_payment_status']
+          stripe_charge_id?: string | null
+          stripe_invoice_id?: string
+          stripe_payment_intent_id?: string | null
+          subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'billing_payments_org_id_fkey'
+            columns: ['org_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'billing_payments_plan_id_fkey'
+            columns: ['plan_id']
+            isOneToOne: false
+            referencedRelation: 'plans'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'billing_payments_subscription_id_fkey'
+            columns: ['subscription_id']
+            isOneToOne: false
+            referencedRelation: 'subscriptions'
             referencedColumns: ['id']
           },
         ]
@@ -237,6 +357,51 @@ export type Database = {
             columns: ['delivery_id']
             isOneToOne: false
             referencedRelation: 'deliveries'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      digest_deliveries: {
+        Row: {
+          created_at: string
+          error: string | null
+          message_id: string | null
+          org_id: string
+          status: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          message_id?: string | null
+          org_id: string
+          status: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          message_id?: string | null
+          org_id?: string
+          status?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'digest_deliveries_org_id_fkey'
+            columns: ['org_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'digest_deliveries_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
         ]
@@ -757,12 +922,16 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          cancel_at: string | null
           created_at: string
           current_period_end: string | null
           id: string
           org_id: string
           payment_method_details: Json
           payment_method_type: string | null
+          pending_change_at: string | null
+          pending_plan_id: string | null
+          plan_change_started_at: string | null
           plan_id: string | null
           status: Database['public']['Enums']['subscription_status']
           stripe_customer_id: string | null
@@ -770,12 +939,16 @@ export type Database = {
           stripe_subscription_id: string | null
         }
         Insert: {
+          cancel_at?: string | null
           created_at?: string
           current_period_end?: string | null
           id?: string
           org_id: string
           payment_method_details?: Json
           payment_method_type?: string | null
+          pending_change_at?: string | null
+          pending_plan_id?: string | null
+          plan_change_started_at?: string | null
           plan_id?: string | null
           status?: Database['public']['Enums']['subscription_status']
           stripe_customer_id?: string | null
@@ -783,12 +956,16 @@ export type Database = {
           stripe_subscription_id?: string | null
         }
         Update: {
+          cancel_at?: string | null
           created_at?: string
           current_period_end?: string | null
           id?: string
           org_id?: string
           payment_method_details?: Json
           payment_method_type?: string | null
+          pending_change_at?: string | null
+          pending_plan_id?: string | null
+          plan_change_started_at?: string | null
           plan_id?: string | null
           status?: Database['public']['Enums']['subscription_status']
           stripe_customer_id?: string | null
@@ -801,6 +978,13 @@ export type Database = {
             columns: ['org_id']
             isOneToOne: false
             referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'subscriptions_pending_plan_id_fkey'
+            columns: ['pending_plan_id']
+            isOneToOne: false
+            referencedRelation: 'plans'
             referencedColumns: ['id']
           },
           {
@@ -1025,6 +1209,7 @@ export type Database = {
           user_agent: string
         }[]
       }
+      mfa_satisfied: { Args: never; Returns: boolean }
       reject_time_entry: { Args: { entry_id: string }; Returns: undefined }
       revoke_my_session: {
         Args: { target_session_id: string }
@@ -1080,6 +1265,16 @@ export type Database = {
     }
     Enums: {
       activity_actor_kind: 'system' | 'client' | 'member'
+      billing_payment_status:
+        | 'pending'
+        | 'requires_action'
+        | 'paid'
+        | 'failed'
+        | 'refunded'
+        | 'partially_refunded'
+        | 'disputed'
+        | 'dispute_lost'
+        | 'void'
       delivery_status: 'pending' | 'submitted' | 'approved' | 'rejected'
       engagement_model: 'full_time' | 'part_time' | 'retainer' | 'fixed'
       invoice_status: 'draft' | 'due' | 'paid' | 'overdue' | 'cancelled'
@@ -1235,6 +1430,17 @@ export const Constants = {
   public: {
     Enums: {
       activity_actor_kind: ['system', 'client', 'member'],
+      billing_payment_status: [
+        'pending',
+        'requires_action',
+        'paid',
+        'failed',
+        'refunded',
+        'partially_refunded',
+        'disputed',
+        'dispute_lost',
+        'void',
+      ],
       delivery_status: ['pending', 'submitted', 'approved', 'rejected'],
       engagement_model: ['full_time', 'part_time', 'retainer', 'fixed'],
       invoice_status: ['draft', 'due', 'paid', 'overdue', 'cancelled'],

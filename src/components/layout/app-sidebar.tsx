@@ -15,6 +15,8 @@ import { cn } from '@/lib/utils'
 import { Fragment, useSyncExternalStore } from 'react'
 import { NAV_ICONS, type NavIconName } from './nav-icons'
 import { NavItem } from './nav-item'
+import { FxBadge } from '../shared/fx-badge'
+import { roleLabel } from '@/lib/role'
 
 export type NavEntry = {
   label: string
@@ -232,13 +234,15 @@ export function AppSidebar({
             className="text-2xs size-7.5"
           />
           {!collapsed && (
-            <span className="flex min-w-0 flex-col">
+            <span className="flex min-w-0 gap-2">
               <span className="truncate text-base leading-3.75 font-medium">
                 {account.name}
               </span>
-              <span className="text-2xs text-subtle-foreground truncate leading-3.25">
-                {account.role}
-              </span>
+              {account.role && (
+                <FxBadge variant={'info'} size={'sm'}>
+                  {roleLabel(account.role)}
+                </FxBadge>
+              )}
             </span>
           )}
         </div>

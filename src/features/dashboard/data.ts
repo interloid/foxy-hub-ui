@@ -124,7 +124,7 @@ export async function getDashboardData(
         `
         status,
         current_period_end,
-        plan:plans (
+        plan:plans!subscriptions_plan_id_fkey (
           name,
           seats
         )

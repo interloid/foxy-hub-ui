@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/select'
 import { Sheet } from '@/components/ui/sheet'
 
-import type { InvitableStaffRole } from '@/lib/role'
+import type { InvitableStaffRole, UserRole } from '@/lib/role'
 import { inviteMemberAction } from '../actions'
 import { NETWORK_ERROR } from '../lib/network-error'
 import {
@@ -50,6 +50,7 @@ import {
 
 interface InviteMemberSheetProps {
   orgSlug: string
+  viewerRole: UserRole | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -68,12 +69,17 @@ const ROLE_OPTIONS = [
 
 export function InviteMemberSheet({
   orgSlug,
+  viewerRole,
   open,
   onOpenChange,
 }: InviteMemberSheetProps) {
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState<InvitableStaffRole>('Contributor')
+  // Only the primary admin invites admins; an admin invites managers and contributors.
+  const roleOptions = ROLE_OPTIONS.filter(
+    (option) => option.value !== 'Admin' || viewerRole === 'primary_admin'
+  )
   const [jobTitle, setJobTitle] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [touched, setTouched] = useState({
@@ -273,7 +279,7 @@ export function InviteMemberSheet({
                   sideOffset={6}
                   className="p-1"
                 >
-                  {ROLE_OPTIONS.map((option) => (
+                  {roleOptions.map((option) => (
                     <SelectItem
                       key={option.value}
                       value={option.value}

@@ -1,17 +1,3 @@
-/**
- * "Sign out after inactivity" — a per-user choice, stored as ONE flat key in the user's
- * Supabase `user_metadata`. Supabase's own `[auth.sessions] inactivity_timeout` is
- * project-wide only, so the app enforces this itself:
- *
- *   - proxy.ts compares the LAST_ACTIVE_COOKIE with the limit on every request (the real
- *     guarantee — it also covers a browser closed and reopened on a shared machine);
- *   - InactivityWatcher signs an idle open tab out without waiting for a request.
- *
- * Written with `updateUser({ data: { inactivity_timeout } })`, which MERGES top-level keys
- * into user_metadata. Never write the whole object: `password_set`, `slug`, `org_name`
- * and the invite keys live there too, and `password_set` gates `/set-password`.
- */
-
 export const INACTIVITY_METADATA_KEY = 'inactivity_timeout'
 
 export const INACTIVITY_TIMEOUTS = ['8h', '24h', '7d', 'never'] as const
@@ -60,11 +46,6 @@ export function inactivityLimitMs(timeout: InactivityTimeout): number | null {
   return timeout === 'never' ? null : INACTIVITY_LIMIT_MS[timeout]
 }
 
-/**
- * `{session_id}.{epoch ms}` — scoped to ONE Supabase session, so a timestamp left behind
- * by an earlier session (manual sign-out, another account on the same browser) is never
- * read as this session's inactivity.
- */
 export const LAST_ACTIVE_COOKIE = 'fx_last_active'
 
 /** How stale the cookie may get before proxy.ts rewrites it — not on every request. */

@@ -31,7 +31,6 @@ export function getNavSections(org: string): NavSection[] {
           href: `${prefix}/people`,
         },
         { label: 'Settings', icon: 'settings', href: `${prefix}/settings` },
-        { label: 'Auth & demo', icon: 'auth', href: '/sign-in' },
       ],
     },
   ]

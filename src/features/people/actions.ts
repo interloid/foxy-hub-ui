@@ -83,6 +83,10 @@ export async function inviteMemberAction(
     }
   }
 
+  if (parsed.data.role === 'Admin' && workspace.role !== 'primary_admin') {
+    return { ok: false, error: 'Only the primary admin can invite an admin.' }
+  }
+
   const supabase = await createClient()
   const email = parsed.data.email.trim().toLowerCase()
   const [seats, emailCheck, existingInvite] = await Promise.all([
@@ -116,6 +120,17 @@ export async function inviteMemberAction(
       error: `Your ${seats.planName} plan covers ${seats.maxMembers} ${
         seats.maxMembers === 1 ? 'seat' : 'seats'
       } and all of them are taken. Upgrade the plan or deactivate someone first.`,
+    }
+  }
+
+  // A booked downgrade: the team has to fit the plan it is moving to.
+  const upcomingSeats = seats.upcoming?.maxMembers ?? null
+  if (!isResend && upcomingSeats !== null && seats.used >= upcomingSeats) {
+    return {
+      ok: false,
+      error: `Your plan is changing to ${seats.upcoming!.planName}, which has ${upcomingSeats} ${
+        upcomingSeats === 1 ? 'seat' : 'seats'
+      }, and all of them are taken. Cancel the change in Billing & plan or deactivate someone first.`,
     }
   }
 
@@ -557,6 +572,16 @@ export async function updateMemberAction(
   }
   if (isSelf && role.data !== target.role) {
     return { ok: false, error: 'You cannot change your own role.' }
+  }
+  if (
+    role.data === 'admin' &&
+    target.role !== 'admin' &&
+    workspace.role !== 'primary_admin'
+  ) {
+    return {
+      ok: false,
+      error: 'Only the primary admin can make someone an admin.',
+    }
   }
   if (role.data === 'primary_admin' && target.role !== 'primary_admin') {
     return {

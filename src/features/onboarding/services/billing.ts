@@ -13,6 +13,8 @@ export async function createCheckoutSession(
     cycle: 'monthly' | 'yearly'
     orgId: string
     returnUrl: string
+    /** Makes a retried request reuse the same Stripe session (billing's Change plan). */
+    requestId?: string
   }
 ): Promise<CheckoutResult> {
   const { data: plan } = await supabase
@@ -45,6 +47,7 @@ export async function createCheckoutSession(
       planId: plan.id,
       orgId: params.orgId,
       returnUrl: params.returnUrl,
+      requestId: params.requestId,
     },
   })
 

@@ -11,11 +11,7 @@ export async function sendInvitations(
     invitedBy: string
     invites: readonly TeamInvite[]
     siteUrl: string
-    /**
-     * The workspace the invitee is joining. The link they land on is built from this per
-     * person, because a client belongs in the portal and staff belong in the app — one
-     * `nextPath` for the whole batch could not serve a mixed invite.
-     */
+
     orgSlug?: string
   }
 ): Promise<InviteOutcome> {
@@ -79,25 +75,6 @@ export async function sendInvitations(
         }
       }
 
-      // Sent with the admin API rather than signInWithOtp: that issues a PKCE
-      // link whose verifier lives in the INVITER's browser, so the invitee could
-      // never redeem it. This token is stateless and works in any browser.
-      //
-      // `invite_token` is what makes handle_new_user_signup take its INVITED branch —
-      // without it the trigger reads org_name/slug and builds a whole new workspace.
-      // `user_name` is what it writes into profiles.full_name.
-      //
-      // NOT awaited. `after()` runs this once the response has been flushed, so the
-      // caller gets its answer as soon as the invitation row exists rather than waiting
-      // on SMTP. That wait is the whole delay: a measured Gmail handshake is ~2.45s to
-      // connect + EHLO + STARTTLS + EHLO, before AUTH or the message itself — so the
-      // "Invite sent" toast was arriving several seconds after the click.
-      //
-      // The row is the source of truth and is already committed above, so a slow or
-      // failed send never costs us the invitation. What it does cost is the old
-      // delete-on-failure path: the response is gone by the time we know, so a failure
-      // now leaves a row that shows up under Pending invites with no mail delivered.
-      // That is the trade — it is logged loudly, and re-inviting replaces the row.
       after(async () => {
         const { error: mailError } = await admin.auth.admin.inviteUserByEmail(
           invite.email,

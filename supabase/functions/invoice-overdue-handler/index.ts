@@ -91,6 +91,8 @@ function formatAmount(amount: number | string, currency: string): string {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency,
+      // Plain "$", never "US$", whatever the locale above becomes.
+      currencyDisplay: 'narrowSymbol',
     }).format(value)
   } catch {
     // `currency` is only constrained to three characters, so it need not be a real ISO code.

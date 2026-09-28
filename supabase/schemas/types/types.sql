@@ -99,3 +99,15 @@ create type public.retainer_period as enum ('weekly', 'monthly');
 -- `system` is for events with no human actor (an invoice paid by webhook), which is also why
 -- `activity_events.actor_id` is nullable.
 create type public.activity_actor_kind as enum ('system', 'client', 'member');
+
+create type public.billing_payment_status as enum (
+  'pending',
+  'requires_action',
+  'paid',
+  'failed',
+  'refunded',
+  'partially_refunded',
+  'disputed',
+  'dispute_lost',
+  'void'
+);

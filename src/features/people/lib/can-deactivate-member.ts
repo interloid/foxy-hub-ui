@@ -2,16 +2,6 @@ import type { UserRole } from '@/lib/role'
 
 import type { PersonRow } from '../types'
 
-/**
- * Who may deactivate whom (RISK-005). One rule for the button, the edit sheet AND
- * `deactivateMembershipAction` — they used to disagree, so admins saw a button the server
- * always refused. The database enforces the same rule in `guard_membership_update`.
- *
- *   - primary admin → anyone except the primary admin (i.e. themselves)
- *   - admin         → managers and contributors only; not other admins, so admins
- *                     cannot lock each other out
- *   - everyone else → nobody
- */
 export function canDeactivateRole(
   viewerRole: UserRole | string | null | undefined,
   targetRole: UserRole | string
@@ -36,10 +26,6 @@ export function canDeactivateMember(
   )
 }
 
-/**
- * Reactivating follows the same role rule as deactivating (RISK-022), for someone who is
- * currently deactivated. The seat limit is checked by the database, not here.
- */
 export function canReactivateMember(
   viewerRole: UserRole | string | null | undefined,
   viewerId: string | null,

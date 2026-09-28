@@ -1,6 +1,7 @@
 'use client'
 
 import { FxButton } from '@/components/shared/fx-button'
+import { FxDialogClose } from '@/components/shared/fx-dialog-close'
 import {
   Dialog,
   DialogContent,
@@ -306,19 +307,10 @@ export function AvatarUploadDialog({
             </DialogDescription>
           </div>
 
-          <FxButton
-            type="button"
-            variant="secondary"
-            size="icon-sm"
-            className="border-transparent hover:border-transparent"
-            aria-label="Close"
+          <FxDialogClose
             disabled={pending}
             onClick={() => handleOpenChange(false)}
-          >
-            <span aria-hidden="true" className="text-base leading-none">
-              ×
-            </span>
-          </FxButton>
+          />
         </div>
 
         <div className="space-y-4 p-5">

@@ -5,16 +5,20 @@ import { cn } from '@/lib/utils'
 
 export function Section({
   title,
+  action,
   children,
 }: {
   title: string
+  /** Shown at the right of the heading, for an action that covers the whole section. */
+  action?: ReactNode
   children: ReactNode
 }) {
   return (
     <section className="min-w-0">
-      <h2 className="text-foreground border-border border-b pb-3 text-[15px] font-semibold">
-        {title}
-      </h2>
+      <div className="border-border flex items-center justify-between gap-4 border-b pb-3">
+        <h2 className="text-foreground text-[15px] font-semibold">{title}</h2>
+        {action}
+      </div>
       <div className="divide-border divide-y border-b">{children}</div>
     </section>
   )

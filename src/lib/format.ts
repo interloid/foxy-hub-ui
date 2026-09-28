@@ -1,25 +1,5 @@
 import { DEFAULT_LOCALE, type Locale } from './locale'
 
-/**
- * Every date, time and number the app SHOWS goes through here, so one setting decides
- * how they read. Components ask for a named style instead of a hard-coded pattern:
- *
- *   day      Sep 23            23 Sept
- *   date     Sep 23, 2026      23 Sept 2026
- *   long     September 23, 2026  23 September 2026
- *   numeric  09/23/2026        23/09/2026
- *   month    Sep               Sept
- *   time     1:34 PM           13:34
- *   dateTime Sep 23, 1:34 PM   23 Sept, 13:34
- *
- * (en-US on the left, en-GB on the right.)
- *
- * A plain 'YYYY-MM-DD' (a `date` column such as `due_date`) is a calendar day with no
- * clock, so it is formatted in UTC — otherwise anyone west of Greenwich would see the day
- * before. Timestamps are shown in `timeZone` when given (server code passes the user's),
- * else in the runtime's own zone (the browser's, on the client).
- */
-
 export type DateStyle =
   'day' | 'date' | 'long' | 'numeric' | 'month' | 'time' | 'dateTime'
 
@@ -78,6 +58,7 @@ export function formatMoney(
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
+    currencyDisplay: 'narrowSymbol',
     maximumFractionDigits: 0,
     ...rest,
   }).format(amount)

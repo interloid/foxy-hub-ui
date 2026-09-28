@@ -59,11 +59,12 @@ export function AccountMenu({
           className="text-2xs size-7 uppercase"
         />
 
-        <div className="text-foreground dash:inline hidden text-sm font-medium">
+        <div className="text-foreground dash:flex hidden gap-2 text-sm font-medium">
           <div>{account.name}</div>
-          <div className="text-info text-start text-[11px] font-semibold uppercase">
-            {account.role.replaceAll('_', ' ')}
-          </div>
+
+          <FxBadge variant={'info'} size={'sm'}>
+            {roleLabel(account.role)}
+          </FxBadge>
         </div>
         <NAV_ICONS.chevron
           size={14}

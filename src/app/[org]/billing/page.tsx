@@ -30,6 +30,7 @@ export default async function BillingPage({ params }: BillingPageProps) {
   if (!workspace || !isBillingRole(workspace.role)) notFound()
 
   const data = await getBillingOverview(org)
+  if (!data) notFound()
 
-  return <BillingView data={data} />
+  return <BillingView data={data} orgSlug={org} />
 }

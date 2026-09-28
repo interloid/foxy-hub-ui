@@ -17,6 +17,7 @@ export interface PersonRow {
   allocatedProjectCount: number
   ownedProjectCount: number
   jobTitle: string | null
+  avatarUrl: string | null
 }
 
 export interface ClientCompanyRow {
@@ -27,6 +28,8 @@ export interface ClientCompanyRow {
   projectCount: number
   isActive: boolean
   hasPortal: boolean
+  /** The profile photo of the contact's portal login, when they have one. */
+  avatarUrl: string | null
 }
 
 export interface MembersClientsMetrics {

@@ -9,6 +9,20 @@ create table public.subscriptions (
   current_period_end timestamptz,
   payment_method_type     text,
   payment_method_details  jsonb       not null default '{}'::jsonb,
+  pending_plan_id    uuid                    references public.plans(id) on delete set null,
+  pending_change_at  timestamptz,
+
+  -- One plan change at a time per workspace. `manage-subscription` claims it with a
+  -- conditional update (only when null or older than a minute) before calling Stripe and
+  -- clears it when done; the minute is the fallback if the function dies mid-change.
+  plan_change_started_at timestamptz,
+
+  -- When a cancellation takes effect: set when the subscription is cancelled at the end
+  -- of its period (from Stripe's `cancel_at_period_end` / `cancel_at`), null otherwise.
+  -- The plan stays fully usable until then; the billing page shows "Ends on …" with
+  -- "Keep my plan". When it ends, stripe-webhook moves the row back to Free.
+  cancel_at          timestamptz,
+
   created_at         timestamptz not null    default now()
 );
 

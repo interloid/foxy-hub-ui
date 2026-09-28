@@ -63,6 +63,7 @@ serve(async (req) => {
   let planId: string | undefined
   let orgId: string | undefined
   let returnUrl: string | undefined
+  let requestId: string | undefined
 
   try {
     const body = await req.json()
@@ -70,6 +71,7 @@ serve(async (req) => {
     planId = body.planId
     orgId = body.orgId
     returnUrl = body.returnUrl
+    requestId = body.requestId
   } catch {
     return json({ success: false, error: 'Malformed JSON body' }, 400)
   }
@@ -190,28 +192,86 @@ serve(async (req) => {
       if (org?.slug) orgPrefix = `/${org.slug}`
     }
 
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: plan.price_id,
-          quantity: 1,
+    // Reuse the workspace's Stripe customer. `customer_email` alone makes Stripe create a
+    // NEW customer on every checkout, and the webhook then overwrites
+    // `stripe_customer_id` - splitting invoices and cards across customers and orphaning
+    // any subscription still running on the old one.
+    //
+    // Read through the caller's own token: `owners_admins_view_subscription` returns the
+    // row only to that workspace's primary admin or admin, so nobody can borrow another
+    // workspace's customer by sending its orgId.
+    let customerId: string | null = null
+    if (orgId) {
+      const { data: existing } = await supabase
+        .from('subscriptions')
+        .select('stripe_customer_id, stripe_subscription_id, status')
+        .eq('org_id', orgId)
+        .maybeSingle()
+
+      // Already paying: a second subscription would bill twice. Plan changes go through
+      // manage-subscription instead.
+      if (existing?.stripe_subscription_id && existing.status === 'active') {
+        return json(
+          {
+            success: false,
+            error:
+              'This workspace already has a subscription. Change the plan from Billing & plan.',
+          },
+          409
+        )
+      }
+
+      if (existing?.stripe_customer_id) {
+        // A saved id Stripe does not know (seed data, or the other mode's id) falls back
+        // to a new customer rather than failing the checkout.
+        try {
+          const customer = await stripe.customers.retrieve(
+            existing.stripe_customer_id
+          )
+          if (!customer.deleted) customerId = customer.id
+        } catch (err) {
+          if ((err as { code?: string }).code !== 'resource_missing') throw err
+          console.warn(
+            `Saved Stripe customer ${existing.stripe_customer_id} not found; creating a new one`
+          )
+        }
+      }
+    }
+
+    const session = await stripe.checkout.sessions.create(
+      {
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price: plan.price_id,
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        ...(customerId
+          ? { customer: customerId }
+          : { customer_email: user.email }),
+        // `payment=success` — matches what PaymentSuccessCard actually checks
+        // (src/components/billing/payment-success-card.tsx). `checkout=success` was never
+        // read by anything.
+        success_url: `${base}${orgPrefix}?payment=success`,
+        cancel_url: `${base}${orgPrefix}?payment=canceled`,
+        metadata: {
+          plan_id: plan.id,
+          org_id: orgId || '',
+          user_id: user.id,
+          pending_invitations: JSON.stringify(pendingInvitations),
         },
-      ],
-      mode: 'subscription',
-      customer_email: user.email,
-      // `payment=success` — matches what PaymentSuccessCard actually checks
-      // (src/components/billing/payment-success-card.tsx). `checkout=success` was never
-      // read by anything.
-      success_url: `${base}${orgPrefix}?payment=success`,
-      cancel_url: `${base}${orgPrefix}?payment=canceled`,
-      metadata: {
-        plan_id: plan.id,
-        org_id: orgId || '',
-        user_id: user.id,
-        pending_invitations: JSON.stringify(pendingInvitations),
       },
-    })
+      // Billing's Change plan sends a requestId: a double click or retry then gets the
+      // SAME session back instead of a second one. Onboarding sends none and is unchanged.
+      typeof requestId === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          requestId
+        )
+        ? { idempotencyKey: `checkout:${orgId}:${plan.id}:${requestId}` }
+        : undefined
+    )
 
     return json({ url: session.url }, 200)
   } catch (err) {

@@ -31,3 +31,15 @@ export function canEditMember(
 ): boolean {
   return canEditRole(viewerRole, member.role, member.userId === viewerId)
 }
+
+/**
+ * Roles the viewer may hand out when editing someone. Only the primary admin makes
+ * admins; an admin moves people between manager and contributor.
+ */
+export function assignableRoles(
+  viewerRole: UserRole | string | null | undefined
+): UserRole[] {
+  return viewerRole === 'primary_admin'
+    ? ['admin', 'manager', 'contributor']
+    : ['manager', 'contributor']
+}
