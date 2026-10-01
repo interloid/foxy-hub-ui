@@ -199,6 +199,18 @@ function BadgeForModel({ model }: { model?: EngagementModel | null }) {
           Fixed price
         </FxBadge>
       )
+    case 'budget':
+      return (
+        <FxBadge variant="warning" shape="pill" dot>
+          Budget-based
+        </FxBadge>
+      )
+    case 'hourly':
+      return (
+        <FxBadge variant="info" shape="pill" dot>
+          Hourly
+        </FxBadge>
+      )
     default:
       return null
   }
@@ -271,6 +283,28 @@ function EngagementDetails({
             </div>
           </div>
         </div>
+      )
+
+    case 'budget':
+      return (
+        <div className="space-y-2 border-b pb-4">
+          <p className="text-muted-foreground text-xs font-normal">
+            Hours × bill rate, capped
+          </p>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Budget cap</span>
+            <span className="text-foreground font-bold">
+              {formatMoney(fixedPriceFee, locale)}
+            </span>
+          </div>
+        </div>
+      )
+
+    case 'hourly':
+      return (
+        <p className="text-muted-foreground text-xs font-normal">
+          Hours × bill rate, no cap
+        </p>
       )
 
     case 'fixed':

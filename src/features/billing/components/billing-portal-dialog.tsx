@@ -3,6 +3,7 @@
 import { useTransition } from 'react'
 import { toast } from 'sonner'
 
+import { DemoDisabled } from '@/components/shared/demo-disabled'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxDialogClose } from '@/components/shared/fx-dialog-close'
 import {
@@ -15,7 +16,11 @@ import { useFormatter } from '@/context/locale-provider'
 import { cn } from '@/lib/utils'
 
 import { openCardUpdateAction } from '../actions'
-import { useChargeStatusLabel, useMoney } from '../hooks/use-billing-format'
+import {
+  useChargeStatusLabel,
+  useCreditNote,
+  useMoney,
+} from '../hooks/use-billing-format'
 import { PAYMENT_STATUS, PAYMENT_TONE_CLASS } from '../lib/payment-status'
 import type { BillingCharge, BillingOverview, BillingPlan } from '../types'
 import { InvoiceLink } from './invoice-link'
@@ -42,6 +47,7 @@ export function BillingPortalDialog({
 
   const money = useMoney()
   const statusLabel = useChargeStatusLabel()
+  const creditNote = useCreditNote()
 
   const card = plan.paymentMethod
   const expiry =
@@ -107,14 +113,16 @@ export function BillingPortalDialog({
               </div>
             </div>
             {plan.renewsAt && (
-              <button
-                type="button"
-                disabled={opening}
-                onClick={updateCard}
-                className="text-foreground shrink-0 cursor-pointer border-b-2 border-current text-[13.5px] leading-tight font-semibold disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                {opening ? 'Opening…' : 'Update'}
-              </button>
+              <DemoDisabled className="shrink-0">
+                <button
+                  type="button"
+                  disabled={opening}
+                  onClick={updateCard}
+                  className="text-foreground shrink-0 cursor-pointer border-b-2 border-current text-[13.5px] leading-tight font-semibold disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {opening ? 'Opening…' : 'Update'}
+                </button>
+              </DemoDisabled>
             )}
           </div>
 
@@ -184,6 +192,11 @@ export function BillingPortalDialog({
                           {charge.invoiceNumber}
                         </span>
                       )}
+                      {creditNote(charge) && (
+                        <span className="text-subtle-foreground block truncate text-[12px]">
+                          {creditNote(charge)}
+                        </span>
+                      )}
                     </span>
                     <span className="ml-auto flex shrink-0 items-center gap-3">
                       <span className="text-foreground font-mono font-semibold">
@@ -213,18 +226,20 @@ export function BillingPortalDialog({
 
         <div className="border-border flex shrink-0 flex-col-reverse gap-2 border-t px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           {plan.planId !== 'free' && plan.renewsAt && !plan.cancelsAt ? (
-            <FxButton
-              type="button"
-              variant="secondary"
-              className="hover:text-destructive hover:border-destructive w-full hover:bg-transparent sm:w-auto"
-              disabled={opening}
-              onClick={() => {
-                onOpenChange(false)
-                onCancelSubscription()
-              }}
-            >
-              Cancel subscription
-            </FxButton>
+            <DemoDisabled className="flex w-full sm:w-auto">
+              <FxButton
+                type="button"
+                variant="secondary"
+                className="hover:text-destructive hover:border-destructive w-full hover:bg-transparent sm:w-auto"
+                disabled={opening}
+                onClick={() => {
+                  onOpenChange(false)
+                  onCancelSubscription()
+                }}
+              >
+                Cancel subscription
+              </FxButton>
+            </DemoDisabled>
           ) : null}
           <FxButton
             type="button"

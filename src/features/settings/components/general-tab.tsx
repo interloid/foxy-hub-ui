@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
 import { UserAvatar } from '@/components/shared/app/user-avatar'
+import { DemoDisabled } from '@/components/shared/demo-disabled'
 import { FxBadge } from '@/components/shared/fx-badge'
 import { ThemeToggle } from '@/components/shared/theme-toggle'
 import { Switch } from '@/components/ui/switch'
@@ -119,20 +120,24 @@ export function GeneralTab({
           label="Weekly digest"
           hint="Monday summary of your projects, hours and approvals."
         >
-          <ActionLink
-            disabled={sendingTest}
-            onClick={sendTest}
-            className="text-[13.5px]"
-          >
-            {sendingTest ? 'Sending…' : 'Send test'}
-          </ActionLink>
-          <Switch
-            aria-label="Weekly digest"
-            checked={weeklyDigest}
-            disabled={savingDigest}
-            onCheckedChange={changeDigest}
-            className="[&>span]:data-[state=checked]:bg-brand-white [&>span]:data-[state=unchecked]:bg-brand-white"
-          />
+          <DemoDisabled>
+            <ActionLink
+              disabled={sendingTest}
+              onClick={sendTest}
+              className="text-[13.5px]"
+            >
+              {sendingTest ? 'Sending…' : 'Send test'}
+            </ActionLink>
+          </DemoDisabled>
+          <DemoDisabled>
+            <Switch
+              aria-label="Weekly digest"
+              checked={weeklyDigest}
+              disabled={savingDigest}
+              onCheckedChange={changeDigest}
+              className="[&>span]:data-[state=checked]:bg-brand-white [&>span]:data-[state=unchecked]:bg-brand-white"
+            />
+          </DemoDisabled>
         </Row>
       </Section>
     </div>

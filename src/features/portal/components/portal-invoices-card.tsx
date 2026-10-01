@@ -4,6 +4,7 @@ import { ArrowUpRight, Loader2 } from 'lucide-react'
 import { useTransition } from 'react'
 import { toast } from 'sonner'
 
+import { DemoDisabled } from '@/components/shared/demo-disabled'
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard } from '@/components/shared/fx-card'
@@ -61,18 +62,20 @@ export function PayNowButton({ invoice }: { invoice: PortalInvoice }) {
   }
 
   return (
-    <FxButton
-      type="button"
-      size="xs"
-      disabled={isStarting}
-      onClick={(e) => {
-        e.stopPropagation()
-        pay()
-      }}
-    >
-      {isStarting && <Loader2 className="mr-1 size-3 animate-spin" />}
-      Pay now
-    </FxButton>
+    <DemoDisabled message="Payments are disabled in the demo">
+      <FxButton
+        type="button"
+        size="xs"
+        disabled={isStarting}
+        onClick={(e) => {
+          e.stopPropagation()
+          pay()
+        }}
+      >
+        {isStarting && <Loader2 className="mr-1 size-3 animate-spin" />}
+        Pay now
+      </FxButton>
+    </DemoDisabled>
   )
 }
 

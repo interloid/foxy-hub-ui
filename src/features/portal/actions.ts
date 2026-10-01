@@ -3,11 +3,15 @@
 import { siteConfig } from '@/config/site'
 import { describeFunctionError } from '@/features/onboarding/services/billing'
 import type { ActionResult } from '@/features/onboarding/types'
+import { demoBlocked } from '@/lib/demo'
 import { createClient } from '@/lib/supabase/server'
 
 export async function issueInvoiceAction(
   invoiceId: string
 ): Promise<ActionResult<{ url: string }>> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const supabase = await createClient()
 
   const {
@@ -41,6 +45,9 @@ export async function issueInvoiceAction(
 export async function startInvoicePaymentAction(
   invoiceId: string
 ): Promise<ActionResult<{ url: string }>> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const supabase = await createClient()
 
   const {

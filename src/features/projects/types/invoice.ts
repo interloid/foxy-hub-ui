@@ -1,3 +1,5 @@
+import type { BillingPeriodOption } from '../lib/retainer-periods'
+
 export interface InvoiceDraftLines {
   lines: InvoiceLine[]
   entryIds: string[]
@@ -16,6 +18,8 @@ export interface InvoiceDraft extends InvoiceDraftLines {
   currency: string
   periodStart: string | null
   periodEnd: string | null
+  /** Why the requested retainer period cannot be billed; null when it can. */
+  periodError: string | null
   dueDate: string
 }
 
@@ -58,7 +62,8 @@ export interface InvoiceBuildContext {
   alreadyInvoicedAmount?: number
 }
 
-export type EngagementModel = 'full_time' | 'part_time' | 'retainer' | 'fixed'
+export type EngagementModel =
+  'full_time' | 'part_time' | 'retainer' | 'fixed' | 'budget' | 'hourly'
 
 export interface InvoiceLine {
   id: string
@@ -78,7 +83,16 @@ export interface ProjectInvoiceContext {
   engagement: EngagementModel
   calloutMessage?: string | null
   retainerPeriod?: 'weekly' | 'monthly' | null
+  /** Retainers only: every completed period since the project started, oldest first. */
+  billingPeriods?: BillingPeriodOption[]
+  /** Retainers only: the period `lines` were built for. */
+  periodStart?: string | null
   lines: InvoiceLine[]
+}
+
+export interface RetainerInvoicePreview {
+  lines: InvoiceLine[]
+  calloutMessage: string | null
 }
 
 export interface InvoiceFormValues {
@@ -95,6 +109,7 @@ export interface NewInvoiceSheetProps {
     projectId: string
     notes: string
     totalAmount: number
+    periodStart?: string | null
   }) => void
   isSubmitting?: boolean
   hasExistingInvoice?: boolean

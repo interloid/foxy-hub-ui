@@ -12,7 +12,8 @@ export type ProjectStatus =
   | 'draft'
   | 'cancelled'
 
-export type EngagementModel = 'full_time' | 'part_time' | 'fixed' | 'retainer'
+export type EngagementModel =
+  'full_time' | 'part_time' | 'fixed' | 'retainer' | 'budget' | 'hourly'
 
 export type RetainerPeriod = 'weekly' | 'monthly'
 

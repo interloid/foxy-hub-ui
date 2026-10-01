@@ -78,16 +78,35 @@ CREATE TYPE public.subscription_status AS ENUM (
 -- values are the design's own (`engCards`), and they are NOT interchangeable with
 -- `project_status` — one says how work is charged, the other how far along it is.
 -- See decisions.md D044.
+--
+-- `budget` and `hourly` come from the full-page New project wizard ("How it bills"):
+-- budget is hours × bill rate capped at `contract_value`, hourly is the same with no cap.
+-- Appended, not renamed - existing rows and screens still use `full_time`/`part_time`, and
+-- the accompanying migration must ALTER TYPE ... ADD VALUE them in this same order.
 create type public.engagement_model as enum (
   'full_time',
   'part_time',
   'retainer',
-  'fixed'
+  'fixed',
+  'budget',
+  'hourly'
 );
 
 -- A retainer's bucket refills weekly or monthly. The prototype renders this as
 -- "40 h / month", so the period is a fact about the retainer, not a display choice.
 create type public.retainer_period as enum ('weekly', 'monthly');
+
+-- How often the client gets a status update, from the wizard's "Update cadence" field. The
+-- weekly values carry the day because the design offers "Weekly, Monday" as a choice.
+-- `at_milestone` ties updates to delivery rather than the calendar, and `on_request` means
+-- no scheduled updates at all - only when the client asks.
+create type public.update_cadence as enum (
+  'weekly_monday',
+  'weekly_friday',
+  'fortnightly',
+  'at_milestone',
+  'on_request'
+);
 
 -- Who did the thing, for the Recent activity feed. This is an ENUM because it is a closed set
 -- that drives RENDERING: the prototype tints each avatar by exactly these three kinds

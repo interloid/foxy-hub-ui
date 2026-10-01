@@ -10,6 +10,7 @@ import {
 import { useState, useSyncExternalStore, useTransition } from 'react'
 import { toast } from 'sonner'
 
+import { DemoDisabled } from '@/components/shared/demo-disabled'
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import {
@@ -234,47 +235,51 @@ export function SecurityTab({
           <span className="text-muted-foreground text-[14px]">
             {twoFactor ? 'On' : 'Off'}
           </span>
-          <Switch
-            aria-label="Two-factor authentication"
-            checked={twoFactor}
-            onCheckedChange={(checked) =>
-              setTwoFactorDialog(checked ? 'enable' : 'disable')
-            }
-          />
+          <DemoDisabled>
+            <Switch
+              aria-label="Two-factor authentication"
+              checked={twoFactor}
+              onCheckedChange={(checked) =>
+                setTwoFactorDialog(checked ? 'enable' : 'disable')
+              }
+            />
+          </DemoDisabled>
         </Row>
 
         <Row
           label="Sign out after inactivity"
           hint="Applies to this account on shared machines."
         >
-          <Select
-            value={inactivity}
-            onValueChange={changeInactivity}
-            disabled={savingInactivity}
-          >
-            <SelectTrigger
-              aria-label="Sign out after inactivity"
-              className="bg-sidebar border-border h-10! w-35 cursor-pointer text-[13px]"
+          <DemoDisabled>
+            <Select
+              value={inactivity}
+              onValueChange={changeInactivity}
+              disabled={savingInactivity}
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent
-              position="popper"
-              align="end"
-              sideOffset={6}
-              className="p-1"
-            >
-              {INACTIVITY_TIMEOUTS.map((value) => (
-                <SelectItem
-                  key={value}
-                  value={value}
-                  className="cursor-pointer p-2"
-                >
-                  {INACTIVITY_LABELS[value]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              <SelectTrigger
+                aria-label="Sign out after inactivity"
+                className="bg-sidebar border-border h-10! w-35 cursor-pointer text-[13px]"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                position="popper"
+                align="end"
+                sideOffset={6}
+                className="p-1"
+              >
+                {INACTIVITY_TIMEOUTS.map((value) => (
+                  <SelectItem
+                    key={value}
+                    value={value}
+                    className="cursor-pointer p-2"
+                  >
+                    {INACTIVITY_LABELS[value]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </DemoDisabled>
         </Row>
       </Section>
 
@@ -297,13 +302,15 @@ export function SecurityTab({
               {device.isCurrent ? (
                 <FxBadge variant="success">This device</FxBadge>
               ) : (
-                <ActionLink
-                  disabled={signingOut}
-                  onClick={() => handleSignOutDevice(device)}
-                  className="text-[13.5px]"
-                >
-                  Sign out
-                </ActionLink>
+                <DemoDisabled>
+                  <ActionLink
+                    disabled={signingOut}
+                    onClick={() => handleSignOutDevice(device)}
+                    className="text-[13.5px]"
+                  >
+                    Sign out
+                  </ActionLink>
+                </DemoDisabled>
               )}
             </Row>
           )
@@ -313,15 +320,17 @@ export function SecurityTab({
           label="Sign out everywhere else"
           hint="Ends every session except this one."
         >
-          <FxButton
-            type="button"
-            variant="secondary"
-            disabled={others.length === 0 || signingOut}
-            onClick={handleSignOutOthers}
-            className="hover:bg-card text-[13px]"
-          >
-            Sign out others
-          </FxButton>
+          <DemoDisabled>
+            <FxButton
+              type="button"
+              variant="secondary"
+              disabled={others.length === 0 || signingOut}
+              onClick={handleSignOutOthers}
+              className="hover:bg-card text-[13px]"
+            >
+              Sign out others
+            </FxButton>
+          </DemoDisabled>
         </Row>
       </Section>
 

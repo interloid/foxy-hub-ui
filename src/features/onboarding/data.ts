@@ -38,7 +38,6 @@ export type OnboardPlan = {
   blurb: string
   priceMonthly: number
   priceYearly: number
-  seats: string
   features: readonly string[]
   popular?: boolean
 }
@@ -50,7 +49,6 @@ export const ONBOARD_PLANS: readonly OnboardPlan[] = [
     blurb: 'For solo freelancers getting started',
     priceMonthly: 19,
     priceYearly: 190,
-    seats: '5 seats',
     features: [
       'Up to 5 active projects',
       'Client portal & approvals',
@@ -63,7 +61,6 @@ export const ONBOARD_PLANS: readonly OnboardPlan[] = [
     blurb: 'For growing studios',
     priceMonthly: 49,
     priceYearly: 490,
-    seats: '10 seats',
     features: [
       'Unlimited projects & clients',
       'AI weekly updates',
@@ -77,7 +74,6 @@ export const ONBOARD_PLANS: readonly OnboardPlan[] = [
     blurb: 'For established agencies',
     priceMonthly: 99,
     priceYearly: 990,
-    seats: '15 seats',
     features: [
       'Everything in Studio',
       'Subscriptions & retainers',

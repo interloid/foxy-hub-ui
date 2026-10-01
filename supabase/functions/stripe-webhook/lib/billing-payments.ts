@@ -129,6 +129,9 @@ export async function recordSubscriptionInvoice(
       description: line?.description ?? null,
       amount_due_cents: invoice.amount_due,
       amount_paid_cents: invoice.amount_paid,
+      // What account credit paid (the customer balance applied to this invoice).
+      total_cents: invoice.total,
+      credit_applied_cents: Math.max(invoice.total - invoice.amount_due, 0),
       currency: invoice.currency,
       ...(keepStatus ? {} : { status: truth }),
       ...(truth === 'paid'

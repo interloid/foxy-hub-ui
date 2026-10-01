@@ -25,14 +25,22 @@ import { Label } from '@/components/ui/label'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { formatCurrency } from '@/lib/money'
 import { AlertCircle, ChevronDown, Send } from 'lucide-react'
-import { useEffect, useMemo, useState, useTransition } from 'react'
-import { Controller, useForm } from 'react-hook-form'
-import { hasInvoiceForProject } from '../../queries/get-invoice'
+import { useEffect, useRef, useState, useTransition } from 'react'
+import { Controller, useForm, useWatch } from 'react-hook-form'
+import {
+  BillingPeriodOption,
+  formatMonthLabel,
+  formatWeekLabel,
+} from '../../lib/retainer-periods'
+import {
+  getRetainerInvoicePreview,
+  hasInvoiceForProject,
+} from '../../queries/get-invoice'
 import {
   EngagementModel,
   InvoiceFormValues,
   NewInvoiceSheetProps,
-  ProjectInvoiceContext,
+  RetainerInvoicePreview,
 } from '../../types/invoice'
 import { useLocale } from '@/context/locale-provider'
 
@@ -44,6 +52,85 @@ const ENGAGEMENT_BADGE_CONFIG: Record<
   part_time: { label: 'Part-time', variant: 'info' },
   retainer: { label: 'Retainer', variant: 'warning' },
   fixed: { label: 'Fixed price', variant: 'success' },
+  budget: { label: 'Budget-based', variant: 'default' },
+  hourly: { label: 'Hourly', variant: 'info' },
+}
+
+const PICKER_TRIGGER_CLASS =
+  'border-border bg-muted/50 text-foreground hover:bg-muted focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50'
+
+interface PeriodPickerOption {
+  value: string
+  label: string
+  invoiced: boolean
+}
+
+function PeriodPicker({
+  id,
+  label,
+  value,
+  placeholder,
+  options,
+  onSelect,
+}: {
+  id: string
+  label: string
+  value: string | null
+  placeholder: string
+  options: PeriodPickerOption[]
+  onSelect: (value: string) => void
+}) {
+  const selected = options.find((option) => option.value === value)
+
+  return (
+    <div className="min-w-0 flex-1 space-y-2">
+      <Label
+        htmlFor={id}
+        className="text-muted-foreground text-[12.5px] font-semibold"
+      >
+        {label}
+      </Label>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild disabled={options.length === 0}>
+          <FxButton
+            type="button"
+            id={id}
+            disabled={options.length === 0}
+            className={PICKER_TRIGGER_CLASS}
+          >
+            <span className="truncate">{selected?.label ?? placeholder}</span>
+            <ChevronDown className="text-muted-foreground size-4 shrink-0" />
+          </FxButton>
+        </DropdownMenuTrigger>
+        <FxDropdownMenuContent
+          align="start"
+          className="max-h-72 w-(--radix-dropdown-menu-trigger-width) overflow-y-auto"
+        >
+          {options.map((option) => (
+            <FxDropdownMenuItem
+              key={option.value}
+              disabled={option.invoiced}
+              onClick={() => onSelect(option.value)}
+              className="hover:bg-primary! hover:text-brand-white! focus:bg-muted justify-between text-[13px]"
+            >
+              <span>{option.label}</span>
+              {option.invoiced && (
+                <span className="text-muted-foreground text-[11px]">
+                  Invoiced
+                </span>
+              )}
+            </FxDropdownMenuItem>
+          ))}
+        </FxDropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
+/** Latest week of `month` still to bill, else its latest week. */
+function defaultWeekOf(periods: BillingPeriodOption[], month: string) {
+  const weeks = periods.filter((p) => p.start.startsWith(month))
+  return (weeks.filter((w) => !w.invoiced).at(-1) ?? weeks.at(-1))?.start
 }
 
 export function NewInvoiceSheet({
@@ -55,10 +142,21 @@ export function NewInvoiceSheet({
   isSubmitting = false,
   hasExistingInvoice = false,
 }: NewInvoiceSheetProps) {
-  const locale = useLocale()
-  const [hasExistingInvoices, setHasExistingInvoice] = useState(false)
+  // Whether each project already has an invoice, keyed by project id, so a slow answer
+  // for a project the admin has moved off can't be read as the current one's.
+  const [invoiceChecks, setInvoiceChecks] = useState<Record<string, boolean>>(
+    {}
+  )
   const [isCheckingInvoice, startTransition] = useTransition()
-  const { control, handleSubmit, setValue, getValues, watch } =
+  const [isLoadingPreview, startPreview] = useTransition()
+  const previewRequest = useRef(0)
+  /** The retainer period the admin picked, and the lines billed for it. */
+  const [periodSelection, setPeriodSelection] = useState<{
+    projectId: string
+    periodStart: string
+    preview: RetainerInvoicePreview | null
+  } | null>(null)
+  const { control, handleSubmit, setValue, getValues } =
     useForm<InvoiceFormValues>({
       defaultValues: {
         projectId: defaultProjectId ?? projects[0]?.id ?? '',
@@ -66,36 +164,116 @@ export function NewInvoiceSheet({
       },
     })
 
-  const watchedProjectId = watch('projectId')
-  const { currency } = useWorkspace()
+  const watchedProjectId = useWatch({ control, name: 'projectId' })
+  const { currency, orgSlug } = useWorkspace()
   const activeProjectId =
     watchedProjectId || defaultProjectId || projects[0]?.id || ''
 
   const currentProject =
     projects.find((p) => p.id === activeProjectId) || projects[0]
 
-  const checkProjectInvoice = (project: ProjectInvoiceContext | undefined) => {
-    if (!project?.id) {
-      setHasExistingInvoice(false)
-      return
-    }
-    startTransition(async () => {
+  const isRetainer = currentProject?.engagement === 'retainer'
+  const hasExistingInvoices =
+    !isRetainer && Boolean(currentProject && invoiceChecks[currentProject.id])
+  const billingPeriods = currentProject?.billingPeriods ?? []
+  const pickedPeriod =
+    periodSelection?.projectId === currentProject?.id ? periodSelection : null
+  const selectedPeriodStart =
+    pickedPeriod?.periodStart ?? currentProject?.periodStart ?? null
+  const selectedPeriod = billingPeriods.find(
+    (p) => p.start === selectedPeriodStart
+  )
+  // The server built `lines` for the default period; any other one is previewed.
+  const isDefaultPeriod =
+    !isRetainer || selectedPeriodStart === currentProject?.periodStart
+  const lines = isDefaultPeriod
+    ? (currentProject?.lines ?? [])
+    : (pickedPeriod?.preview?.lines ?? [])
+  const calloutMessage = isDefaultPeriod
+    ? currentProject?.calloutMessage
+    : pickedPeriod?.preview?.calloutMessage
+  const isPeriodInvoiced = isRetainer
+    ? Boolean(selectedPeriod?.invoiced)
+    : hasExistingInvoices || hasExistingInvoice
+
+  // Closing the sheet forgets the picked period. Done while rendering rather than in an
+  // effect, so the closed sheet never renders once with the stale selection.
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (!open) setPeriodSelection(null)
+  }
+
+  const selectPeriod = (periodStart: string) => {
+    if (!currentProject) return
+    const projectId = currentProject.id
+    const request = ++previewRequest.current
+
+    setPeriodSelection({ projectId, periodStart, preview: null })
+    if (periodStart === currentProject.periodStart) return
+
+    startPreview(async () => {
+      let preview: RetainerInvoicePreview
       try {
-        const exists = await hasInvoiceForProject(
-          project.id,
-          project.engagement,
-          project.retainerPeriod
+        preview = await getRetainerInvoicePreview(
+          projectId,
+          orgSlug,
+          periodStart
         )
-        setHasExistingInvoice(exists)
       } catch (err) {
-        console.error('Failed to check existing invoice:', err)
-        setHasExistingInvoice(false)
+        console.error('Failed to load retainer period:', err)
+        preview = {
+          lines: [],
+          calloutMessage: 'Could not load this period. Please try again.',
+        }
+      }
+      // A slower answer for a period the admin already moved off must not win.
+      if (request === previewRequest.current) {
+        setPeriodSelection({ projectId, periodStart, preview })
       }
     })
   }
+
+  const locale = useLocale()
+  const monthsByKey = new Map<string, PeriodPickerOption>()
+  for (const period of billingPeriods) {
+    const month = period.start.slice(0, 7)
+    monthsByKey.set(month, {
+      value: month,
+      label: formatMonthLabel(period.start, locale),
+      // A weekly month is only closed once every week in it is billed.
+      invoiced: (monthsByKey.get(month)?.invoiced ?? true) && period.invoiced,
+    })
+  }
+  const monthOptions = Array.from(monthsByKey.values()).reverse()
+
+  const selectedMonth = selectedPeriodStart?.slice(0, 7) ?? null
+  const weekOptions: PeriodPickerOption[] = billingPeriods
+    .filter((p) => selectedMonth && p.start.startsWith(selectedMonth))
+    .map((p) => ({
+      value: p.start,
+      label: formatWeekLabel(p, locale),
+      invoiced: p.invoiced,
+    }))
+    .reverse()
+
+  // Re-runs whenever the project object changes (including a refreshed `projects` list),
+  // so an invoice created since the last check is picked up.
   useEffect(() => {
-    checkProjectInvoice(currentProject)
-  }, [currentProject, currentProject?.id, currentProject?.engagement])
+    const project = currentProject
+    // Retainers are checked per period, from `billingPeriods`.
+    if (!project?.id || project.engagement === 'retainer') return
+
+    startTransition(async () => {
+      let exists = false
+      try {
+        exists = await hasInvoiceForProject(project.id, project.engagement)
+      } catch (err) {
+        console.error('Failed to check existing invoice:', err)
+      }
+      setInvoiceChecks((prev) => ({ ...prev, [project.id]: exists }))
+    })
+  }, [currentProject])
 
   useEffect(() => {
     if (defaultProjectId) {
@@ -105,10 +283,7 @@ export function NewInvoiceSheet({
     }
   }, [defaultProjectId, projects, setValue, getValues, open])
 
-  const totalAmount = useMemo(() => {
-    if (!currentProject?.lines) return 0
-    return currentProject.lines.reduce((sum, line) => sum + line.amount, 0)
-  }, [currentProject])
+  const totalAmount = lines.reduce((sum, line) => sum + line.amount, 0)
 
   const handleFormSubmit = (values: InvoiceFormValues) => {
     if (!currentProject) return
@@ -116,6 +291,7 @@ export function NewInvoiceSheet({
       projectId: currentProject.id,
       notes: values.notes,
       totalAmount,
+      periodStart: isRetainer ? selectedPeriodStart : null,
     })
   }
 
@@ -162,7 +338,7 @@ export function NewInvoiceSheet({
                         type="button"
                         id="project-select"
                         disabled={projects.length === 0}
-                        className="border-border bg-muted/50 text-foreground hover:bg-muted focus:ring-ring flex w-full items-center justify-between rounded-md border px-3 py-2 text-[13px] outline-none focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
+                        className={PICKER_TRIGGER_CLASS}
                       >
                         <span className="truncate">
                           {currentProject?.name ?? 'Select project...'}
@@ -179,10 +355,7 @@ export function NewInvoiceSheet({
                         projects.map((project) => (
                           <FxDropdownMenuItem
                             key={project.id}
-                            onClick={() => {
-                              field.onChange(project.id)
-                              checkProjectInvoice(project)
-                            }}
+                            onClick={() => field.onChange(project.id)}
                             className="hover:bg-primary! hover:text-brand-white! focus:bg-muted text-[13px]"
                           >
                             {project.name}
@@ -210,12 +383,59 @@ export function NewInvoiceSheet({
               </div>
             )}
 
+            {/* Billing period (retainers bill one completed month / week) */}
+            {isRetainer && (
+              <div className="space-y-2">
+                <div className="flex gap-3">
+                  {currentProject?.retainerPeriod === 'weekly' ? (
+                    <>
+                      <PeriodPicker
+                        id="billing-month"
+                        label="Month"
+                        value={selectedMonth}
+                        placeholder="No completed week yet"
+                        options={monthOptions}
+                        onSelect={(month) => {
+                          const week = defaultWeekOf(billingPeriods, month)
+                          if (week) selectPeriod(week)
+                        }}
+                      />
+                      <PeriodPicker
+                        id="billing-week"
+                        label="Week"
+                        value={selectedPeriodStart}
+                        placeholder="Select week"
+                        options={weekOptions}
+                        onSelect={selectPeriod}
+                      />
+                    </>
+                  ) : (
+                    <PeriodPicker
+                      id="billing-month"
+                      label="Billing month"
+                      value={selectedPeriodStart?.slice(0, 7) ?? null}
+                      placeholder="No completed month yet"
+                      options={monthOptions}
+                      onSelect={(month) => selectPeriod(`${month}-01`)}
+                    />
+                  )}
+                </div>
+                <p className="text-muted-foreground text-[11px]">
+                  Only completed{' '}
+                  {currentProject?.retainerPeriod === 'weekly'
+                    ? 'weeks'
+                    : 'months'}{' '}
+                  since the project started can be invoiced.
+                </p>
+              </div>
+            )}
+
             {/* Callout Notice (Retainer / Fixed info) */}
-            {currentProject?.calloutMessage && (
+            {calloutMessage && !isLoadingPreview && (
               <div className="border-warning bg-warning-subtle text-foreground flex items-center gap-2 rounded-md border p-3 text-xs">
                 {' '}
                 <AlertCircle className="text-primary h-4 w-4 shrink-0" />
-                <span>{currentProject.calloutMessage}</span>
+                <span>{calloutMessage}</span>
               </div>
             )}
 
@@ -235,8 +455,12 @@ export function NewInvoiceSheet({
                 </div>
 
                 {/* Table Content */}
-                {currentProject?.lines && currentProject.lines.length > 0 ? (
-                  currentProject.lines.map((line) => (
+                {isLoadingPreview ? (
+                  <div className="text-muted-foreground px-4 py-8 text-center text-xs">
+                    Loading this period…
+                  </div>
+                ) : lines.length > 0 ? (
+                  lines.map((line) => (
                     <div
                       key={line.id}
                       className="border-border/50 grid grid-cols-12 items-center border-t px-4 py-3.5 text-[12px]"
@@ -304,7 +528,7 @@ export function NewInvoiceSheet({
             </div>
           </form>
           <div className="text-muted-foreground text-center text-xs">
-            {hasExistingInvoice && (
+            {isPeriodInvoiced && (
               <span className="text-primary text-center font-medium">
                 An invoice has already been created for this billing period.
               </span>
@@ -339,8 +563,10 @@ export function NewInvoiceSheet({
               disabled={
                 isSubmitting ||
                 isCheckingInvoice ||
-                !currentProject?.lines.length ||
-                hasExistingInvoices
+                isLoadingPreview ||
+                lines.length === 0 ||
+                isPeriodInvoiced ||
+                (isRetainer && !selectedPeriod)
               }
               className="bg-primary text-brand-white h-9 px-4 text-[13px] font-semibold"
             >

@@ -1,5 +1,6 @@
 'use client'
 
+import { DemoDisabled } from '@/components/shared/demo-disabled'
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxInput } from '@/components/shared/fx-field'
@@ -241,7 +242,9 @@ export function DeliverableFileSheet({
 
         onSuccessUpload?.()
       } else {
-        setErrorMessage('Failed to upload files.')
+        setErrorMessage(
+          'error' in result ? result.error : 'Failed to upload files.'
+        )
       }
     } catch (err) {
       console.error('Failed to upload assets:', err)
@@ -455,25 +458,27 @@ export function DeliverableFileSheet({
                       {MAX_FILE_COUNT})
                     </span>
 
-                    <FxButton
-                      type="button"
-                      size="sm"
-                      disabled={isUploading}
-                      onClick={handleUpload}
-                      className="h-7 text-xs"
-                    >
-                      {isUploading ? (
-                        <>
-                          <Loader2 className="mr-1.5 size-3 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="mr-1.5 size-3" />
-                          Upload
-                        </>
-                      )}
-                    </FxButton>
+                    <DemoDisabled>
+                      <FxButton
+                        type="button"
+                        size="sm"
+                        disabled={isUploading}
+                        onClick={handleUpload}
+                        className="h-7 text-xs"
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="mr-1.5 size-3 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-1.5 size-3" />
+                            Upload
+                          </>
+                        )}
+                      </FxButton>
+                    </DemoDisabled>
                   </div>
 
                   {selectedFiles.map((file, idx) => (

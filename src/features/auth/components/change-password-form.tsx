@@ -1,6 +1,7 @@
 'use client'
 
 import { NAV_ICONS } from '@/components/layout/nav-icons'
+import { DemoDisabled } from '@/components/shared/demo-disabled'
 import {
   FxAlert,
   FxButton,
@@ -158,9 +159,11 @@ export function ChangePasswordForm() {
             >
               {CHANGE_PASSWORD.cancel}
             </FxButton>
-            <FxButton type="submit" disabled={isSubmitDisabled}>
-              {pending ? 'Saving…' : CHANGE_PASSWORD.submit}
-            </FxButton>
+            <DemoDisabled>
+              <FxButton type="submit" disabled={isSubmitDisabled}>
+                {pending ? 'Saving…' : CHANGE_PASSWORD.submit}
+              </FxButton>
+            </DemoDisabled>
           </div>
         </form>
       </FxCardContent>

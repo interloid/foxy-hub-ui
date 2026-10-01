@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { DEMO_DISABLED, isDemoCaller } from '../_shared/demo.ts'
 import Stripe from 'npm:stripe@14'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
@@ -188,6 +189,11 @@ serve(async (req) => {
   } = await userClient.auth.getUser()
   if (!user) return json({ error: 'Invalid token' }, 401)
 
+  // Stripe and email are off for the shared demo workspace (see _shared/demo.ts).
+  if (await isDemoCaller(userClient, user.id)) {
+    return json({ error: DEMO_DISABLED }, 403)
+  }
+
   // Doubles as the permission check - see the header comment.
   const { data: sub } = await userClient
     .from('subscriptions')
@@ -340,7 +346,9 @@ serve(async (req) => {
 
       return json({
         charges: invoices.data
-          .filter((inv) => inv.subscription && inv.amount_paid > 0)
+          // By the invoice's price, not what the card paid: a switch paid entirely from
+          // account credit has amount_paid 0 and used to vanish from the list.
+          .filter((inv) => inv.subscription && inv.total > 0)
           .map((inv) => ({
             id: inv.id,
             date: iso(inv.status_transitions?.paid_at ?? inv.created),
@@ -357,7 +365,8 @@ serve(async (req) => {
                 main?.price?.nickname ?? main?.description ?? 'Subscription'
               )
             })(),
-            amount: inv.amount_paid / 100,
+            amount: inv.total / 100,
+            creditApplied: Math.max(inv.total - inv.amount_due, 0) / 100,
             currency: inv.currency.toUpperCase(),
             invoiceUrl: inv.hosted_invoice_url ?? null,
             invoiceNumber: inv.number ?? null,

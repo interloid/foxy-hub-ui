@@ -82,7 +82,7 @@ export async function getMembersClientsData(
 
     // The SAME numbers the invite check uses, so the seat card can never disagree with
     // "all seats are taken" (RISK-015): active staff + pending staff invites, against
-    // the plan's max_members.
+    // the plan's seats (`plans.seats`).
     getSeatUsage(orgId),
 
     supabase
@@ -282,7 +282,7 @@ async function getPlan(orgId: string) {
     await supabase
       .from('subscriptions')
       .select(
-        'pending_change_at, plan:plans!subscriptions_plan_id_fkey(name, features), pending:plans!subscriptions_pending_plan_id_fkey(name, features)'
+        'pending_change_at, plan:plans!subscriptions_plan_id_fkey(name, features, seats), pending:plans!subscriptions_pending_plan_id_fkey(name, features, seats)'
       )
       .eq('org_id', orgId)
       .eq('status', 'active')
@@ -297,10 +297,14 @@ async function getPlan(orgId: string) {
 
   return {
     name: planRow?.name || 'Free',
+    // Seats are `plans.seats` everywhere - the billing page, plan changes and the
+    // plan-limit trigger read the same column. `features` still holds max_clients.
+    seats: planRow?.seats ?? null,
     features: (planRow?.features ?? null) as PlanFeatures | null,
     pending: pendingRow
       ? {
           name: pendingRow.name,
+          seats: pendingRow.seats ?? null,
           features: (pendingRow.features ?? null) as PlanFeatures | null,
           effectiveAt: data?.pending_change_at ?? null,
         }
@@ -308,7 +312,7 @@ async function getPlan(orgId: string) {
   }
 }
 
-type PlanFeatures = { max_members?: unknown; max_clients?: unknown }
+type PlanFeatures = { max_clients?: unknown }
 
 export async function getClientUsage(orgId: string): Promise<ClientUsage> {
   const supabase = await createClient()
@@ -358,12 +362,12 @@ export async function getSeatUsage(orgId: string): Promise<SeatUsage> {
 
   return {
     planName: plan.name,
-    maxMembers: toLimit(plan.features?.max_members),
+    maxMembers: toLimit(plan.seats),
     used: (membersRes.count ?? 0) + (invitesRes.count ?? 0),
     upcoming: plan.pending
       ? {
           planName: plan.pending.name,
-          maxMembers: toLimit(plan.pending.features?.max_members),
+          maxMembers: toLimit(plan.pending.seats),
           effectiveAt: plan.pending.effectiveAt,
         }
       : null,

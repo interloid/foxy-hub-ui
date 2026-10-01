@@ -22,6 +22,14 @@ create table public.projects (
   -- a caller-supplied creator is a caller-supplied lie.
   created_by uuid references auth.users(id) on delete set null,
 
+  -- ── Who the project belongs to ────────────────────────────────────────────────────────
+  --
+  -- Distinct from `created_by`: an admin often sets a project up for someone else, and the
+  -- wizard's "Project owner" is who timesheets and invoices on this project route to.
+  -- Nullable, since every existing project predates the column; `on delete set null` for the
+  -- same reason as `created_by`.
+  owner_id   uuid references auth.users(id) on delete set null,
+
   created_at  timestamptz           not null    default now(),
   updated_at  timestamptz,
 
@@ -69,8 +77,24 @@ create table public.projects (
   -- Why an over-commit was accepted. The design blocks Create when an allocation pushes
   -- someone past a working day and demands a reason to proceed — so this column is the audit
   -- trail for a rule that was deliberately overridden, not a note field.
-  override_reason  text
+  override_reason  text,
+
+  -- ── Scope & sign-off, per the wizard's "Scope & milestones" step ──────────────────────
+  --
+  -- In and out are two columns, not one `description`: the design asks for them side by
+  -- side, and naming the exclusions is what a change request is later checked against.
+  -- `description` stays as the free-form "Notes for delivery".
+  scope_in         text,
+  scope_out        text,
+  -- "The client calls it done when..." - the acceptance line, in the client's own terms.
+  done_when        text,
+  -- Who on the client side signs off. Free text because there is no client contacts table
+  -- yet (`clients` holds a single contact); null reads as the design's "Not decided yet".
+  sign_off_by      text,
+  -- Not null: every project gets updates at some rhythm, and the wizard opens on Monday.
+  update_cadence   public.update_cadence not null default 'weekly_monday'
 );
 
 create index if not exists projects_org_id_idx    on public.projects(org_id);
 create index if not exists projects_client_id_idx on public.projects(client_id);
+create index if not exists projects_owner_id_idx  on public.projects(owner_id);

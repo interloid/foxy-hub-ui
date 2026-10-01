@@ -18,7 +18,6 @@ import {
   SelectTrigger,
 } from '@/components/ui/select'
 import { Tabs } from '@/components/ui/tabs'
-import { NewProjectSheet } from '@/features/dashboard/components/sheets/new-project-sheet'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import type { ClientOption, TeamMemberOption } from '@/features/dashboard/types'
 import {
@@ -33,6 +32,7 @@ import {
 import { isAdminRole } from '@/lib/role'
 import { cn } from '@/lib/utils'
 import { Plus, Search, X } from 'lucide-react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -132,10 +132,8 @@ export function ProjectFilters({
   totalCount = 0,
 }: ProjectFiltersProps) {
   const searchParams = useSearchParams()
-  const { userRole } = useWorkspace()
+  const { userRole, orgSlug } = useWorkspace()
   const canCreateProject = isAdminRole(userRole)
-
-  const [isNewProjectOpen, setIsNewProjectOpen] = useState(false)
 
   const tab = searchParams.get('tab') || 'all-active'
   const status = searchParams.get('status') || 'all'
@@ -260,12 +258,11 @@ export function ProjectFilters({
           </FxInputGroup>
 
           {canCreateProject && (
-            <FxButton
-              onClick={() => setIsNewProjectOpen(true)}
-              className="shrink-0 gap-1.5"
-            >
-              <Plus className="size-4" />
-              New project
+            <FxButton asChild className="shrink-0 gap-1.5">
+              <Link href={`/${orgSlug}/projects/new`}>
+                <Plus className="size-4" />
+                New project
+              </Link>
             </FxButton>
           )}
         </div>
@@ -355,13 +352,6 @@ export function ProjectFilters({
             Clear all
           </FxButton>
         </div>
-      )}
-
-      {canCreateProject && (
-        <NewProjectSheet
-          open={isNewProjectOpen}
-          onOpenChange={setIsNewProjectOpen}
-        />
       )}
     </div>
   )

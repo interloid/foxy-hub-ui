@@ -22,6 +22,7 @@ export function InvoicesHeader({ orgSlug, projects }: InvoicesHeaderProps) {
     projectId: string
     notes: string
     totalAmount: number
+    periodStart?: string | null
   }) => {
     setIsSubmittingInvoice(true)
 
@@ -29,6 +30,7 @@ export function InvoicesHeader({ orgSlug, projects }: InvoicesHeaderProps) {
       projectId: data.projectId,
       orgSlug,
       notes: data.notes,
+      periodStart: data.periodStart,
     })
 
     setIsSubmittingInvoice(false)

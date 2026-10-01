@@ -56,7 +56,20 @@ export const ENGAGEMENT_LABELS: Record<EngagementModel, string> = {
   part_time: 'Part Time',
   fixed: 'Fixed Fee',
   retainer: 'Retainer',
+  budget: 'Budget-based',
+  hourly: 'Hourly',
 }
+
+/**
+ * Engagements billed as approved hours × each person's bill rate. `budget` is the same
+ * with a cap at `contract_value` (going past it is allowed, just flagged); `hourly` has no cap.
+ */
+export const HOURLY_ENGAGEMENTS: readonly EngagementModel[] = [
+  'full_time',
+  'part_time',
+  'budget',
+  'hourly',
+]
 
 export const ALL_PROJECT_STATUSES = Object.keys(
   PROJECT_STATUS_CONFIG

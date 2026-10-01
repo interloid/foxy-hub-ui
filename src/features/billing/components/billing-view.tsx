@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { FxAlert } from '@/components/shared/fx-alert'
 import { FxBadge } from '@/components/shared/fx-badge'
+import { DemoDisabled } from '@/components/shared/demo-disabled'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
 import { FxConfirmDialog } from '@/components/shared/fx-confirm-dialog'
@@ -20,7 +21,11 @@ import {
   openCardUpdateAction,
   resumeSubscriptionAction,
 } from '../actions'
-import { useChargeStatusLabel, useMoney } from '../hooks/use-billing-format'
+import {
+  useChargeStatusLabel,
+  useCreditNote,
+  useMoney,
+} from '../hooks/use-billing-format'
 import { PAYMENT_STATUS, PAYMENT_TONE_CLASS } from '../lib/payment-status'
 import type { PlanChangeQuote } from '../lib/plan-change'
 import type {
@@ -338,14 +343,16 @@ function PlanCard({
               keep {plan.name} until {fmt.date(plan.cancelsAt, 'date')}, then
               move to Free. No more charges.
             </p>
-            <button
-              type="button"
-              disabled={resuming}
-              onClick={onKeepPlan}
-              className="text-foreground shrink-0 cursor-pointer border-b-2 border-current text-[13px] leading-tight font-semibold disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              {resuming ? 'Keeping…' : 'Keep my plan'}
-            </button>
+            <DemoDisabled className="shrink-0">
+              <button
+                type="button"
+                disabled={resuming}
+                onClick={onKeepPlan}
+                className="text-foreground shrink-0 cursor-pointer border-b-2 border-current text-[13px] leading-tight font-semibold disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {resuming ? 'Keeping…' : 'Keep my plan'}
+              </button>
+            </DemoDisabled>
           </div>
         )}
 
@@ -358,14 +365,16 @@ function PlanCard({
               </span>{' '}
               from {fmt.date(plan.upcoming.effectiveAt, 'date')}
             </p>
-            <button
-              type="button"
-              disabled={cancelling}
-              onClick={onCancelUpcoming}
-              className="text-foreground shrink-0 cursor-pointer border-b-2 border-current text-[13px] leading-tight font-semibold disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              {cancelling ? 'Cancelling…' : 'Cancel change'}
-            </button>
+            <DemoDisabled className="shrink-0">
+              <button
+                type="button"
+                disabled={cancelling}
+                onClick={onCancelUpcoming}
+                className="text-foreground shrink-0 cursor-pointer border-b-2 border-current text-[13px] leading-tight font-semibold disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {cancelling ? 'Cancelling…' : 'Cancel change'}
+              </button>
+            </DemoDisabled>
           </div>
         )}
 
@@ -373,21 +382,25 @@ function PlanCard({
           <FxButton className="flex-1" onClick={onManage}>
             Manage in Stripe
           </FxButton>
-          <FxButton variant="secondary" onClick={onChangePlan}>
-            Change plan
-          </FxButton>
+          <DemoDisabled>
+            <FxButton variant="secondary" onClick={onChangePlan}>
+              Change plan
+            </FxButton>
+          </DemoDisabled>
         </div>
 
         {/* A paid plan that is not already ending. Free has nothing to cancel. */}
         {plan.planId !== 'free' && plan.renewsAt && !plan.cancelsAt && (
-          <FxButton
-            type="button"
-            variant="secondary"
-            className="hover:text-destructive hover:border-destructive w-full hover:bg-transparent"
-            onClick={onCancelSubscription}
-          >
-            Cancel subscription
-          </FxButton>
+          <DemoDisabled className="flex w-full">
+            <FxButton
+              type="button"
+              variant="secondary"
+              className="hover:text-destructive hover:border-destructive w-full hover:bg-transparent"
+              onClick={onCancelSubscription}
+            >
+              Cancel subscription
+            </FxButton>
+          </DemoDisabled>
         )}
       </FxCardContent>
     </FxCard>
@@ -444,14 +457,16 @@ function PaymentIssueAlert({
         </div>
         <div className="flex shrink-0 gap-2">
           {failed && (
-            <FxButton
-              size="sm"
-              variant="secondary"
-              disabled={opening}
-              onClick={updateCard}
-            >
-              {opening ? 'Opening…' : 'Update card'}
-            </FxButton>
+            <DemoDisabled>
+              <FxButton
+                size="sm"
+                variant="secondary"
+                disabled={opening}
+                onClick={updateCard}
+              >
+                {opening ? 'Opening…' : 'Update card'}
+              </FxButton>
+            </DemoDisabled>
           )}
           {issue.invoiceUrl && (
             <FxButton size="sm" asChild>
@@ -496,6 +511,7 @@ function RecentChargesCard({ charges }: { charges: BillingCharge[] }) {
   const fmt = useFormatter()
   const money = useMoney()
   const statusLabel = useChargeStatusLabel()
+  const creditNote = useCreditNote()
 
   return (
     <FxCard>
@@ -514,8 +530,15 @@ function RecentChargesCard({ charges }: { charges: BillingCharge[] }) {
                 key={charge.id}
                 className="flex items-center justify-between gap-4 py-2.5 text-[13px]"
               >
-                <span className="text-muted-foreground">
-                  {fmt.date(charge.date, 'day')} · {charge.description}
+                <span className="min-w-0">
+                  <span className="text-muted-foreground block">
+                    {fmt.date(charge.date, 'day')} · {charge.description}
+                  </span>
+                  {creditNote(charge) && (
+                    <span className="text-subtle-foreground block text-[12px]">
+                      {creditNote(charge)}
+                    </span>
+                  )}
                 </span>
                 <span className="flex shrink-0 items-center gap-2.5">
                   {/* "Paid" is the normal case - only anything else is called out. */}

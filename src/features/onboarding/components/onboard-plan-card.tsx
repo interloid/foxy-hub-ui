@@ -7,6 +7,7 @@ import { ComponentProps } from 'react'
 
 function OnboardPlanCard({
   plan,
+  seats,
   price,
   cadence,
   selected = false,
@@ -14,6 +15,8 @@ function OnboardPlanCard({
   ...props
 }: Omit<ComponentProps<'button'>, 'children'> & {
   plan: OnboardPlan
+  /** From `plans.seats`: a number, null for unlimited, undefined when unknown. */
+  seats?: number | null
   price: string
   cadence: string
   selected?: boolean
@@ -51,9 +54,11 @@ function OnboardPlanCard({
         </span>
         <span className="text-subtle-foreground text-base">{cadence}</span>
       </div>
-      <div className="text-subtle-foreground mb-3.5 text-[12px]">
-        {plan.seats}
-      </div>
+      {seats !== undefined && (
+        <div className="text-subtle-foreground mb-3.5 text-[12px]">
+          {seats === null ? 'Unlimited seats' : `${seats} seats`}
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         {plan.features.map((feature) => (

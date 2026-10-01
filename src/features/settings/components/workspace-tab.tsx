@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
+import { DemoDisabled } from '@/components/shared/demo-disabled'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
 import { FxField, FxInput, FxLabel } from '@/components/shared/fx-field'
@@ -105,14 +106,16 @@ export function WorkspaceTab({
             </div>
 
             {account.role && ROLE?.includes(account?.role) && (
-              <FxButton
-                variant="secondary"
-                size="sm"
-                onClick={() => setIsEditOpen(true)}
-                className="bg-muted"
-              >
-                Edit
-              </FxButton>
+              <DemoDisabled>
+                <FxButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsEditOpen(true)}
+                  className="bg-muted"
+                >
+                  Edit
+                </FxButton>
+              </DemoDisabled>
             )}
           </div>
         </FxCardContent>

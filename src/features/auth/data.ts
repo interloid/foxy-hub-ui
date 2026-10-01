@@ -11,8 +11,8 @@ export const SIGN_IN = {
   submit: 'Sign in',
   divider: 'or',
   demo: {
-    label: 'Log in as demo no sign-up',
-    note: 'Demo drops you into a fully seeded agency in seconds. Test-mode Stripe; no real data.',
+    label: 'Log in as demo - pick a role',
+    note: 'Every demo account lands in the same seeded agency - what each one can reach is the difference. Test-mode Stripe; no real data.',
   },
 
   alternatives: [

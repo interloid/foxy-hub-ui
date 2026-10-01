@@ -2,6 +2,7 @@ import { AuthLayout } from '@/components/layout/auth'
 import { AuthHeroPanel } from '@/components/shared/app/auth-hero-panel'
 import { SignInForm } from '@/features/auth/components/sign-in-form'
 import { AUTH_CARD_TAGLINE, AUTH_HERO, SIGN_IN } from '@/features/auth/data'
+import { enabledDemoRoles } from '@/lib/demo'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -42,7 +43,7 @@ export default async function SignInPage({
         />
       }
     >
-      <SignInForm initialError={initialError} />
+      <SignInForm initialError={initialError} demoRoles={enabledDemoRoles()} />
     </AuthLayout>
   )
 }

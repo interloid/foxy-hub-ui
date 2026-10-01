@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { DEMO_DISABLED, isDemoCaller } from '../_shared/demo.ts'
 import Stripe from 'npm:stripe@14'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
@@ -57,6 +58,11 @@ serve(async (req) => {
   } = await supabase.auth.getUser()
   if (userError || !user) {
     return json({ success: false, message: 'Invalid token' }, 401)
+  }
+
+  // Stripe and email are off for the shared demo workspace (see _shared/demo.ts).
+  if (await isDemoCaller(supabase, user.id)) {
+    return json({ success: false, error: DEMO_DISABLED }, 403)
   }
 
   let invoiceId: string | undefined

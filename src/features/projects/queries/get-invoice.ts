@@ -1,8 +1,16 @@
 'use server'
-import { toISODate } from '@/lib/date'
+import { toISODate, todayISO } from '@/lib/date'
+import { getWorkspace } from '@/lib/dal'
 import { createClient } from '@/lib/supabase/server'
 
-import { NON_INVOICEABLE_STATUSES } from '../constants'
+import { HOURLY_ENGAGEMENTS, NON_INVOICEABLE_STATUSES } from '../constants'
+import {
+  BillingPeriodOption,
+  formatPeriodLabel,
+  listRetainerPeriods,
+  RetainerCadence,
+  RetainerPeriod,
+} from '../lib/retainer-periods'
 import { EngagementModel } from '../types'
 import {
   InvoiceAllocationRow,
@@ -13,11 +21,17 @@ import {
   InvoiceLine,
   InvoiceProjectRow,
   ProjectInvoiceContext,
+  RetainerInvoicePreview,
 } from '../types/invoice'
 
+/**
+ * `periodStart` picks which retainer period to bill (ignored for other engagements). Left
+ * out, it defaults to the most recent completed period not yet invoiced.
+ */
 export async function buildInvoiceDraft(
   projectId: string,
-  orgSlug: string
+  orgSlug: string,
+  periodStart?: string | null
 ): Promise<InvoiceDraft | null> {
   const supabase = await createClient()
 
@@ -64,19 +78,25 @@ export async function buildInvoiceDraft(
   const memberNames = new Map<string, string>()
   profiles?.forEach((p) => memberNames.set(p.id, p.full_name || 'Teammate'))
 
-  const period =
-    project.engagement === 'retainer'
-      ? lastCompletePeriod(
-          project.retainer_period === 'weekly' ? 'weekly' : 'monthly'
-        )
-      : null
-
   const { windowStart, windowEnd } = resolveInvoiceWindow(project)
 
   const { data: projectInvoices } = await supabase
     .from('invoices')
-    .select('amount')
+    .select('amount, period_start')
     .eq('project_id', project.id)
+
+  const retainer =
+    project.engagement === 'retainer'
+      ? resolveRetainerPeriod(
+          project,
+          windowStart,
+          windowEnd,
+          projectInvoices || [],
+          periodStart
+        )
+      : null
+  const period = retainer?.period ?? null
+  const periodError = retainer?.error ?? null
 
   const existingInvoiceCount = projectInvoices?.length ?? 0
   const alreadyInvoicedAmount = (projectInvoices || []).reduce(
@@ -108,6 +128,14 @@ export async function buildInvoiceDraft(
     unApprovedEntries || []
   )
 
+  // A period that cannot be billed bills nothing — never the retainer fee for some other span.
+  if (periodError) {
+    built.lines = []
+    built.entryIds = []
+    built.amount = 0
+    built.calloutMessage = periodError
+  }
+
   const invoiceDueDate = new Date()
   invoiceDueDate.setDate(
     invoiceDueDate.getDate() + (orgData.payment_terms_days ?? 30)
@@ -123,6 +151,7 @@ export async function buildInvoiceDraft(
     currency: orgData.currency ?? 'USD',
     periodStart: period?.start ?? null,
     periodEnd: period?.end ?? null,
+    periodError,
     dueDate: invoiceDueDate.toISOString(),
   }
 }
@@ -138,25 +167,87 @@ function resolveInvoiceWindow(project: {
   }
 }
 
-function lastCompletePeriod(period: 'weekly' | 'monthly'): {
-  start: string
-  end: string
+function retainerCadence(project: {
+  retainer_period?: string | null
+}): RetainerCadence {
+  return project.retainer_period === 'weekly' ? 'weekly' : 'monthly'
+}
+
+/**
+ * The completed periods a retainer can bill, and the one being billed. A requested period
+ * must be one of them — so the running month/week, anything before the project started and
+ * anything already invoiced are refused here, not just hidden in the picker.
+ */
+function resolveRetainerPeriod(
+  project: { retainer_period?: string | null },
+  windowStart: string,
+  windowEnd: string | null,
+  invoices: { period_start: string | null }[],
+  requestedStart?: string | null
+): {
+  periods: BillingPeriodOption[]
+  period: RetainerPeriod | null
+  error: string | null
 } {
-  const now = new Date()
+  const cadence = retainerCadence(project)
+  const unit = cadence === 'weekly' ? 'week' : 'month'
+  const invoicedStarts = new Set(
+    invoices.map((i) => i.period_start).filter(Boolean)
+  )
 
-  if (period === 'weekly') {
-    const daysSinceSunday = now.getDay() === 0 ? 7 : now.getDay()
-    const end = new Date(now)
-    end.setDate(now.getDate() - daysSinceSunday)
-    const start = new Date(end)
-    start.setDate(end.getDate() - 6)
+  const periods = listRetainerPeriods(
+    cadence,
+    windowStart,
+    windowEnd,
+    todayISO()
+  ).map((p) => ({ ...p, invoiced: invoicedStarts.has(p.start) }))
 
-    return { start: toISODate(start), end: toISODate(end) }
+  if (!requestedStart) {
+    const open = periods.filter((p) => !p.invoiced)
+    const period = open.at(-1) ?? periods.at(-1) ?? null
+
+    if (!period) {
+      return {
+        periods,
+        period: null,
+        error: `No completed ${unit} to invoice yet — a retainer bills a ${unit} once it has ended.`,
+      }
+    }
+
+    return {
+      periods,
+      period,
+      error: period.invoiced
+        ? `Every completed ${unit} has already been invoiced.`
+        : null,
+    }
+  }
+
+  const period = periods.find((p) => p.start === requestedStart)
+
+  if (!period) {
+    const first = periods[0]
+    const last = periods.at(-1)
+    let error = `That is not a billable ${unit} for this project.`
+
+    if (first ? requestedStart < first.start : requestedStart < windowStart) {
+      error = `That ${unit} is before the project started (${windowStart}).`
+    } else if (!last || requestedStart > last.start) {
+      error =
+        windowEnd && requestedStart > windowEnd
+          ? `That ${unit} is after the project's due date (${windowEnd}).`
+          : `That ${unit} has not ended yet — it can be invoiced once it is over.`
+    }
+
+    return { periods, period: null, error }
   }
 
   return {
-    start: toISODate(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
-    end: toISODate(new Date(now.getFullYear(), now.getMonth(), 0)),
+    periods,
+    period,
+    error: period.invoiced
+      ? `${formatPeriodLabel(cadence, period)} has already been invoiced.`
+      : null,
   }
 }
 
@@ -194,10 +285,7 @@ function buildInvoiceLines(
     return false
   })
 
-  if (
-    project.engagement === 'full_time' ||
-    project.engagement === 'part_time'
-  ) {
+  if (HOURLY_ENGAGEMENTS.includes(project.engagement as EngagementModel)) {
     const byUser = new Map<
       string,
       {
@@ -284,7 +372,9 @@ function buildInvoiceLines(
       }
     }
   } else if (project.engagement === 'retainer') {
-    if (windowEnd && periodStart && periodStart > windowEnd) {
+    if (!periodStart || !periodEnd) {
+      calloutMessage = 'No completed retainer period to invoice yet.'
+    } else if (windowEnd && periodStart > windowEnd) {
       calloutMessage = `This project's due date (${windowEnd}) has passed no further retainer periods are billable.`
     } else {
       const bucketHours = Number(project.retainer_hours) || 0
@@ -298,9 +388,7 @@ function buildInvoiceLines(
           : Number(project.retainer_overage)
 
       const periodEntries = entries.filter(
-        (e) =>
-          (!periodStart || e.work_date >= periodStart) &&
-          (!periodEnd || e.work_date <= periodEnd)
+        (e) => e.work_date >= periodStart && e.work_date <= periodEnd
       )
 
       entryIds.push(...periodEntries.map((e) => e.id))
@@ -316,7 +404,10 @@ function buildInvoiceLines(
 
       lines.push({
         id: `retainer-${project.id}`,
-        description: isWeekly ? 'Weekly retainer' : 'Monthly retainer',
+        description: `${isWeekly ? 'Weekly' : 'Monthly'} retainer — ${formatPeriodLabel(
+          isWeekly ? 'weekly' : 'monthly',
+          { start: periodStart, end: periodEnd }
+        )}`,
         typeLabel: 'RETAINER',
         qty: `${bucketHours}h bucket`,
         rate: '—',
@@ -507,7 +598,7 @@ export async function getProjectsForInvoicing(
   const { data: projectInvoices } = projectIds.length
     ? await supabase
         .from('invoices')
-        .select('project_id, amount')
+        .select('project_id, amount, period_start')
         .in('project_id', projectIds)
     : { data: [] }
 
@@ -530,18 +621,22 @@ export async function getProjectsForInvoicing(
   return projects.map((project) => {
     const clientName = project.client?.name || 'Client'
 
-    const period =
-      project.engagement === 'retainer'
-        ? lastCompletePeriod(
-            project.retainer_period === 'weekly' ? 'weekly' : 'monthly'
-          )
-        : null
-
     const { windowStart, windowEnd } = resolveInvoiceWindow(project)
 
     const invoicesForProject = (projectInvoices || []).filter(
       (i) => i.project_id === project.id
     )
+
+    const retainer =
+      project.engagement === 'retainer'
+        ? resolveRetainerPeriod(
+            project,
+            windowStart,
+            windowEnd,
+            invoicesForProject
+          )
+        : null
+    const period = retainer?.period ?? null
     const existingInvoiceCount = invoicesForProject.length
     const alreadyInvoicedAmount = invoicesForProject.reduce(
       (sum, i) => sum + Number(i.amount || 0),
@@ -570,13 +665,13 @@ export async function getProjectsForInvoicing(
       name: project.name,
       clientName,
       retainerPeriod: project.retainer_period,
+      billingPeriods: retainer?.periods,
+      periodStart: period?.start ?? null,
       engagement: project.engagement as EngagementModel,
-      calloutMessage: withInvoiceNotices(
-        calloutMessage,
-        unratedNames,
-        outOfRangeNames
-      ),
-      lines,
+      calloutMessage: retainer?.error
+        ? retainer.error
+        : withInvoiceNotices(calloutMessage, unratedNames, outOfRangeNames),
+      lines: retainer?.error ? [] : lines,
     }
   })
 }
@@ -607,10 +702,55 @@ function withInvoiceNotices(
     : notices.join(' ')
 }
 
+/** Server actions are callable with anything; a non-date reaching a `date` column is a 22007. */
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * The sheet previews another retainer period with this. Same draft `createInvoiceAction`
+ * bills from, so what the admin sees is what gets invoiced.
+ */
+export async function getRetainerInvoicePreview(
+  projectId: string,
+  orgSlug: string,
+  periodStart: string
+): Promise<RetainerInvoicePreview> {
+  const workspace = await getWorkspace(orgSlug)
+  if (!workspace) {
+    return {
+      lines: [],
+      calloutMessage: 'Workspace not found or access denied.',
+    }
+  }
+
+  if (!ISO_DATE.test(periodStart)) {
+    return { lines: [], calloutMessage: 'Invalid billing period.' }
+  }
+
+  const draft = await buildInvoiceDraft(projectId, orgSlug, periodStart)
+  if (!draft) {
+    return {
+      lines: [],
+      calloutMessage: 'Project not found in this organization.',
+    }
+  }
+
+  return {
+    lines: draft.lines,
+    calloutMessage: draft.periodError
+      ? draft.periodError
+      : withInvoiceNotices(
+          draft.calloutMessage,
+          draft.unratedNames,
+          draft.outOfRangeNames
+        ),
+  }
+}
+
+/** Retainers pass the period being billed; without one there is nothing to compare. */
 export async function hasInvoiceForProject(
   projectId: string,
   engagement: string,
-  retainerPeriod?: string | null
+  periodStart?: string | null
 ): Promise<boolean> {
   const supabase = await createClient()
 
@@ -624,19 +764,19 @@ export async function hasInvoiceForProject(
     return (data?.length ?? 0) >= 2
   }
 
-  if (engagement !== 'retainer') {
+  if (
+    engagement !== 'retainer' ||
+    !periodStart ||
+    !ISO_DATE.test(periodStart)
+  ) {
     return false
   }
-
-  const period = lastCompletePeriod(
-    retainerPeriod === 'weekly' ? 'weekly' : 'monthly'
-  )
 
   const { data, error } = await supabase
     .from('invoices')
     .select('id')
     .eq('project_id', projectId)
-    .eq('period_start', period.start)
+    .eq('period_start', periodStart)
     .limit(1)
 
   if (error) throw error

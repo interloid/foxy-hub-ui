@@ -51,3 +51,9 @@ grant  execute on function public.revoke_user_sessions(uuid) to service_role;
 -- the admin client. The function also checks the role itself.
 revoke execute on function public.check_email_exists(text) from public, anon, authenticated;
 grant  execute on function public.check_email_exists(text) to service_role;
+
+-- `reset_demo_org` wipes and re-seeds the shared demo workspace and resets its logins.
+-- Only the hourly pg_cron job (as postgres) should run it - a visitor calling it through
+-- the API could reset the demo under everyone else.
+revoke execute on function public.reset_demo_org() from public, anon, authenticated;
+grant  execute on function public.reset_demo_org() to service_role;

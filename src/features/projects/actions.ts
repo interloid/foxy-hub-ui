@@ -2,6 +2,7 @@
 
 import { issueInvoiceAction } from '@/features/portal/actions'
 import { getUserLocale, getWorkspace, isAdminRole } from '@/lib/dal'
+import { demoBlocked } from '@/lib/demo'
 import { isBillingRole } from '@/lib/role'
 import { formatCurrency } from '@/lib/money'
 import { createClient } from '@/lib/supabase/server'
@@ -32,6 +33,11 @@ const createInvoiceSchema = z.object({
   projectId: z.uuid('Invalid project ID'),
   orgSlug: z.string().min(1, 'Organization slug is required'),
   notes: z.string().max(1000, 'Notes are too long').optional(),
+  /** Retainers: the start of the period to bill. Omitted, the latest unbilled one. */
+  periodStart: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid billing period')
+    .nullish(),
 })
 
 export async function createInvoiceAction(rawParams: unknown): Promise<
@@ -50,7 +56,7 @@ export async function createInvoiceAction(rawParams: unknown): Promise<
     }
   }
 
-  const { projectId, orgSlug, notes } = parsed.data
+  const { projectId, orgSlug, notes, periodStart } = parsed.data
 
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) {
@@ -69,7 +75,7 @@ export async function createInvoiceAction(rawParams: unknown): Promise<
     }
   }
 
-  const draft = await buildInvoiceDraft(projectId, orgSlug)
+  const draft = await buildInvoiceDraft(projectId, orgSlug, periodStart)
   if (!draft) {
     return { ok: false, error: 'Project not found in this organization.' }
   }
@@ -79,6 +85,10 @@ export async function createInvoiceAction(rawParams: unknown): Promise<
       ok: false,
       error: `This project is ${draft.status} and can no longer be invoiced.`,
     }
+  }
+
+  if (draft.periodError) {
+    return { ok: false, error: draft.periodError }
   }
 
   if (draft.unratedNames.length > 0) {
@@ -150,6 +160,14 @@ export async function createInvoiceAction(rawParams: unknown): Promise<
   if (rpcError || !invoiceId) {
     console.error('create_invoice_with_entries RPC error:', rpcError?.message)
 
+    // invoices_project_period_key: someone billed this period since the sheet opened.
+    if (rpcError?.code === '23505' && draft.periodStart) {
+      return {
+        ok: false,
+        error: 'This billing period has already been invoiced.',
+      }
+    }
+
     return {
       ok: false,
       error: rpcError?.message ?? 'Failed to generate invoice.',
@@ -165,9 +183,11 @@ export async function createInvoiceAction(rawParams: unknown): Promise<
    * invoice simply has no `invoice_url` until someone retries, and `issueInvoiceAction` is
    * safe to call again for exactly that.
    */
-  const issued = await issueInvoiceAction(invoiceId)
+  // The demo workspace keeps the invoice in the app only: issuing it would create a real
+  // Stripe invoice and email the client.
+  const issued = workspace.isDemo ? null : await issueInvoiceAction(invoiceId)
 
-  if (!issued.ok) {
+  if (issued && !issued.ok) {
     console.error(`invoice ${invoiceId} saved but not issued:`, issued.error)
   }
 
@@ -179,8 +199,8 @@ export async function createInvoiceAction(rawParams: unknown): Promise<
     ok: true,
     data: {
       invoiceId,
-      issued: issued.ok,
-      paymentUrl: issued.ok ? issued.data.url : null,
+      issued: issued?.ok ?? false,
+      paymentUrl: issued?.ok ? issued.data.url : null,
     },
   }
 }
@@ -392,6 +412,10 @@ export async function uploadDeliveryAssets(
   files: File[],
   orgSlug: string
 ) {
+  // Files would be public to every demo visitor and outlive the hourly reset.
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) throw new Error('Unauthorized')
 

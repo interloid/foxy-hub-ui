@@ -2,6 +2,7 @@
 
 import { siteConfig } from '@/config/site'
 import { verifySession } from '@/lib/dal'
+import { demoBlocked } from '@/lib/demo'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { emailSchema, fullNameSchema } from './schemas'
@@ -60,6 +61,9 @@ export async function requestEmailChange(
   email: string,
   orgSlug: string
 ): Promise<EmailChangeResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const parsed = emailSchema.safeParse({ email })
   if (!parsed.success) {
     return {
@@ -120,6 +124,10 @@ function avatarPathFromUrl(url: string | null): string | null {
 }
 
 export async function uploadAvatar(formData: FormData): Promise<AvatarResult> {
+  // Every demo visitor shares these profiles, and the file would be public to all of them.
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const file = formData.get('file')
   if (!(file instanceof File) || file.size === 0) {
     return { ok: false, error: 'Choose an image to upload.' }

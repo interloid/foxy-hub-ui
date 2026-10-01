@@ -11,6 +11,22 @@ export const STAFF_ROLES = [
 
 const ADMIN_ROLES = ['primary_admin', 'admin'] as const
 
+/** Who can own a project - timesheets and invoices on it route to them. */
+export const PROJECT_OWNER_ROLES = [
+  'primary_admin',
+  'admin',
+  'manager',
+] as const satisfies readonly UserRole[]
+
+export function isProjectOwnerRole(role: string | null | undefined): boolean {
+  return (
+    role != null &&
+    (PROJECT_OWNER_ROLES as readonly string[]).includes(
+      role.toLowerCase().trim()
+    )
+  )
+}
+
 const BILLING_ROLES = ['primary_admin', 'admin'] as const
 
 export function isAdminRole(role: string | null | undefined): boolean {

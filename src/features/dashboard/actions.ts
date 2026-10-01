@@ -3,12 +3,9 @@
 import { getWorkspace, isAdminRole } from '@/lib/dal'
 import { parseDurationToMinutes } from '@/lib/duration'
 import { createClient } from '@/lib/supabase/server'
-import { Database } from '@/types/supabase'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { ActionResult } from '../onboarding/types'
-import { getTeammateAllocatedHours } from './queries'
-import { createProjectSchema } from './schema'
 
 // Helper for formatting Zod validation errors
 function firstIssue(error: z.ZodError): string {
@@ -22,10 +19,6 @@ const createTimeEntrySchema = z.object({
   durationStr: z.string().min(1, 'Duration string is required'),
   description: z.string().max(500, 'Description too long'),
 })
-
-type ProjectInsert = Database['public']['Tables']['projects']['Insert']
-type AllocationInsert =
-  Database['public']['Tables']['project_allocations']['Insert']
 
 export async function getUserName(): Promise<ActionResult<{ name: string }>> {
   const supabase = await createClient()
@@ -187,139 +180,5 @@ export async function updateMemberRatesAction(
   }
 
   revalidatePath(`/${orgSlug}`)
-  return { ok: true }
-}
-
-export async function createProject(
-  rawParams: unknown,
-  orgSlug: string
-): Promise<ActionResult> {
-  // 1. Manual Validation for route/query args
-  if (!orgSlug || typeof orgSlug !== 'string') {
-    return { ok: false, error: 'Organization slug is required.' }
-  }
-
-  // 2. Schema Validation for complex payload
-  const parsed = createProjectSchema.safeParse(rawParams)
-  if (!parsed.success) {
-    return { ok: false, error: firstIssue(parsed.error) }
-  }
-
-  const params = parsed.data
-
-  // 3. Workspace & Admin Authorization
-  const workspace = await getWorkspace(orgSlug)
-  if (!workspace) {
-    return { ok: false, error: 'Workspace not found or access denied.' }
-  }
-
-  const isAdmin = await isAdminRole(workspace.role)
-  if (!isAdmin) {
-    return {
-      ok: false,
-      error: 'Unauthorized: Only administrators can create projects.',
-    }
-  }
-
-  const supabase = await createClient()
-
-  // 4. Over-allocation check
-  const { data: orgData } = await supabase
-    .from('organizations')
-    .select('daily_capacity_hours')
-    .eq('id', workspace.id)
-    .single()
-
-  const maxDailyCapacity = orgData?.daily_capacity_hours ?? 8
-
-  if (params.allocations && params.allocations.length > 0) {
-    for (const alloc of params.allocations) {
-      const { existingHoursPerDay } = await getTeammateAllocatedHours(
-        alloc.userId,
-        orgSlug,
-        alloc.effectiveFrom
-      )
-
-      const totalHours = existingHoursPerDay + alloc.hoursPerDay
-      if (totalHours > maxDailyCapacity && !params.overrideReason?.trim()) {
-        return {
-          ok: false,
-          error: `An override reason is required because allocation exceeds capacity for user (${totalHours} hrs/day > ${maxDailyCapacity} max hrs/day).`,
-        }
-      }
-    }
-  }
-
-  const engagementEnumMap = {
-    'full-time': 'full_time',
-    'part-time': 'part_time',
-    retainer: 'retainer',
-    'fixed-price': 'fixed',
-    fixed: 'fixed',
-    full_time: 'full_time',
-    part_time: 'part_time',
-  } as const
-
-  const dbEngagement =
-    engagementEnumMap[params.engagement as keyof typeof engagementEnumMap] ??
-    'full_time'
-  const periodMap: Record<string, 'monthly' | 'weekly'> = {
-    Monthly: 'monthly',
-    Weekly: 'weekly',
-  }
-
-  const dbRetainerPeriod = params.retainerBillingPeriod
-    ? periodMap[params.retainerBillingPeriod]
-    : null
-
-  const projectPayload: ProjectInsert = {
-    org_id: workspace.id,
-    name: params.name.trim(),
-    due_date: params.dueDate || null,
-    engagement: dbEngagement,
-    client_org_id: params.clientId || null,
-    contract_value: params.budget ?? null,
-    estimated_hours: params.estimatedHours ?? null,
-    retainer_hours: params.retainerBucketHours ?? null,
-    retainer_period: dbRetainerPeriod,
-    retainer_amount: params.retainerAmount ?? null,
-    retainer_overage: params.retainerOverageRate ?? null,
-    description: params.brief?.trim() || null,
-    override_reason: params.overrideReason?.trim() || null,
-    start_from: params.startFrom || 'blank',
-    status: 'pending',
-  }
-
-  const allocationRows: AllocationInsert[] = (params.allocations || []).map(
-    (alloc) => ({
-      project_id: '', // Resolved inside RPC transaction
-      user_id: alloc.userId,
-      hours_per_day: alloc.hoursPerDay,
-      days_per_week: alloc.daysPerWk,
-      rate: alloc.rate ?? null,
-      effective_from: alloc.effectiveFrom,
-    })
-  )
-
-  // 5. Execute Atomic RPC Transaction
-  const { data: createdProjectId, error: rpcError } = await supabase.rpc(
-    'create_project_with_allocations',
-    {
-      project_data: projectPayload,
-      allocations_data: allocationRows,
-    }
-  )
-
-  if (rpcError || !createdProjectId) {
-    console.error(
-      'create_project_with_allocations RPC error:',
-      rpcError?.message
-    )
-    return { ok: false, error: 'Failed to create project and allocations.' }
-  }
-
-  // 6. Path Revalidation
-  revalidatePath(`/${orgSlug}`)
-  revalidatePath(`/${orgSlug}/projects`)
   return { ok: true }
 }

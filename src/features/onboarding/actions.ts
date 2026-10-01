@@ -1,6 +1,7 @@
 'use server'
 
 import { siteConfig } from '@/config/site'
+import { isDemoUser } from '@/lib/demo'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { headers } from 'next/headers'
@@ -85,6 +86,14 @@ export async function createWorkspace(
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) }
   const { fullName, email, agencyName, slug, planName, cycle } = parsed.data
 
+  // A sign-up on top of a shared demo session would mix the new account into it.
+  if (await isDemoUser()) {
+    return {
+      ok: false,
+      error: 'Sign out of the demo to create your own workspace.',
+    }
+  }
+
   const supabase = await createClient()
 
   try {
@@ -125,6 +134,11 @@ export async function startPlanCheckout(
   planName: string,
   cycle: 'monthly' | 'yearly'
 ): Promise<ActionResult<{ url: string | null; message?: string }>> {
+  // The demo admin owns the demo workspace, so this would open a real checkout for it.
+  if (await isDemoUser()) {
+    return { ok: false, error: 'Plans cannot be bought from the demo.' }
+  }
+
   const supabase = await createClient()
 
   const {

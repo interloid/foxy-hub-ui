@@ -164,13 +164,15 @@ async function getStripeCharges(orgId: string): Promise<BillingCharge[]> {
   return (
     data.charges as (Omit<
       BillingCharge,
-      'status' | 'refunded' | 'invoiceUrl' | 'invoiceNumber'
+      'status' | 'refunded' | 'invoiceUrl' | 'invoiceNumber' | 'creditApplied'
     > & {
       invoiceUrl?: string | null
       invoiceNumber?: string | null
+      creditApplied?: number
     })[]
   ).map((charge) => ({
     ...charge,
+    creditApplied: Number(charge.creditApplied) || 0,
     date: charge.date.slice(0, 10),
     refunded: 0,
     status: 'paid' as const,
@@ -187,6 +189,8 @@ type PaymentRow = {
   amount_due_cents: number
   amount_paid_cents: number
   amount_refunded_cents: number
+  total_cents: number
+  credit_applied_cents: number
   currency: string
   status: BillingCharge['status']
   failure_message: string | null
@@ -197,43 +201,54 @@ type PaymentRow = {
 }
 
 /** Recent payments and, when the newest one went wrong, the issue to warn about. */
-async function getPayments(orgId: string): Promise<{
+async function getPayments(
+  orgId: string,
+  { stripeFallback }: { stripeFallback: boolean }
+): Promise<{
   charges: BillingCharge[]
   issue: BillingPaymentIssue | null
 }> {
+  const fallback = async () =>
+    stripeFallback ? await getStripeCharges(orgId) : []
+
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('billing_payments')
     .select(
-      'id, created_at, paid_at, description, amount_due_cents, amount_paid_cents, amount_refunded_cents, currency, status, failure_message, next_attempt_at, hosted_invoice_url, invoice_number, plan:plans(name)'
+      'id, created_at, paid_at, description, amount_due_cents, amount_paid_cents, amount_refunded_cents, total_cents, credit_applied_cents, currency, status, failure_message, next_attempt_at, hosted_invoice_url, invoice_number, plan:plans(name)'
     )
     .eq('org_id', orgId)
-    // A zero-amount invoice (fully covered by credit) is not a charge worth listing.
-    .gt('amount_due_cents', 0)
+    // Any invoice with a price, including one paid entirely from account credit (nothing
+    // due): those used to be hidden, so a plan switch paid from credit left no trace.
+    // amount_due covers rows recorded before total_cents existed.
+    .or('total_cents.gt.0,amount_due_cents.gt.0')
     .neq('status', 'void')
     .order('created_at', { ascending: false })
     .limit(6)
 
   if (error) {
     console.error('Could not load payments:', error.message)
-    return { charges: await getStripeCharges(orgId), issue: null }
+    return { charges: await fallback(), issue: null }
   }
 
   const rows = (data ?? []) as PaymentRow[]
   if (rows.length === 0) {
-    return { charges: await getStripeCharges(orgId), issue: null }
+    return { charges: await fallback(), issue: null }
   }
 
   const charges = rows.map((row): BillingCharge => {
     const plan = Array.isArray(row.plan) ? row.plan[0] : row.plan
     const charged = row.amount_paid_cents || row.amount_due_cents
+    // Older rows have no total: fall back to what was charged.
+    const total = Math.max(row.total_cents, charged)
     return {
       id: row.id,
       date: (row.paid_at ?? row.created_at).slice(0, 10),
       description: plan
         ? `${plan.name} plan`
         : (row.description ?? 'Subscription'),
-      amount: charged / 100,
+      amount: total / 100,
+      creditApplied: row.credit_applied_cents / 100,
       refunded: row.amount_refunded_cents / 100,
       currency: row.currency.toUpperCase(),
       status: row.status,
@@ -278,8 +293,9 @@ export async function getBillingOverview(
       .select('id, name, duration_months, price_cents, seats')
       .eq('is_active', true),
     getSeatUsage(workspace.id),
-    getPayments(workspace.id),
-    getCredit(workspace.id),
+    // The demo workspace's Stripe ids are made up, so it never asks Stripe.
+    getPayments(workspace.id, { stripeFallback: !workspace.isDemo }),
+    workspace.isDemo ? null : getCredit(workspace.id),
   ])
 
   if (subRes.error)

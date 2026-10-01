@@ -60,6 +60,7 @@ export function ProjectDetailHeader({
     projectId: string
     notes: string
     totalAmount: number
+    periodStart?: string | null
   }) => {
     setIsSubmittingInvoice(true)
 
@@ -67,6 +68,7 @@ export function ProjectDetailHeader({
       projectId: data.projectId,
       orgSlug,
       notes: data.notes,
+      periodStart: data.periodStart,
     })
 
     setIsSubmittingInvoice(false)

@@ -1,6 +1,7 @@
 'use client'
 
 import { NAV_ICONS } from '@/components/layout/nav-icons'
+import { DemoDisabled } from '@/components/shared/demo-disabled'
 import {
   FxButton,
   FxField,
@@ -149,16 +150,18 @@ export function EditableEmailField({
               </FxButton>
             </>
           ) : (
-            <FxButton
-              type="button"
-              variant={'ghost'}
-              size="icon-sm"
-              aria-label={PROFILE.emailEdit.start}
-              className="text-muted-foreground hover:text-foreground bg-transparent hover:bg-transparent"
-              onClick={beginEdit}
-            >
-              <NAV_ICONS.edit strokeWidth={1.8} />
-            </FxButton>
+            <DemoDisabled>
+              <FxButton
+                type="button"
+                variant={'ghost'}
+                size="icon-sm"
+                aria-label={PROFILE.emailEdit.start}
+                className="text-muted-foreground hover:text-foreground bg-transparent hover:bg-transparent"
+                onClick={beginEdit}
+              >
+                <NAV_ICONS.edit strokeWidth={1.8} />
+              </FxButton>
+            </DemoDisabled>
           )}
         </FxInputGroupAddon>
       </FxInputGroup>

@@ -17,6 +17,7 @@ import { createClient } from '@/lib/supabase/server'
 import { isTheme } from '@/lib/theme'
 import { isValidTimeZone } from '@/lib/time-zone'
 import type { Database } from '@/types/supabase'
+import { demoBlocked } from '@/lib/demo'
 
 interface WorkingDayInput {
   dailyCapacityHours: number
@@ -25,9 +26,6 @@ interface WorkingDayInput {
   roundingMinutes: number
 }
 
-// Server actions are public endpoints: parse the input's SHAPE first, so a malformed call
-// (null, a number for currency…) gets a friendly error instead of crashing (RISK-007).
-// Ranges match the organizations table's CHECK constraints and update_workspace_settings.
 const workingDaySchema = z.object(
   {
     dailyCapacityHours: z
@@ -108,6 +106,10 @@ export async function renameWorkspaceAction(
   orgSlug: string,
   name: string
 ): Promise<ActionResult> {
+  // The name is on every demo page and in the sidebar for all visitors.
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return { ok: false, error: 'Workspace not found.' }
 
@@ -136,6 +138,9 @@ const inactivityTimeoutSchema = z.enum(INACTIVITY_TIMEOUTS)
 export async function updateInactivityTimeout(
   value: InactivityTimeout
 ): Promise<ActionResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const parsed = inactivityTimeoutSchema.safeParse(value)
   if (!parsed.success) return { ok: false, error: 'Choose one of the options.' }
 
@@ -164,6 +169,9 @@ export async function signOutInactive(): Promise<void> {
 
 /** Signs one OTHER device out — `revoke_my_session` refuses the current one. */
 export async function signOutDevice(sessionId: string): Promise<ActionResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const parsed = z.uuid().safeParse(sessionId)
   if (!parsed.success) return { ok: false, error: 'That device was not found.' }
 
@@ -188,6 +196,9 @@ export async function signOutDevice(sessionId: string): Promise<ActionResult> {
 }
 
 export async function signOutOtherDevices(): Promise<ActionResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const supabase = await createClient()
   const { error } = await supabase.auth.signOut({ scope: 'others' })
 
@@ -231,7 +242,6 @@ async function savePreferences(
   return { ok: true }
 }
 
-/** "Automatic time zone": `null` = follow each device; a zone = fixed on every device. */
 export async function updateTimeZone(
   zone: string | null
 ): Promise<ActionResult> {
@@ -255,6 +265,10 @@ export async function updateTheme(theme: string): Promise<ActionResult> {
 export async function updateWeeklyDigest(
   enabled: boolean
 ): Promise<ActionResult> {
+  // The digest is an email; demo inboxes are not real.
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   if (typeof enabled !== 'boolean') {
     return { ok: false, error: 'Could not save that setting.' }
   }
@@ -269,6 +283,9 @@ export async function recordDeviceTimeZone(zone: string): Promise<void> {
 export async function sendTestDigest(
   orgSlug: string
 ): Promise<ActionResult<{ email: string }>> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const supabase = await createClient()
   const {
     data: { user },

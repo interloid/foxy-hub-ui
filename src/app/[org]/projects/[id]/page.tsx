@@ -115,11 +115,8 @@ export default async function ProjectDetailPage({
     getTotalLoggedHours(id),
     getWeeklyLoggedMinutesByUser(id),
   ])
-  const hasInvoice = await hasInvoiceForProject(
-    id,
-    project.engagement,
-    project.retainerPeriod
-  )
+  // Retainers: the invoice sheet checks the period the admin picks.
+  const hasInvoice = await hasInvoiceForProject(id, project.engagement)
   // Helper to handle results, log errors to Sentry, and return state
   function processResult<T>(
     result: PromiseSettledResult<T>,

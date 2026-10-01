@@ -3,10 +3,11 @@
 import { FxButton } from '@/components/shared/fx-button'
 import { isAdminRole } from '@/lib/role'
 import { Clock, Sparkles } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useWorkspace } from '../../context/workspace-context'
 import { UserRole } from '../../types'
 import { LogTimeSheet } from '../sheets/log-time-sheet'
-import { NewProjectSheet } from '../sheets/new-project-sheet'
 import { TimeGreeting } from './time-greetings'
 
 interface DashboardHeadersProps {
@@ -25,8 +26,9 @@ export function DashboardHeaders({
   onLogTimeClick,
   onNewProjectClick,
 }: DashboardHeadersProps) {
+  const router = useRouter()
+  const { orgSlug } = useWorkspace()
   const [isLogTimeOpen, setIsLogTimeOpen] = useState(false)
-  const [isNewProjectOpen, setIsNewProjectOpen] = useState(false)
 
   const handleLogTimeClick = () => {
     setIsLogTimeOpen(true)
@@ -34,7 +36,8 @@ export function DashboardHeaders({
   }
 
   const handleNewProjectClick = () => {
-    setIsNewProjectOpen(true)
+    // New projects are created on their own page; only admins can open it.
+    if (isAdminRole(role)) router.push(`/${orgSlug}/projects/new`)
     onNewProjectClick?.()
   }
 
@@ -83,12 +86,6 @@ export function DashboardHeaders({
 
       {/* Sheets */}
       <LogTimeSheet open={isLogTimeOpen} onOpenChange={setIsLogTimeOpen} />
-      {isAdminRole(role) && (
-        <NewProjectSheet
-          open={isNewProjectOpen}
-          onOpenChange={setIsNewProjectOpen}
-        />
-      )}
     </>
   )
 }

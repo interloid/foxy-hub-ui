@@ -100,6 +100,8 @@ async function staffMemberships(userId: string): Promise<Membership[]> {
     .eq('user_id', userId)
     .eq('status', true)
     .in('role', STAFF_ROLES)
+    // The shared demo workspace never gets a digest: its inboxes are not real.
+    .eq('organizations.is_demo', false)
   if (error) throw error
   return (data ?? []).map((row) => ({
     role: row.role as StaffRole,

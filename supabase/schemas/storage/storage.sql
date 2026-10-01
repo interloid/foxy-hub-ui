@@ -147,3 +147,20 @@ create policy "storage_require_mfa_when_enrolled"
   on storage.objects as restrictive for all to authenticated
   using ((select public.mfa_satisfied()))
   with check ((select public.mfa_satisfied()));
+
+-- =====================================================================
+-- Demo workspace: no uploads
+--
+-- RESTRICTIVE, so it narrows every permissive upload policy above instead of adding to
+-- them: a demo visitor can still read files, but cannot put one in either bucket. Their
+-- files would be public to every other visitor and outlive the hourly reset. The app
+-- refuses first (`uploadAvatar`, `uploadDeliveryAssets`); this covers a direct call to the
+-- Storage API with the demo login's token.
+-- =====================================================================
+create policy "demo_no_uploads"
+  on storage.objects as restrictive for insert to authenticated
+  with check (not public.is_demo_member((select auth.uid())));
+
+create policy "demo_no_upload_updates"
+  on storage.objects as restrictive for update to authenticated
+  using (not public.is_demo_member((select auth.uid())));

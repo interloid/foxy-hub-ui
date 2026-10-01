@@ -1,14 +1,15 @@
 'use server'
 
-import { isDemoModeEnabled, serverEnv } from '@/config/env.server'
+import { serverEnv } from '@/config/env.server'
 import { siteConfig } from '@/config/site'
+import { demoBlocked, demoEmailFor, isDemoEmail, isDemoUser } from '@/lib/demo'
 import { hasVerifiedFactor, MFA_VERIFY_PATH } from '@/lib/mfa'
 import { decodePassword } from '@/lib/password-encoding'
 import { rateLimit } from '@/lib/rate-limit'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
+import { demoRoleSchema } from './demo'
 import {
   changePasswordSchema,
   firstIssue,
@@ -85,6 +86,15 @@ export async function sendPasswordReset(
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) }
   const { email: address } = parsed.data
 
+  // The demo accounts are shared by every visitor; a reset link would let one of them
+  // lock everybody else out.
+  if (isDemoEmail(address)) {
+    return {
+      ok: false,
+      error: 'Password reset is not available for the demo accounts.',
+    }
+  }
+
   const queryParams = new URLSearchParams({ reset: '1' })
   if (forgotPassword) {
     queryParams.set('forgot', '1')
@@ -101,23 +111,42 @@ export async function sendPasswordReset(
   return { ok: true }
 }
 
-export async function signInAsDemo(): Promise<AuthResult> {
-  if (!isDemoModeEnabled()) {
-    return { ok: false, error: 'The demo account is not configured.' }
+/** Signs into the shared demo workspace as the picked role. */
+export async function signInAsDemo(role: string): Promise<AuthResult> {
+  const parsed = demoRoleSchema.safeParse(role)
+  if (!parsed.success) return { ok: false, error: 'Pick a demo role.' }
+
+  const email = demoEmailFor(parsed.data)
+  if (!email) {
+    return { ok: false, error: 'That demo account is not configured.' }
   }
 
-  const email = serverEnv.DEMO_ACCOUNT_EMAIL!
-  const password = serverEnv.DEMO_ACCOUNT_PASSWORD!
+  const headerList = await headers()
+  const ip =
+    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anonymous'
+  const isAllowed = await rateLimit(`demo-sign-in:${ip}`, {
+    limit: 10,
+    windowMs: 60_000,
+  })
+  if (!isAllowed) {
+    return {
+      ok: false,
+      error: 'Too many demo logins. Please try again in a minute.',
+    }
+  }
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password: serverEnv.DEMO_ACCOUNT_PASSWORD!,
+  })
 
   if (error) {
-    console.error('demo sign-in failed:', error.message)
+    console.error(`demo sign-in (${parsed.data}) failed:`, error.message)
     return { ok: false, error: 'The demo account is unavailable right now.' }
   }
 
-  redirect('/')
+  return resolveLanding(supabase, data.user.id)
 }
 
 export async function signOut() {
@@ -151,6 +180,13 @@ export async function setPassword(
 
   const supabase = await createClient()
 
+  if (await isDemoUser()) {
+    return {
+      ok: false,
+      error: 'The demo accounts keep their shared password.',
+    }
+  }
+
   const { data: updateData, error: updateError } =
     await supabase.auth.updateUser({
       password: decodedPassword,
@@ -183,6 +219,9 @@ export async function changePassword(
   encodePassword: string,
   encodeConfirm: string
 ): Promise<AuthResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const parsed = changePasswordSchema.safeParse({
     current: decodePassword(encodeCurrent),
     password: decodePassword(encodePassword),

@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { inviteTeam } from '@/features/onboarding/services/invite-team'
 import type { ActionResult, InviteOutcome } from '@/features/onboarding/types'
 import { getWorkspace } from '@/lib/dal'
+import { demoBlocked } from '@/lib/demo'
 import { isAdminRole, type InvitableStaffRole } from '@/lib/role'
 
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -63,6 +64,9 @@ export async function inviteMemberAction(
     jobTitle?: string
   }
 ): Promise<ActionResult<InviteOutcome>> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return { ok: false, error: 'Workspace not found.' }
 
@@ -195,6 +199,13 @@ export async function createClientAction(
       ok: false,
       error: parsed.error.issues[0]?.message ?? 'Check the form and try again.',
     }
+  }
+
+  // Adding a client is fine in the demo; emailing it a portal invite is not. Refused
+  // before the insert, so the client is not half-created.
+  if (parsed.data.invite) {
+    const blocked = await demoBlocked()
+    if (blocked) return blocked
   }
 
   const usage = await orNull(getClientUsage(workspace.id))
@@ -368,6 +379,9 @@ export async function inviteClientAction(
   clientId: string,
   projectId?: string
 ): Promise<ActionResult<{ email: string }>> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return { ok: false, error: 'Workspace not found.' }
 
@@ -426,6 +440,9 @@ export async function setClientStatusAction(
   clientId: string,
   active: boolean
 ): Promise<ActionResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return { ok: false, error: 'Workspace not found.' }
 
@@ -468,6 +485,9 @@ export async function deactivateClientAction(
   orgSlug: string,
   clientId: string
 ): Promise<ActionResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return { ok: false, error: 'Workspace not found.' }
 
@@ -573,6 +593,12 @@ export async function updateMemberAction(
   if (isSelf && role.data !== target.role) {
     return { ok: false, error: 'You cannot change your own role.' }
   }
+  // Names and job titles stay editable in the demo; roles do not, or the role picker on
+  // the sign-in page would stop landing people where it says.
+  if (role.data !== target.role) {
+    const blocked = await demoBlocked()
+    if (blocked) return blocked
+  }
   if (
     role.data === 'admin' &&
     target.role !== 'admin' &&
@@ -613,6 +639,9 @@ export async function makePrimaryAdminAction(
   orgSlug: string,
   membershipId: string
 ): Promise<ActionResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return { ok: false, error: 'Workspace not found.' }
 
@@ -643,6 +672,9 @@ export async function deactivateMembershipAction(
   orgSlug: string,
   membershipId: string
 ): Promise<ActionResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const supabase = await createClient()
   const {
     data: { user },
@@ -712,6 +744,9 @@ export async function reactivateMembershipAction(
   orgSlug: string,
   membershipId: string
 ): Promise<ActionResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return { ok: false, error: 'Workspace not found.' }
 
@@ -786,6 +821,9 @@ export async function resetMemberMfaAction(
   orgSlug: string,
   membershipId: string
 ): Promise<ActionResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const supabase = await createClient()
   const {
     data: { user },

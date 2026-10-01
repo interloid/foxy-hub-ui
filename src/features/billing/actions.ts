@@ -11,6 +11,7 @@ import {
 } from '@/features/onboarding/services/billing'
 import type { ActionResult } from '@/features/onboarding/types'
 import { getWorkspace } from '@/lib/dal'
+import { demoBlocked } from '@/lib/demo'
 import { isBillingRole } from '@/lib/role'
 import { createClient } from '@/lib/supabase/server'
 
@@ -90,6 +91,9 @@ export async function changePlanAction(
     prorationDate?: number
   }
 ): Promise<ActionResult<PlanChangeOutcome>> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await requireBillingAdmin(orgSlug)
   if (!workspace)
     return { ok: false, error: 'Only an admin can change the plan.' }
@@ -181,6 +185,9 @@ export async function previewPlanChangeAction(
   orgSlug: string,
   input: { planId: string; cycle: string }
 ): Promise<ActionResult<PlanChangePreview | null>> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await requireBillingAdmin(orgSlug)
   if (!workspace)
     return { ok: false, error: 'Only an admin can change the plan.' }
@@ -208,6 +215,9 @@ export async function cancelPlanChangeAction(
   orgSlug: string,
   requestId: string
 ): Promise<ActionResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await requireBillingAdmin(orgSlug)
   if (!workspace)
     return { ok: false, error: 'Only an admin can change the plan.' }
@@ -236,6 +246,9 @@ export async function cancelSubscriptionAction(
   orgSlug: string,
   requestId: string
 ): Promise<ActionResult<{ cancelAt: string | null }>> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await requireBillingAdmin(orgSlug)
   if (!workspace)
     return { ok: false, error: 'Only an admin can cancel the subscription.' }
@@ -265,6 +278,9 @@ export async function resumeSubscriptionAction(
   orgSlug: string,
   requestId: string
 ): Promise<ActionResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await requireBillingAdmin(orgSlug)
   if (!workspace)
     return { ok: false, error: 'Only an admin can change the plan.' }
@@ -291,6 +307,9 @@ export async function resumeSubscriptionAction(
 export async function openCardUpdateAction(
   orgSlug: string
 ): Promise<ActionResult<{ url: string }>> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const workspace = await requireBillingAdmin(orgSlug)
   if (!workspace) {
     return { ok: false, error: 'Only an admin can manage billing.' }

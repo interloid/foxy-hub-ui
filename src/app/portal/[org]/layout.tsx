@@ -3,6 +3,7 @@ import { InactivityWatcher } from '@/components/common/inactivity-watcher'
 import { ThemeSync } from '@/components/common/theme-sync'
 import { TimeZoneSync } from '@/components/common/time-zone-sync'
 import { AppShellWrapper } from '@/components/layout/app-shell-wrapper'
+import { DemoBanner } from '@/components/layout/demo-banner'
 import { getClientFooter, getClientNavSections, WORKSPACE } from '@/config/nav'
 import { BreadcrumbProvider } from '@/context/breadcrump'
 import { WorkspaceProvider } from '@/features/dashboard/context/workspace-context'
@@ -40,6 +41,7 @@ export default async function PortalLayout({
         orgId={workspace?.id}
         currency={workspace?.currency}
         userRole={account.role}
+        isDemo={account.isDemo}
       >
         <BreadcrumbProvider>
           <AppShellWrapper
@@ -49,6 +51,7 @@ export default async function PortalLayout({
               name: workspace?.name ?? account.orgName ?? WORKSPACE.name,
               org,
             }}
+            banner={account.isDemo ? <DemoBanner /> : undefined}
             account={{
               name:
                 account.fullName ??

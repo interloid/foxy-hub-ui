@@ -104,6 +104,7 @@ export type Database = {
           attempt_count: number
           billing_reason: string | null
           created_at: string
+          credit_applied_cents: number
           currency: string
           description: string | null
           failed_at: string | null
@@ -126,6 +127,7 @@ export type Database = {
           stripe_invoice_id: string
           stripe_payment_intent_id: string | null
           subscription_id: string | null
+          total_cents: number
           updated_at: string
         }
         Insert: {
@@ -135,6 +137,7 @@ export type Database = {
           attempt_count?: number
           billing_reason?: string | null
           created_at?: string
+          credit_applied_cents?: number
           currency: string
           description?: string | null
           failed_at?: string | null
@@ -157,6 +160,7 @@ export type Database = {
           stripe_invoice_id: string
           stripe_payment_intent_id?: string | null
           subscription_id?: string | null
+          total_cents?: number
           updated_at?: string
         }
         Update: {
@@ -166,6 +170,7 @@ export type Database = {
           attempt_count?: number
           billing_reason?: string | null
           created_at?: string
+          credit_applied_cents?: number
           currency?: string
           description?: string | null
           failed_at?: string | null
@@ -188,6 +193,7 @@ export type Database = {
           stripe_invoice_id?: string
           stripe_payment_intent_id?: string | null
           subscription_id?: string | null
+          total_cents?: number
           updated_at?: string
         }
         Relationships: [
@@ -631,25 +637,34 @@ export type Database = {
       }
       milestones: {
         Row: {
+          client_visible: boolean
           created_at: string | null
           due_date: string | null
+          estimated_hours: number | null
           id: string
+          position: number
           project_id: string
           status: Database['public']['Enums']['milestone_status']
           title: string
         }
         Insert: {
+          client_visible?: boolean
           created_at?: string | null
           due_date?: string | null
+          estimated_hours?: number | null
           id?: string
+          position?: number
           project_id: string
           status?: Database['public']['Enums']['milestone_status']
           title: string
         }
         Update: {
+          client_visible?: boolean
           created_at?: string | null
           due_date?: string | null
+          estimated_hours?: number | null
           id?: string
+          position?: number
           project_id?: string
           status?: Database['public']['Enums']['milestone_status']
           title?: string
@@ -671,6 +686,7 @@ export type Database = {
           daily_capacity_hours: number
           days_per_week: number
           id: string
+          is_demo: boolean
           logo_url: string | null
           name: string
           payment_terms_days: number
@@ -685,6 +701,7 @@ export type Database = {
           daily_capacity_hours?: number
           days_per_week?: number
           id?: string
+          is_demo?: boolean
           logo_url?: string | null
           name: string
           payment_terms_days?: number
@@ -699,6 +716,7 @@ export type Database = {
           daily_capacity_hours?: number
           days_per_week?: number
           id?: string
+          is_demo?: boolean
           logo_url?: string | null
           name?: string
           payment_terms_days?: number
@@ -818,6 +836,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          done_when: string | null
           due_date: string | null
           engagement: Database['public']['Enums']['engagement_model']
           estimated_hours: number | null
@@ -825,13 +844,18 @@ export type Database = {
           name: string
           org_id: string
           override_reason: string | null
+          owner_id: string | null
           retainer_amount: number | null
           retainer_hours: number | null
           retainer_overage: number | null
           retainer_period: Database['public']['Enums']['retainer_period'] | null
+          scope_in: string | null
+          scope_out: string | null
+          sign_off_by: string | null
           start_date: string | null
           start_from: string | null
           status: Database['public']['Enums']['project_status']
+          update_cadence: Database['public']['Enums']['update_cadence']
           updated_at: string | null
         }
         Insert: {
@@ -841,6 +865,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          done_when?: string | null
           due_date?: string | null
           engagement?: Database['public']['Enums']['engagement_model']
           estimated_hours?: number | null
@@ -848,14 +873,19 @@ export type Database = {
           name: string
           org_id: string
           override_reason?: string | null
+          owner_id?: string | null
           retainer_amount?: number | null
           retainer_hours?: number | null
           retainer_overage?: number | null
           retainer_period?:
             Database['public']['Enums']['retainer_period'] | null
+          scope_in?: string | null
+          scope_out?: string | null
+          sign_off_by?: string | null
           start_date?: string | null
           start_from?: string | null
           status?: Database['public']['Enums']['project_status']
+          update_cadence?: Database['public']['Enums']['update_cadence']
           updated_at?: string | null
         }
         Update: {
@@ -865,6 +895,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          done_when?: string | null
           due_date?: string | null
           engagement?: Database['public']['Enums']['engagement_model']
           estimated_hours?: number | null
@@ -872,14 +903,19 @@ export type Database = {
           name?: string
           org_id?: string
           override_reason?: string | null
+          owner_id?: string | null
           retainer_amount?: number | null
           retainer_hours?: number | null
           retainer_overage?: number | null
           retainer_period?:
             Database['public']['Enums']['retainer_period'] | null
+          scope_in?: string | null
+          scope_out?: string | null
+          sign_off_by?: string | null
           start_date?: string | null
           start_from?: string | null
           status?: Database['public']['Enums']['project_status']
+          update_cadence?: Database['public']['Enums']['update_cadence']
           updated_at?: string | null
         }
         Relationships: [
@@ -1172,7 +1208,11 @@ export type Database = {
         Returns: string
       }
       create_project_with_allocations: {
-        Args: { allocations_data?: Json; project_data: Json }
+        Args: {
+          allocations_data?: Json
+          milestones_data?: Json
+          project_data: Json
+        }
         Returns: string
       }
       create_time_entry_with_capacity_check: {
@@ -1188,6 +1228,7 @@ export type Database = {
         Returns: Json
       }
       current_user_orgs: { Args: never; Returns: string[] }
+      demo_reset_running: { Args: never; Returns: boolean }
       has_org_role: {
         Args: {
           allowed_roles: Database['public']['Enums']['user_role'][]
@@ -1195,6 +1236,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_demo_member: { Args: { target_user_id: string }; Returns: boolean }
+      is_demo_org: { Args: { target_org_id: string }; Returns: boolean }
       is_org_member: { Args: { target_org_id: string }; Returns: boolean }
       is_slug_available: { Args: { candidate: string }; Returns: boolean }
       list_my_sessions: {
@@ -1211,6 +1254,7 @@ export type Database = {
       }
       mfa_satisfied: { Args: never; Returns: boolean }
       reject_time_entry: { Args: { entry_id: string }; Returns: undefined }
+      reset_demo_org: { Args: never; Returns: undefined }
       revoke_my_session: {
         Args: { target_session_id: string }
         Returns: undefined
@@ -1276,7 +1320,8 @@ export type Database = {
         | 'dispute_lost'
         | 'void'
       delivery_status: 'pending' | 'submitted' | 'approved' | 'rejected'
-      engagement_model: 'full_time' | 'part_time' | 'retainer' | 'fixed'
+      engagement_model:
+        'full_time' | 'part_time' | 'retainer' | 'fixed' | 'budget' | 'hourly'
       invoice_status: 'draft' | 'due' | 'paid' | 'overdue' | 'cancelled'
       milestone_status: 'pending' | 'in_progress' | 'completed'
       project_status:
@@ -1300,6 +1345,12 @@ export type Database = {
         | 'unpaid'
         | 'paused'
       time_entry_status: 'draft' | 'submitted' | 'approved' | 'rejected'
+      update_cadence:
+        | 'weekly_monday'
+        | 'weekly_friday'
+        | 'fortnightly'
+        | 'at_milestone'
+        | 'on_request'
       user_role:
         'primary_admin' | 'admin' | 'manager' | 'contributor' | 'client'
     }
@@ -1442,7 +1493,14 @@ export const Constants = {
         'void',
       ],
       delivery_status: ['pending', 'submitted', 'approved', 'rejected'],
-      engagement_model: ['full_time', 'part_time', 'retainer', 'fixed'],
+      engagement_model: [
+        'full_time',
+        'part_time',
+        'retainer',
+        'fixed',
+        'budget',
+        'hourly',
+      ],
       invoice_status: ['draft', 'due', 'paid', 'overdue', 'cancelled'],
       milestone_status: ['pending', 'in_progress', 'completed'],
       project_status: [
@@ -1468,6 +1526,13 @@ export const Constants = {
         'paused',
       ],
       time_entry_status: ['draft', 'submitted', 'approved', 'rejected'],
+      update_cadence: [
+        'weekly_monday',
+        'weekly_friday',
+        'fortnightly',
+        'at_milestone',
+        'on_request',
+      ],
       user_role: ['primary_admin', 'admin', 'manager', 'contributor', 'client'],
     },
   },

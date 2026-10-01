@@ -47,7 +47,12 @@ create table public.organizations (
   -- 30 is the common default. The range allows same-day (0 would mean "due on receipt", which
   -- is a real term) through a year, which is well past anything legitimate.
   payment_terms_days   smallint    not null    default 30
-    check (payment_terms_days between 0 and 365)
+    check (payment_terms_days between 0 and 365),
+
+  -- The shared demo workspace behind "Log in as demo". Its accounts are used by every
+  -- visitor at once, so the app and the database refuse the changes that would break it
+  -- for the next person (see `is_demo_org`), and the rest is reset every hour.
+  is_demo              boolean     not null    default false
 );
 
 create index if not exists organizations_user_id_idx on public.organizations(user_id);

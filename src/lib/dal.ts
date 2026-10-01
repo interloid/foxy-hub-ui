@@ -69,6 +69,7 @@ export type AccountDTO = {
   isAdmin: boolean
   orgName: string | undefined
   isMember: boolean
+  isDemo: boolean
 }
 
 export type WorkspaceDTO = {
@@ -77,6 +78,8 @@ export type WorkspaceDTO = {
   currency: string
   slug: string
   role: UserRole
+  /** The shared demo workspace (`organizations.is_demo`). */
+  isDemo: boolean
 }
 
 export type DashboardMetricsDTO = {
@@ -197,7 +200,7 @@ export const getWorkspace = cache(
     if (slug) {
       const { data, error } = await supabase
         .from('memberships')
-        .select('role, organizations!inner(id, name, slug, currency)')
+        .select('role, organizations!inner(id, name, slug, currency, is_demo)')
         .eq('user_id', session.id)
         .eq('status', true)
         .eq('organizations.slug', slug)
@@ -212,12 +215,13 @@ export const getWorkspace = cache(
         currency: org.currency,
         slug: org.slug,
         role: data.role as UserRole,
+        isDemo: org.is_demo,
       }
     }
 
     const { data, error } = await supabase
       .from('memberships')
-      .select('role, organizations!inner(id, name, slug, currency)')
+      .select('role, organizations!inner(id, name, slug, currency, is_demo)')
       .eq('user_id', session.id)
       .eq('status', true)
       .order('created_at', { ascending: true })
@@ -236,6 +240,7 @@ export const getWorkspace = cache(
       currency: org.currency,
       slug: org.slug,
       role: firstMembership.role as UserRole,
+      isDemo: org.is_demo,
     }
   }
 )
@@ -281,6 +286,7 @@ export const getAccount = cache(
       isAdmin: isAdminRole(role),
       orgName: workspace?.name,
       isMember: Boolean(workspace),
+      isDemo: workspace?.isDemo ?? false,
     }
   }
 )

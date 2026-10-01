@@ -46,7 +46,10 @@ export interface BillingCharge {
   id: string
   date: string
   description: string
+  /** The invoice's price, before account credit. */
   amount: number
+  /** How much of `amount` account credit paid; the card paid the rest. */
+  creditApplied: number
   refunded: number
   currency: string
   status: BillingPaymentStatus

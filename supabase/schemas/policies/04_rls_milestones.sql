@@ -4,6 +4,9 @@ alter table public.milestones enable row level security;
 -- the client OF. The previous policy tested org membership with NO role filter, and invited
 -- clients get a membership row — so every client of an agency could read every other
 -- client's milestones. Same correction as 06_rls_deliveries. See decisions.md D021.
+--
+-- A client also only sees milestones marked `client_visible`; internal-only checkpoints
+-- stay with staff.
 create policy "staff_and_own_client_view_milestones"
   on public.milestones for select to authenticated
   using (
@@ -11,7 +14,7 @@ create policy "staff_and_own_client_view_milestones"
       select 1 from public.projects p
       where p.id = milestones.project_id
         and (
-          p.client_id = (select auth.uid())
+          (p.client_id = (select auth.uid()) and milestones.client_visible)
           or public.has_org_role(p.org_id, array['primary_admin', 'admin', 'manager', 'contributor']::public.user_role[])
         )
     )

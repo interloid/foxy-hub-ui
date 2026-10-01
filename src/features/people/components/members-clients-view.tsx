@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 
 import { FxBadge } from '@/components/shared/fx-badge'
+import { DemoDisabled } from '@/components/shared/demo-disabled'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard, FxCardContent } from '@/components/shared/fx-card'
 import {
@@ -351,30 +352,34 @@ function MemberTable({
                           View
                         </FxButton>
                         {showDeactivate && (
-                          <FxButton
-                            variant="secondary"
-                            size="xs"
-                            className="hover:text-destructive hover:border-destructive hover:bg-transparent"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onDeactivate(row)
-                            }}
-                          >
-                            Deactivate
-                          </FxButton>
+                          <DemoDisabled>
+                            <FxButton
+                              variant="secondary"
+                              size="xs"
+                              className="hover:text-destructive hover:border-destructive hover:bg-transparent"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onDeactivate(row)
+                              }}
+                            >
+                              Deactivate
+                            </FxButton>
+                          </DemoDisabled>
                         )}
                         {showReactivate && (
-                          <FxButton
-                            variant="secondary"
-                            size="xs"
-                            className="hover:text-success hover:border-success hover:bg-transparent"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onReactivate(row)
-                            }}
-                          >
-                            Reactivate
-                          </FxButton>
+                          <DemoDisabled>
+                            <FxButton
+                              variant="secondary"
+                              size="xs"
+                              className="hover:text-success hover:border-success hover:bg-transparent"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onReactivate(row)
+                              }}
+                            >
+                              Reactivate
+                            </FxButton>
+                          </DemoDisabled>
                         )}
                       </div>
                     </FxTableCell>
@@ -507,22 +512,24 @@ function ClientTable({
                         View
                       </FxButton>
                       {canManage && (
-                        <FxButton
-                          variant="secondary"
-                          className={cn(
-                            'hover:bg-transparent',
-                            row.isActive
-                              ? 'hover:text-destructive hover:border-destructive'
-                              : 'hover:text-success hover:border-success'
-                          )}
-                          size="xs"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onToggleStatus(row)
-                          }}
-                        >
-                          {row.isActive ? 'Deactivate' : 'Reactivate'}
-                        </FxButton>
+                        <DemoDisabled>
+                          <FxButton
+                            variant="secondary"
+                            className={cn(
+                              'hover:bg-transparent',
+                              row.isActive
+                                ? 'hover:text-destructive hover:border-destructive'
+                                : 'hover:text-success hover:border-success'
+                            )}
+                            size="xs"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onToggleStatus(row)
+                            }}
+                          >
+                            {row.isActive ? 'Deactivate' : 'Reactivate'}
+                          </FxButton>
+                        </DemoDisabled>
                       )}
                     </div>
                   </FxTableCell>
@@ -629,10 +636,15 @@ export function MembersClientsView({
               <Building2 className="size-4" />
               New client
             </FxButton>
-            <FxButton onClick={() => setIsInviteOpen(true)} className="gap-1.5">
-              <UserPlus className="size-4" />
-              Invite member
-            </FxButton>
+            <DemoDisabled>
+              <FxButton
+                onClick={() => setIsInviteOpen(true)}
+                className="gap-1.5"
+              >
+                <UserPlus className="size-4" />
+                Invite member
+              </FxButton>
+            </DemoDisabled>
           </div>
         )}
       </div>

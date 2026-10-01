@@ -75,7 +75,12 @@ function hasError(value: unknown): boolean {
   return Array.isArray(value) ? value.some(hasError) : Boolean(value)
 }
 
-export function OnboardWizard() {
+export function OnboardWizard({
+  planSeats,
+}: {
+  /** From `plans.seats`, keyed by plan id; null = unlimited. */
+  planSeats: Record<string, number | null>
+}) {
   const [step, setStep] = useState<number>(0)
   const [slugState, setSlugState] = useState<CheckState>('idle')
   const [emailState, setEmailState] = useState<CheckState>('idle')
@@ -377,6 +382,7 @@ export function OnboardWizard() {
                       <OnboardPlanCard
                         key={plan.id}
                         plan={plan}
+                        seats={planSeats[plan.id]}
                         price={priceOf(plan)}
                         className="cursor-pointer"
                         cadence={cadence}

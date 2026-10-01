@@ -1,5 +1,6 @@
 'use client'
 
+import { DemoDisabled } from '@/components/shared/demo-disabled'
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxCard } from '@/components/shared/fx-card'
@@ -65,9 +66,14 @@ export function ProfileCard({ account }: { account: AccountDTO }) {
             {PROFILE.photo.label}
           </FxLabel>
           <div className="flex flex-wrap items-center gap-3">
-            <FxButton type="button" onClick={() => setIsPhotoDialogOpen(true)}>
-              {avatarUrl ? PROFILE.photo.change : PROFILE.photo.upload}
-            </FxButton>
+            <DemoDisabled>
+              <FxButton
+                type="button"
+                onClick={() => setIsPhotoDialogOpen(true)}
+              >
+                {avatarUrl ? PROFILE.photo.change : PROFILE.photo.upload}
+              </FxButton>
+            </DemoDisabled>
             <span className="text-subtle-foreground text-xs">
               {PROFILE.photo.hint}
             </span>

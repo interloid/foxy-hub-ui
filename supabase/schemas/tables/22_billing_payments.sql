@@ -37,6 +37,12 @@ create table public.billing_payments (
   amount_due_cents         integer     not null default 0,
   amount_paid_cents        integer     not null default 0,
   amount_refunded_cents    integer     not null default 0,
+  -- The invoice's price (Stripe `total`) and how much of it account credit paid:
+  -- amount_due = total − credit. A plan switch paid entirely from credit has amount_due 0
+  -- but is still a charge the customer must be able to see. 0 on rows recorded before
+  -- these columns existed.
+  total_cents              integer     not null default 0,
+  credit_applied_cents     integer     not null default 0,
   currency                 text        not null,
 
   status                   public.billing_payment_status not null,

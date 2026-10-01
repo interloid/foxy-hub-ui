@@ -17,6 +17,7 @@ export function AppShell({
   footer,
   notificationCount,
   onSearch,
+  banner,
   children,
   className,
 }: {
@@ -36,6 +37,8 @@ export function AppShell({
   footer: FooterProps
   notificationCount?: number
   onSearch?: () => void
+  /** A strip above the top bar, e.g. the demo workspace notice. */
+  banner?: ReactNode
   children: ReactNode
   className?: string
 }) {
@@ -90,6 +93,7 @@ export function AppShell({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {banner}
         <TopBar
           breadcrumbs={currentBreadcrumbs}
           account={{ ...account, org: account.org ?? workspace.org }}

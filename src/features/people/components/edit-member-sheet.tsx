@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { UserAvatar } from '@/components/shared/app/user-avatar'
 import { FxBadge } from '@/components/shared/fx-badge'
+import { DemoDisabled } from '@/components/shared/demo-disabled'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxConfirmDialog } from '@/components/shared/fx-confirm-dialog'
 import {
@@ -298,33 +299,35 @@ function EditMemberSheetForm({
                         admin if it needs to change.
                       </p>
                     ) : (
-                      <Select
-                        value={role}
-                        onValueChange={(v) => setRole(v as UserRole)}
-                      >
-                        <SelectTrigger
-                          id="edit-member-role"
-                          className="bg-muted border-border text-md h-11! w-full cursor-pointer p-2"
+                      <DemoDisabled className="flex w-full">
+                        <Select
+                          value={role}
+                          onValueChange={(v) => setRole(v as UserRole)}
                         >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent
-                          position="popper"
-                          align="start"
-                          sideOffset={6}
-                          className="p-1"
-                        >
-                          {assignableRoles(viewerRole).map((r) => (
-                            <SelectItem
-                              key={r}
-                              value={r}
-                              className="cursor-pointer p-2.5"
-                            >
-                              {roleLabel(r)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                          <SelectTrigger
+                            id="edit-member-role"
+                            className="bg-muted border-border text-md h-11! w-full cursor-pointer p-2"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent
+                            position="popper"
+                            align="start"
+                            sideOffset={6}
+                            className="p-1"
+                          >
+                            {assignableRoles(viewerRole).map((r) => (
+                              <SelectItem
+                                key={r}
+                                value={r}
+                                className="cursor-pointer p-2.5"
+                              >
+                                {roleLabel(r)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </DemoDisabled>
                     )}
                   </FxField>
                 )}
@@ -342,15 +345,17 @@ function EditMemberSheetForm({
                     in with just their password until they turn it on again.
                   </p>
                 </div>
-                <FxButton
-                  type="button"
-                  variant="secondary"
-                  className="w-full"
-                  disabled={isWorking}
-                  onClick={() => setShowResetMfa(true)}
-                >
-                  Reset 2FA
-                </FxButton>
+                <DemoDisabled className="flex w-full">
+                  <FxButton
+                    type="button"
+                    variant="secondary"
+                    className="w-full"
+                    disabled={isWorking}
+                    onClick={() => setShowResetMfa(true)}
+                  >
+                    Reset 2FA
+                  </FxButton>
+                </DemoDisabled>
               </section>
             )}
 
@@ -365,15 +370,17 @@ function EditMemberSheetForm({
                     You become an admin.
                   </p>
                 </div>
-                <FxButton
-                  type="button"
-                  variant="secondary"
-                  className="w-full"
-                  disabled={isWorking}
-                  onClick={() => setShowPromote(true)}
-                >
-                  Make primary admin
-                </FxButton>
+                <DemoDisabled className="flex w-full">
+                  <FxButton
+                    type="button"
+                    variant="secondary"
+                    className="w-full"
+                    disabled={isWorking}
+                    onClick={() => setShowPromote(true)}
+                  >
+                    Make primary admin
+                  </FxButton>
+                </DemoDisabled>
               </section>
             )}
 
@@ -388,15 +395,17 @@ function EditMemberSheetForm({
                     This can be undone later.
                   </p>
                 </div>
-                <FxButton
-                  type="button"
-                  variant="secondary"
-                  className="border-destructive/30 text-destructive hover:border-destructive hover:bg-card w-full"
-                  disabled={isWorking}
-                  onClick={() => setShowDeactivateConfirm(true)}
-                >
-                  Deactivate member
-                </FxButton>
+                <DemoDisabled className="flex w-full">
+                  <FxButton
+                    type="button"
+                    variant="secondary"
+                    className="border-destructive/30 text-destructive hover:border-destructive hover:bg-card w-full"
+                    disabled={isWorking}
+                    onClick={() => setShowDeactivateConfirm(true)}
+                  >
+                    Deactivate member
+                  </FxButton>
+                </DemoDisabled>
               </section>
             )}
 
@@ -410,15 +419,17 @@ function EditMemberSheetForm({
                     Reactivating gives them their access back and takes a seat.
                   </p>
                 </div>
-                <FxButton
-                  type="button"
-                  variant="secondary"
-                  className="border-success/30 text-success hover:border-success hover:bg-card w-full"
-                  disabled={isWorking}
-                  onClick={() => setShowReactivateConfirm(true)}
-                >
-                  Reactivate member
-                </FxButton>
+                <DemoDisabled className="flex w-full">
+                  <FxButton
+                    type="button"
+                    variant="secondary"
+                    className="border-success/30 text-success hover:border-success hover:bg-card w-full"
+                    disabled={isWorking}
+                    onClick={() => setShowReactivateConfirm(true)}
+                  >
+                    Reactivate member
+                  </FxButton>
+                </DemoDisabled>
               </section>
             )}
           </FxSheetBody>

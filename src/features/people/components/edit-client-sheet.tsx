@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { UserAvatar } from '@/components/shared/app/user-avatar'
 import { FxBadge } from '@/components/shared/fx-badge'
+import { DemoDisabled } from '@/components/shared/demo-disabled'
 import { FxButton } from '@/components/shared/fx-button'
 import { FxConfirmDialog } from '@/components/shared/fx-confirm-dialog'
 import {
@@ -288,15 +289,17 @@ function EditClientSheetForm({
                     Projects and invoices stay, and this can be undone later.
                   </p>
                 </div>
-                <FxButton
-                  type="button"
-                  variant="secondary"
-                  className="border-destructive/30 text-destructive hover:border-destructive hover:bg-card w-full"
-                  disabled={isTogglingStatus}
-                  onClick={() => setShowStatusConfirm(true)}
-                >
-                  Deactivate client
-                </FxButton>
+                <DemoDisabled className="flex w-full">
+                  <FxButton
+                    type="button"
+                    variant="secondary"
+                    className="border-destructive/30 text-destructive hover:border-destructive hover:bg-card w-full"
+                    disabled={isTogglingStatus}
+                    onClick={() => setShowStatusConfirm(true)}
+                  >
+                    Deactivate client
+                  </FxButton>
+                </DemoDisabled>
               </section>
             )}
 
@@ -311,15 +314,17 @@ function EditClientSheetForm({
                     against your plan again.
                   </p>
                 </div>
-                <FxButton
-                  type="button"
-                  variant="secondary"
-                  className="border-success/30 text-success hover:border-success hover:bg-card w-full"
-                  disabled={isTogglingStatus}
-                  onClick={() => setShowStatusConfirm(true)}
-                >
-                  Reactivate client
-                </FxButton>
+                <DemoDisabled className="flex w-full">
+                  <FxButton
+                    type="button"
+                    variant="secondary"
+                    className="border-success/30 text-success hover:border-success hover:bg-card w-full"
+                    disabled={isTogglingStatus}
+                    onClick={() => setShowStatusConfirm(true)}
+                  >
+                    Reactivate client
+                  </FxButton>
+                </DemoDisabled>
               </section>
             )}
           </FxSheetBody>

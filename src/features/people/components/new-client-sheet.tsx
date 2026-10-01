@@ -31,6 +31,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Switch } from '@/components/ui/switch'
+import { useIsDemo } from '@/features/dashboard/context/workspace-context'
 
 import { createClientAction } from '../actions'
 import { NETWORK_ERROR } from '../lib/network-error'
@@ -68,6 +69,8 @@ export function NewClientSheet({
     contactEmail: false,
   })
   const [showDiscard, setShowDiscard] = useState(false)
+  // The demo adds the client but never emails the invite (the server refuses it too).
+  const isDemo = useIsDemo()
 
   const touch = (field: keyof typeof touched) =>
     setTouched((prev) => ({ ...prev, [field]: true }))
@@ -132,7 +135,7 @@ export function NewClientSheet({
         contactName,
         contactEmail,
         portal,
-        invite: invite && portal && contactEmail.trim() !== '',
+        invite: !isDemo && invite && portal && contactEmail.trim() !== '',
         projectId: projectId === NO_PROJECT ? undefined : projectId,
       })
     } catch {
@@ -154,9 +157,9 @@ export function NewClientSheet({
       toast.error(`${label} ${verb}, but ${result.data.inviteError}`)
     } else if (result.data.invited) {
       toast.success(`${label} ${verb} and a portal invite was sent.`)
+    } else if (isDemo && portal) {
+      toast.success(`${label} ${verb}. Invites are not sent in the demo.`)
     } else {
-      // Only when portal access is off — the contact email is required, and with portal
-      // on an invite is always sent. There is no "send invite" button to point at.
       toast.success(
         `${label} ${verb}. Portal access is off, so no invite was sent.`
       )

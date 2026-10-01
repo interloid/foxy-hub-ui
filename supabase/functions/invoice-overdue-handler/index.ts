@@ -81,7 +81,7 @@ type OverdueInvoice = {
   currency: string
   due_date: string | null
   projects: { name: string; client_id: string | null } | null
-  organizations: { name: string | null } | null
+  organizations: { name: string | null; is_demo: boolean } | null
 }
 
 function formatAmount(amount: number | string, currency: string): string {
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
   const { data: invoices, error } = await supabase
     .from('invoices')
     .select(
-      'id, invoice_number, amount, currency, due_date, projects(name, client_id), organizations(name)'
+      'id, invoice_number, amount, currency, due_date, projects(name, client_id), organizations(name, is_demo)'
     )
     .eq('status', 'due')
     .lt('due_date', new Date().toISOString())
@@ -200,7 +200,11 @@ Deno.serve(async (req) => {
     const clientId = invoice.projects?.client_id
     const email = clientId ? emailByClientId.get(clientId) : undefined
 
-    if (email) {
+    if (invoice.organizations?.is_demo) {
+      // The shared demo workspace: still marked overdue below, but its client inboxes are
+      // not real, so nothing is sent.
+      skipped++
+    } else if (email) {
       try {
         await sendGmail(
           accessToken,

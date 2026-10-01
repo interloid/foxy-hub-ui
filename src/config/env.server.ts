@@ -6,11 +6,12 @@ const serverEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z
     .string()
     .min(1, 'SUPABASE_SERVICE_ROLE_KEY is required'),
-  DEMO_ACCOUNT_EMAIL: z
-    .email('DEMO_ACCOUNT_EMAIL must be a valid email address')
-    .optional()
-    .or(z.literal('')),
   DEMO_ACCOUNT_PASSWORD: z.string().optional().or(z.literal('')),
+  // One account per role in the demo workspace's picker; they share DEMO_ACCOUNT_PASSWORD.
+  DEMO_ADMIN_EMAIL: z.email().optional().or(z.literal('')),
+  DEMO_MANAGER_EMAIL: z.email().optional().or(z.literal('')),
+  DEMO_CONTRIBUTOR_EMAIL: z.email().optional().or(z.literal('')),
+  DEMO_CLIENT_EMAIL: z.email().optional().or(z.literal('')),
   SENTRY_DSN: z.url().optional().or(z.literal('')),
   SENTRY_ORG: z.string().optional().or(z.literal('')),
   SENTRY_PROJECT: z.string().optional().or(z.literal('')),
@@ -37,8 +38,11 @@ const serverEnvSchema = z.object({
 
 export const serverEnv = serverEnvSchema.parse({
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  DEMO_ACCOUNT_EMAIL: process.env.DEMO_ACCOUNT_EMAIL,
   DEMO_ACCOUNT_PASSWORD: process.env.DEMO_ACCOUNT_PASSWORD,
+  DEMO_ADMIN_EMAIL: process.env.DEMO_ADMIN_EMAIL,
+  DEMO_MANAGER_EMAIL: process.env.DEMO_MANAGER_EMAIL,
+  DEMO_CONTRIBUTOR_EMAIL: process.env.DEMO_CONTRIBUTOR_EMAIL,
+  DEMO_CLIENT_EMAIL: process.env.DEMO_CLIENT_EMAIL,
   SENTRY_DSN: process.env.SENTRY_DSN,
   SENTRY_ORG: process.env.SENTRY_ORG,
   SENTRY_PROJECT: process.env.SENTRY_PROJECT,
@@ -49,9 +53,3 @@ export const serverEnv = serverEnvSchema.parse({
   UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
   DIGEST_UNSUBSCRIBE_SECRET: process.env.DIGEST_UNSUBSCRIBE_SECRET,
 })
-
-export const isDemoModeEnabled = (): boolean => {
-  return Boolean(
-    serverEnv.DEMO_ACCOUNT_EMAIL && serverEnv.DEMO_ACCOUNT_PASSWORD
-  )
-}

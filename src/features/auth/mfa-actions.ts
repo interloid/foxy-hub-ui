@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 
-import { isDemoModeEnabled, serverEnv } from '@/config/env.server'
+import { demoBlocked, isDemoUser } from '@/lib/demo'
 import { safeNextPath } from '@/lib/mfa'
 import { createClient } from '@/lib/supabase/server'
 
@@ -54,10 +54,7 @@ export async function startTotpEnrollment(): Promise<Result<TotpEnrollment>> {
   if (!user) return { ok: false, error: 'Your session expired. Sign in again.' }
 
   // The shared demo login must never be lockable by whoever tries it next.
-  if (
-    isDemoModeEnabled() &&
-    user.email?.toLowerCase() === serverEnv.DEMO_ACCOUNT_EMAIL?.toLowerCase()
-  ) {
+  if (await isDemoUser()) {
     return {
       ok: false,
       error: 'Two-factor authentication is not available on the demo account.',
@@ -104,6 +101,9 @@ export async function confirmTotpEnrollment(
   factorId: string,
   code: string
 ): Promise<Result> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const parsed = mfaCodeSchema.safeParse(code)
   if (!parsed.success)
     return { ok: false, error: parsed.error.issues[0].message }
@@ -139,6 +139,9 @@ export async function cancelTotpEnrollment(factorId: string): Promise<void> {
  * verified factor.
  */
 export async function disableTotp(code: string): Promise<Result> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const parsed = mfaCodeSchema.safeParse(code)
   if (!parsed.success)
     return { ok: false, error: parsed.error.issues[0].message }
