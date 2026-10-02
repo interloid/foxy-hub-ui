@@ -63,7 +63,7 @@ export function AllocationRow({
     formState: { errors },
   } = useFormContext<NewProjectWizardValues>()
   const { currency } = useWorkspace()
-  const { members } = useNewProjectData()
+  const { members, canSeeCost } = useNewProjectData()
   const fmt = useFormatter()
   const symbol = getCurrencySymbol(currency)
 
@@ -240,7 +240,12 @@ export function AllocationRow({
         })}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      <div
+        className={cn(
+          'grid grid-cols-2 gap-2 sm:grid-cols-3',
+          canSeeCost ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
+        )}
+      >
         {numericCell(
           'hoursPerDay',
           'Hours/day',
@@ -268,28 +273,31 @@ export function AllocationRow({
           { required: billRateRequired, invalid: isMissingRequiredRate }
         )}
         {/* Read-only: the RPC snapshots cost from the membership at insert time, so a
-            figure typed here would never be saved. Change it in the member's settings. */}
-        <div className="min-w-0">
-          <span className={columnLabelClass}>Cost {symbol}/hr</span>
-          <div
-            className="border-border bg-muted text-muted-foreground flex h-9 items-center rounded-md border px-3 font-mono text-[13px]"
-            title="Set on the member's profile"
-          >
-            {costRate !== null
-              ? fmt.currency(costRate, currency, { maximumFractionDigits: 2 })
-              : 'Not set'}
-          </div>
-          {margin !== null && (
-            <p
-              className={cn(
-                'mt-1 text-xs',
-                margin < 0 ? 'text-destructive' : 'text-muted-foreground'
-              )}
+            figure typed here would never be saved. Change it in the member's settings.
+            Primary admin only - an admin creating a project never sees what people cost. */}
+        {canSeeCost && (
+          <div className="min-w-0">
+            <span className={columnLabelClass}>Cost {symbol}/hr</span>
+            <div
+              className="border-border bg-muted text-muted-foreground flex h-9 items-center rounded-md border px-3 font-mono text-[13px]"
+              title="Set on the member's profile"
             >
-              {margin}% margin
-            </p>
-          )}
-        </div>
+              {costRate !== null
+                ? fmt.currency(costRate, currency, { maximumFractionDigits: 2 })
+                : 'Not set'}
+            </div>
+            {margin !== null && (
+              <p
+                className={cn(
+                  'mt-1 text-xs',
+                  margin < 0 ? 'text-destructive' : 'text-muted-foreground'
+                )}
+              >
+                {margin}% margin
+              </p>
+            )}
+          </div>
+        )}
         <div className="col-span-2 min-w-0 sm:col-span-1">
           <label
             htmlFor={`allocation-${index}-effectiveFrom`}

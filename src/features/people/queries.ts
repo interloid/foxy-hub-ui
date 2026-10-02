@@ -11,7 +11,7 @@ import type {
   PersonRow,
   WorkspaceRole,
 } from './types'
-import { STAFF_ROLES } from '@/lib/role'
+import { isAdminRole, STAFF_ROLES } from '@/lib/role'
 
 import { canViewPeople } from './lib/can-view-people'
 
@@ -75,7 +75,9 @@ export async function getMembersClientsData(
   ] = await Promise.all([
     supabase
       .from('memberships')
-      .select('id, user_id, role, status, created_at, job_title')
+      .select(
+        'id, user_id, role, status, created_at, job_title, default_rate, cost_rate'
+      )
       .eq('org_id', orgId)
       .in('role', TEAM_ROLES)
       .order('created_at', { ascending: true }),
@@ -160,6 +162,12 @@ export async function getMembersClientsData(
 
   const [fmt, timeZone] = await Promise.all([getFormatter(), getUserTimeZone()])
 
+  // Bill rate: admins and the primary admin. Cost rate: the primary admin only. Anyone else
+  // gets null, so the figures never reach their browser.
+  const canSeeBillRate = isAdminRole(workspace.role)
+  const canSeeCost = workspace.role === 'primary_admin'
+  const rate = (value: number | null) => (value === null ? null : Number(value))
+
   const members: PersonRow[] = memberships.map((membership) => {
     // The placeholder is for display only. It used to be the form's starting value too,
     // so saving any change wrote "Unnamed teammate" into the real profile (RISK-006).
@@ -188,6 +196,8 @@ export async function getMembersClientsData(
       ownedProjectCount: ownedProjects.get(membership.user_id) ?? 0,
       jobTitle: membership.job_title,
       avatarUrl: profile?.avatar_url ?? null,
+      defaultRate: canSeeBillRate ? rate(membership.default_rate) : null,
+      costRate: canSeeCost ? rate(membership.cost_rate) : null,
     }
   })
 

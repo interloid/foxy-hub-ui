@@ -15,7 +15,8 @@ export interface NewProjectMember {
   roleLabel: string
   /** `memberships.default_rate` - seeds an allocation's bill rate. Null until someone sets it. */
   defaultRate: number | null
-  /** `memberships.cost_rate` - shown for margin only; the RPC snapshots the real value. */
+  /** `memberships.cost_rate` - shown for margin only; the RPC snapshots the real value.
+   * Always null unless the viewer is the primary admin. */
   costRate: number | null
 }
 
@@ -25,6 +26,8 @@ export interface NewProjectFormData {
    * `PROJECT_OWNER_ROLES`. */
   members: NewProjectMember[]
   currentUserId: string
+  /** Cost rate is the primary admin's alone - everyone else never receives it. */
+  canSeeCost: boolean
   dailyCapacityHours: number
   daysPerWeek: number
   roundingMinutes: number

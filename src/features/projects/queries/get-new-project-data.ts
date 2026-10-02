@@ -65,6 +65,9 @@ export async function getNewProjectFormData(
     (profiles ?? []).map((p) => [p.id, p.full_name?.trim() || null])
   )
 
+  // Cost rate is internal pay: only the primary admin may see it.
+  const canSeeCost = workspace.role === 'primary_admin'
+
   const members = memberships
     .map((m) => ({
       id: m.user_id,
@@ -72,7 +75,7 @@ export async function getNewProjectFormData(
       role: m.role,
       roleLabel: roleLabel(m.role),
       defaultRate: m.default_rate !== null ? Number(m.default_rate) : null,
-      costRate: m.cost_rate !== null ? Number(m.cost_rate) : null,
+      costRate: canSeeCost && m.cost_rate !== null ? Number(m.cost_rate) : null,
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
@@ -84,6 +87,7 @@ export async function getNewProjectFormData(
     })),
     members,
     currentUserId: session.id,
+    canSeeCost,
     dailyCapacityHours: orgRes.data?.daily_capacity_hours ?? 8,
     daysPerWeek: orgRes.data?.days_per_week ?? 5,
     roundingMinutes: orgRes.data?.rounding_minutes ?? 15,

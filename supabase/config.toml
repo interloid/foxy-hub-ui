@@ -520,6 +520,15 @@ verify_jwt = false
 import_map = "./functions/weekly-digest/deno.json"
 entrypoint = "./functions/weekly-digest/index.ts"
 
+# Remind on the Invoices page: emails the client a payment reminder for one invoice.
+# Must stay true - it reads the invoice and checks the caller's role through their own
+# token; the service role is used only to look up the client's email and record the event.
+[functions.send-invoice-reminder]
+enabled = true
+verify_jwt = true
+import_map = "./functions/send-invoice-reminder/deno.json"
+entrypoint = "./functions/send-invoice-reminder/index.ts"
+
 [functions.stripe-webhook]
 enabled = true
 verify_jwt = false

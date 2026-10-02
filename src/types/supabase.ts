@@ -1034,6 +1034,7 @@ export type Database = {
       }
       time_entries: {
         Row: {
+          billable: boolean
           created_at: string
           description: string
           duration_minutes: number
@@ -1046,6 +1047,7 @@ export type Database = {
           work_date: string
         }
         Insert: {
+          billable?: boolean
           created_at?: string
           description: string
           duration_minutes: number
@@ -1058,6 +1060,7 @@ export type Database = {
           work_date: string
         }
         Update: {
+          billable?: boolean
           created_at?: string
           description?: string
           duration_minutes?: number
@@ -1217,6 +1220,7 @@ export type Database = {
       }
       create_time_entry_with_capacity_check: {
         Args: {
+          p_billable?: boolean
           p_description: string
           p_duration_minutes: number
           p_milestone_id: string
@@ -1320,8 +1324,7 @@ export type Database = {
         | 'dispute_lost'
         | 'void'
       delivery_status: 'pending' | 'submitted' | 'approved' | 'rejected'
-      engagement_model:
-        'full_time' | 'part_time' | 'retainer' | 'fixed' | 'budget' | 'hourly'
+      engagement_model: 'retainer' | 'fixed' | 'budget' | 'hourly'
       invoice_status: 'draft' | 'due' | 'paid' | 'overdue' | 'cancelled'
       milestone_status: 'pending' | 'in_progress' | 'completed'
       project_status:
@@ -1493,14 +1496,7 @@ export const Constants = {
         'void',
       ],
       delivery_status: ['pending', 'submitted', 'approved', 'rejected'],
-      engagement_model: [
-        'full_time',
-        'part_time',
-        'retainer',
-        'fixed',
-        'budget',
-        'hourly',
-      ],
+      engagement_model: ['retainer', 'fixed', 'budget', 'hourly'],
       invoice_status: ['draft', 'due', 'paid', 'overdue', 'cancelled'],
       milestone_status: ['pending', 'in_progress', 'completed'],
       project_status: [

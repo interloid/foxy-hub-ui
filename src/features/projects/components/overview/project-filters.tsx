@@ -39,7 +39,7 @@ import { useEffect, useState } from 'react'
 interface ProjectFiltersProps {
   tabCounts: ProjectTabCounts
   clients: ClientOption[]
-  teamMembers: TeamMemberOption[]
+  owners: TeamMemberOption[]
   isPending: boolean
   updateParams: (updates: Record<string, string | undefined>) => void
   page?: number
@@ -124,7 +124,7 @@ function FilterPill({
 export function ProjectFilters({
   tabCounts,
   clients,
-  teamMembers,
+  owners,
   isPending,
   updateParams,
   page = 1,
@@ -139,7 +139,7 @@ export function ProjectFilters({
   const status = searchParams.get('status') || 'all'
   const engagement = searchParams.get('engagement') || 'all'
   const client = searchParams.get('client') || 'all'
-  const team = searchParams.get('team') || 'all'
+  const owner = searchParams.get('owner') || 'all'
   const urlSearch = searchParams.get('q') ?? ''
 
   const [searchInput, setSearchInput] = useState(urlSearch)
@@ -182,9 +182,9 @@ export function ProjectFilters({
     ...clients.map((c) => ({ value: c.id, label: c.name })),
   ]
 
-  const teamOptions: SelectOption[] = [
+  const ownerOptions: SelectOption[] = [
     { value: 'all', label: 'Anyone' },
-    ...teamMembers.map((m) => ({ value: m.id, label: m.name })),
+    ...owners.map((m) => ({ value: m.id, label: m.name })),
   ]
 
   const activeFilters: ActiveFilterChip[] = []
@@ -204,10 +204,10 @@ export function ProjectFilters({
       label: `Client: ${clientOptions.find((o) => o.value === client)?.label ?? client}`,
     })
   }
-  if (team !== 'all') {
+  if (owner !== 'all') {
     activeFilters.push({
-      key: 'team',
-      label: `Team: ${teamOptions.find((o) => o.value === team)?.label ?? team}`,
+      key: 'owner',
+      label: `Owner: ${ownerOptions.find((o) => o.value === owner)?.label ?? owner}`,
     })
   }
   if (engagement !== 'all') {
@@ -226,7 +226,7 @@ export function ProjectFilters({
       q: undefined,
       status: undefined,
       client: undefined,
-      team: undefined,
+      owner: undefined,
       engagement: undefined,
     })
   }
@@ -312,10 +312,10 @@ export function ProjectFilters({
           onChange={(value) => updateParams({ client: value })}
         />
         <FilterPill
-          label="Team"
-          value={team}
-          options={teamOptions}
-          onChange={(value) => updateParams({ team: value })}
+          label="Owner"
+          value={owner}
+          options={ownerOptions}
+          onChange={(value) => updateParams({ owner: value })}
         />
         <FilterPill
           label="Engagement"

@@ -400,7 +400,7 @@ values
    -- 1st of a month: a created_at in the future would still be counted, but it
    -- would contradict the start_date on the same row.
    least(date_trunc('month', now()) + interval '1 day', now()), null,
-   'full_time', 48000.00,
+   'budget', 48000.00,
    null, null, null, null,
    -- The design blocks Create when an allocation pushes somebody past a
    -- working day and demands a reason to proceed. This is that audit trail:
@@ -415,7 +415,7 @@ values
    'draft',
    null, now() + interval '110 days',
    now() - interval '6 days', null,
-   'part_time', 15000.00,
+   'budget', 15000.00,
    null, null, null, null,
    null),
 
@@ -440,7 +440,7 @@ values
    'on-hold',
    now() - interval '70 days', null,
    now() - interval '70 days', now() - interval '30 days',
-   'part_time', 18000.00,
+   'budget', 18000.00,
    null, null, null, null,
    null);
 

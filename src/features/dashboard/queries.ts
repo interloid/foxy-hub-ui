@@ -1,4 +1,4 @@
-import { getUserTimeZone, getWorkspace, isAdminRole } from '@/lib/dal'
+import { getUserTimeZone, getWorkspace } from '@/lib/dal'
 import { todayIn } from '@/lib/date'
 import { roleLabel } from '@/lib/role'
 import { createClient } from '@/lib/supabase/server'
@@ -300,7 +300,9 @@ export async function getTeamMembersForOrg(
   const workspace = await getWorkspace(orgSlug)
   if (!workspace) return []
 
-  const canSeeCost = isAdminRole(workspace.role)
+  // Cost rate is internal pay - only the primary admin may see it, so it never reaches
+  // anyone else's browser.
+  const canSeeCost = workspace.role === 'primary_admin'
   const { data: memberships, error: membershipsError } = await supabase
     .from('memberships')
     .select('user_id, role, default_rate, cost_rate')

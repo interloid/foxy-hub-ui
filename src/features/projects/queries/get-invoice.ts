@@ -59,6 +59,8 @@ export async function buildInvoiceDraft(
     .select('id, user_id, duration_minutes, work_date')
     .eq('project_id', project.id)
     .eq('status', 'approved')
+    // Non-billable time is approved like any other but never invoiced.
+    .eq('billable', true)
     .is('invoice_id', null)
 
   const { data: allocations } = await supabase
@@ -109,6 +111,8 @@ export async function buildInvoiceDraft(
     .select('id, user_id, duration_minutes, work_date')
     .eq('project_id', project.id)
     .in('status', ['draft', 'submitted'])
+    // Only billable hours can hold an invoice up while they wait for approval.
+    .eq('billable', true)
     .is('invoice_id', null)
 
   const built = buildInvoiceLines(
@@ -585,6 +589,7 @@ export async function getProjectsForInvoicing(
         .select('id, project_id, user_id, duration_minutes, work_date')
         .in('project_id', projectIds)
         .eq('status', 'approved')
+        .eq('billable', true)
         .is('invoice_id', null)
     : { data: [] }
 

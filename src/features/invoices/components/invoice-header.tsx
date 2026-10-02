@@ -11,11 +11,18 @@ import { toast } from 'sonner'
 interface InvoicesHeaderProps {
   orgSlug: string
   projects: ProjectInvoiceContext[]
+  /** Controlled by the page so other buttons (e.g. "Bill it now") can open the sheet. */
+  isOpen: boolean
+  setIsOpen: (open: boolean) => void
 }
 
-export function InvoicesHeader({ orgSlug, projects }: InvoicesHeaderProps) {
+export function InvoicesHeader({
+  orgSlug,
+  projects,
+  isOpen,
+  setIsOpen,
+}: InvoicesHeaderProps) {
   const defaultProjectId = projects[0]?.id ?? ''
-  const [isOpen, setIsOpen] = useState(false)
   const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false)
 
   const handleGenerateInvoice = async (data: {
@@ -46,13 +53,14 @@ export function InvoicesHeader({ orgSlug, projects }: InvoicesHeaderProps) {
 
   return (
     <>
-      <header className="flex flex-col gap-4 pb-6 sm:flex-row sm:items-center sm:justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-foreground text-[24px] font-bold tracking-tight">
             Invoices
           </h1>
           <p className="text-subtle-foreground text-[14px]">
-            Billing to clients powered by Stripe
+            Everything billed and everything still owed - drafted from approved
+            hours, paid through Stripe.
           </p>
         </div>
 

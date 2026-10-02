@@ -60,8 +60,11 @@ function toRate(value: number | undefined | null): number | null {
 }
 
 export function TeamRatesSheet({ open, onOpenChange }: TeamRatesSheetProps) {
-  const { orgSlug, currency } = useWorkspace()
+  const { orgSlug, currency, userRole } = useWorkspace()
   const currencySymbol = getCurrencySymbol(currency)
+  // Cost rate is the primary admin's alone: hidden for everyone else, and the server ignores
+  // it from them too.
+  const canSeeCost = userRole === 'primary_admin'
 
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -139,7 +142,7 @@ export function TeamRatesSheet({ open, onOpenChange }: TeamRatesSheetProps) {
 
       return (
         toRate(row.defaultRate) !== (before.defaultRate ?? null) ||
-        toRate(row.costRate) !== (before.costRate ?? null)
+        (canSeeCost && toRate(row.costRate) !== (before.costRate ?? null))
       )
     })
 
@@ -156,7 +159,7 @@ export function TeamRatesSheet({ open, onOpenChange }: TeamRatesSheetProps) {
           orgSlug,
           userId: row.userId,
           defaultRate: toRate(row.defaultRate),
-          costRate: toRate(row.costRate),
+          ...(canSeeCost && { costRate: toRate(row.costRate) }),
         })
 
         if (!res.ok) failures.push(`${row.name}: ${res.error}`)
@@ -223,7 +226,11 @@ export function TeamRatesSheet({ open, onOpenChange }: TeamRatesSheetProps) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div
+                    className={
+                      canSeeCost ? 'grid grid-cols-2 gap-3' : 'grid gap-3'
+                    }
+                  >
                     <div className="w-full min-w-0">
                       <FxLabel
                         htmlFor={`bill-rate-${member.userId}`}
@@ -247,28 +254,30 @@ export function TeamRatesSheet({ open, onOpenChange }: TeamRatesSheetProps) {
                       />
                     </div>
 
-                    <div className="w-full min-w-0">
-                      <FxLabel
-                        htmlFor={`cost-rate-${member.userId}`}
-                        className="text-muted-foreground mb-1 block text-[10px] font-semibold uppercase"
-                      >
-                        Cost {currencySymbol}/hr
-                      </FxLabel>
-                      <FxInput
-                        id={`cost-rate-${member.userId}`}
-                        type="number"
-                        min={1}
-                        step="0.01"
-                        placeholder="—"
-                        className="h-8 px-2 font-mono text-[12px]"
-                        {...register(`members.${index}.costRate`, {
-                          setValueAs: (val) =>
-                            val === '' || val === null || val === undefined
-                              ? undefined
-                              : parseFloat(val),
-                        })}
-                      />
-                    </div>
+                    {canSeeCost && (
+                      <div className="w-full min-w-0">
+                        <FxLabel
+                          htmlFor={`cost-rate-${member.userId}`}
+                          className="text-muted-foreground mb-1 block text-[10px] font-semibold uppercase"
+                        >
+                          Cost {currencySymbol}/hr
+                        </FxLabel>
+                        <FxInput
+                          id={`cost-rate-${member.userId}`}
+                          type="number"
+                          min={1}
+                          step="0.01"
+                          placeholder="—"
+                          className="h-8 px-2 font-mono text-[12px]"
+                          {...register(`members.${index}.costRate`, {
+                            setValueAs: (val) =>
+                              val === '' || val === null || val === undefined
+                                ? undefined
+                                : parseFloat(val),
+                          })}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))
@@ -276,8 +285,9 @@ export function TeamRatesSheet({ open, onOpenChange }: TeamRatesSheetProps) {
 
             {!isLoading && !loadError && original && original.length > 0 && (
               <p className="text-muted-foreground text-[11px]">
-                Bill rate is what the client is charged. Cost is internal — it
-                never appears on an invoice.
+                {canSeeCost
+                  ? 'Bill rate is what the client is charged. Cost is internal - it never appears on an invoice.'
+                  : 'Bill rate is what the client is charged.'}
               </p>
             )}
           </form>

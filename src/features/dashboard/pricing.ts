@@ -182,11 +182,8 @@ export function computePricingInsight(inputs: PricingInputs): PricingInsight {
   const blendedCost = blendedRate(rows, costOf)
   const blendedBill = blendedRate(rows, (row) => row.rate)
 
-  const isFullOrPart =
-    engagement === 'full_time' ||
-    engagement === 'full-time' ||
-    engagement === 'part_time' ||
-    engagement === 'part-time'
+  // Budget-based is the hours-based model with a total to check against.
+  const isFullOrPart = engagement === 'budget'
 
   const isFixed = engagement === 'fixed' || engagement === 'fixed-price'
   const isRetainer = engagement === 'retainer'

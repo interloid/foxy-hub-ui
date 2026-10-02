@@ -18,6 +18,8 @@ const createTimeEntrySchema = z.object({
   workDate: z.string().min(1, 'Work date is required'),
   durationStr: z.string().min(1, 'Duration string is required'),
   description: z.string().max(500, 'Description too long'),
+  // The Log time page's toggle. Optional so older callers keep logging billable time.
+  billable: z.boolean().default(true),
 })
 
 export async function getUserName(): Promise<ActionResult<{ name: string }>> {
@@ -108,6 +110,7 @@ export async function createTimeEntry(
       p_duration_minutes: durationMinutes,
       p_description: params.description.trim(),
       p_org_id: project.org_id,
+      p_billable: params.billable,
     }
   )
 
@@ -126,6 +129,7 @@ export async function createTimeEntry(
   }
 
   revalidatePath(`/${params.orgSlug}`)
+  revalidatePath(`/${params.orgSlug}/time`)
   return { ok: true }
 }
 
@@ -167,11 +171,15 @@ export async function updateMemberRatesAction(
 
   const supabase = await createClient()
 
+  // Cost rate is the primary admin's alone. For anyone else it is not sent at all, and
+  // set_member_rates leaves the stored cost rate untouched.
+  const canSetCost = workspace.role === 'primary_admin'
+
   const { error } = await supabase.rpc('set_member_rates', {
     target_user_id: userId,
     target_org_id: workspace.id,
     new_default_rate: defaultRate ?? undefined,
-    new_cost_rate: costRate ?? undefined,
+    new_cost_rate: canSetCost ? (costRate ?? undefined) : undefined,
   })
 
   if (error) {
@@ -180,5 +188,7 @@ export async function updateMemberRatesAction(
   }
 
   revalidatePath(`/${orgSlug}`)
+  // The Edit member sheet saves rates through here too, so the People page must re-read them.
+  revalidatePath(`/${orgSlug}/people`)
   return { ok: true }
 }

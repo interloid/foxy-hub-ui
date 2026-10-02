@@ -4,10 +4,8 @@ import { FxButton } from '@/components/shared/fx-button'
 import { isAdminRole } from '@/lib/role'
 import { Clock, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
 import { useWorkspace } from '../../context/workspace-context'
 import { UserRole } from '../../types'
-import { LogTimeSheet } from '../sheets/log-time-sheet'
 import { TimeGreeting } from './time-greetings'
 
 interface DashboardHeadersProps {
@@ -28,10 +26,9 @@ export function DashboardHeaders({
 }: DashboardHeadersProps) {
   const router = useRouter()
   const { orgSlug } = useWorkspace()
-  const [isLogTimeOpen, setIsLogTimeOpen] = useState(false)
-
   const handleLogTimeClick = () => {
-    setIsLogTimeOpen(true)
+    // Logging time has its own page.
+    router.push(`/${orgSlug}/time/log`)
     onLogTimeClick?.()
   }
 
@@ -83,9 +80,6 @@ export function DashboardHeaders({
           </FxButton>
         </div>
       </div>
-
-      {/* Sheets */}
-      <LogTimeSheet open={isLogTimeOpen} onOpenChange={setIsLogTimeOpen} />
     </>
   )
 }

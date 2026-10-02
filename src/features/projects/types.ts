@@ -12,8 +12,7 @@ export type ProjectStatus =
   | 'draft'
   | 'cancelled'
 
-export type EngagementModel =
-  'full_time' | 'part_time' | 'fixed' | 'retainer' | 'budget' | 'hourly'
+export type EngagementModel = 'fixed' | 'retainer' | 'budget' | 'hourly'
 
 export type RetainerPeriod = 'weekly' | 'monthly'
 
@@ -38,6 +37,12 @@ export interface ProjectHealthSummary {
   loggedHours: number
   budgetHours: number | null
   hoursBurnedPercent: number | null
+}
+
+export interface ProjectOwner {
+  id: string
+  name: string
+  avatarUrl: string | null
 }
 
 export interface Project {
@@ -67,6 +72,9 @@ export interface Project {
   progressPercent: number
   estimatedHour?: number | null
   health?: ProjectHealthSummary
+  /** `projects.owner_id` - who the project belongs to. Null for projects created before
+   * owners existed, or whose owner has left. */
+  owner?: ProjectOwner | null
 }
 
 export interface ProjectMetrics {
@@ -201,7 +209,8 @@ export interface GetProjectsParams {
   status?: ProjectStatus
   engagement?: EngagementModel
   clientId?: string
-  teamMemberId?: string
+  /** `projects.owner_id`. */
+  ownerId?: string
 }
 
 export interface GetProjectsResult {

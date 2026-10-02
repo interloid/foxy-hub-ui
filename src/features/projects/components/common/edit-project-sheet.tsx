@@ -254,9 +254,7 @@ export function EditProjectSheet({
                 Engagement & Financial Overview
               </span>
 
-              {(project.engagement === 'full_time' ||
-                project.engagement === 'part_time' ||
-                project.engagement === 'budget') && (
+              {project.engagement === 'budget' && (
                 <div className="border-border/50 flex items-center justify-between border-b py-1 last:border-0">
                   <span>Contract Value / Budget</span>
                   <span className="text-foreground font-medium">

@@ -11,6 +11,7 @@ import {
   FxTableHeader,
   FxTableRow,
 } from '@/components/shared/fx-table'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Select,
   SelectContent,
@@ -18,7 +19,9 @@ import {
   SelectTrigger,
 } from '@/components/ui/select'
 import { TableBody } from '@/components/ui/table'
+import { useFormatter, useLocale } from '@/context/locale-provider'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import type { Formatter } from '@/lib/format'
 import { formatCurrency } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { ProjectsLoadingSkeleton } from '@/skeleton/projects-overview'
@@ -31,16 +34,11 @@ import {
 } from '../../constants'
 import { PROJECT_HEALTH_VARIANT } from '../../lib/project-health'
 import type { Project, ProjectStatus } from '../../types'
-import { useFormatter, useLocale } from '@/context/locale-provider'
-import type { Formatter } from '@/lib/format'
 
 interface ProjectTableProps {
   initialProjects?: Project[]
   orgSlug?: string
-  /**
-   * Where a project name links to. Defaults to the staff route; the portal passes its own
-   * because `/{org}/projects/{id}` would bounce a client back out of the portal.
-   */
+
   basePath?: string
   page?: number
   totalPages?: number
@@ -49,6 +47,8 @@ interface ProjectTableProps {
   isPending?: boolean
   onPageChange?: (page: number) => void
   onPageSizeChange?: (pageSize: number) => void
+  /** Show the Owner column. On for the staff Projects page, off in the client portal. */
+  showOwner?: boolean
 }
 
 function getPageNumbers(current: number, total: number): (number | '…')[] {
@@ -84,6 +84,18 @@ const statusBadgeVariant: Record<
   cancelled: 'destructive',
 }
 
+function initials(name: string): string {
+  return (
+    name
+      .split(' ')
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || '?'
+  )
+}
+
 function formatDueDate(
   dueDate: string | null | undefined,
   fmt: Formatter
@@ -103,6 +115,7 @@ export function ProjectTable({
   isPending = false,
   onPageChange,
   onPageSizeChange,
+  showOwner = false,
 }: ProjectTableProps) {
   const locale = useLocale()
   const fmt = useFormatter()
@@ -126,11 +139,20 @@ export function ProjectTable({
       <section aria-labelledby="all-projects-table-heading">
         <FxCard className="border-border shadow-card overflow-hidden p-0">
           <div className="min-h-162.5 w-full overflow-x-auto">
-            <FxTable className="w-full min-w-236 table-fixed">
+            <FxTable
+              // Column widths sum to 236 (272 with Owner); below that the table scrolls.
+              className={cn(
+                'w-full table-fixed',
+                showOwner ? 'min-w-272' : 'min-w-236'
+              )}
+            >
               <FxTableHeader>
                 <FxTableRow className="bg-secondary/30 hover:bg-secondary/30 justify-center">
                   <FxTableHead className="w-56">Project</FxTableHead>
                   <FxTableHead className="w-32">Client</FxTableHead>
+                  {showOwner && (
+                    <FxTableHead className="w-36">Owner</FxTableHead>
+                  )}
                   <FxTableHead className="w-28">Health</FxTableHead>
                   <FxTableHead className="w-36">Hours burned</FxTableHead>
                   <FxTableHead className="w-36">Progress</FxTableHead>
@@ -141,11 +163,14 @@ export function ProjectTable({
 
               <TableBody className="divide-border divide-y text-xs">
                 {isPending ? (
-                  <ProjectsLoadingSkeleton variant="rows" />
+                  <ProjectsLoadingSkeleton
+                    variant="rows"
+                    showOwner={showOwner}
+                  />
                 ) : initialProjects.length === 0 ? (
                   <FxTableRow>
                     <FxTableCell
-                      colSpan={7}
+                      colSpan={showOwner ? 8 : 7}
                       className="text-muted-foreground py-8 text-center"
                     >
                       No projects found.
@@ -213,6 +238,36 @@ export function ProjectTable({
                           </p>
                         </FxTableCell>
 
+                        {showOwner && (
+                          <FxTableCell className="align-middle">
+                            {project.owner ? (
+                              <div
+                                className="flex min-w-0 items-center gap-2"
+                                title={project.owner.name}
+                              >
+                                <Avatar className="size-6 shrink-0">
+                                  {project.owner.avatarUrl && (
+                                    <AvatarImage
+                                      src={project.owner.avatarUrl}
+                                      alt={project.owner.name}
+                                    />
+                                  )}
+                                  <AvatarFallback className="bg-primary/15 text-primary text-[10px] font-semibold">
+                                    {initials(project.owner.name)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="text-foreground truncate text-sm font-medium">
+                                  {project.owner.name}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-subtle-foreground text-[12.5px] whitespace-nowrap">
+                                No owner
+                              </span>
+                            )}
+                          </FxTableCell>
+                        )}
+
                         <FxTableCell className="align-middle">
                           {health ? (
                             <FxBadge
@@ -265,7 +320,7 @@ export function ProjectTable({
                           numeric
                           className="text-foreground text-center font-bold whitespace-nowrap"
                         >
-                          {numericValue > 0 ? formattedValue : '—'}
+                          {numericValue > 0 ? formattedValue : '-'}
                         </FxTableCell>
 
                         <FxTableCell className="text-muted-foreground text-center text-[12.5px] font-medium whitespace-nowrap">

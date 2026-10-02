@@ -8,6 +8,7 @@ import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { formatMinutesToLabel } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import { Check, Loader2, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { updateTimeEntriesStatus } from '../action'
@@ -32,6 +33,7 @@ function getInitials(name: string): string {
 
 export function ApprovalsView({ approvals, className }: ApprovalsViewProps) {
   const fmt = useFormatter()
+  const router = useRouter()
   const [activeTarget, setActiveTarget] = useState<string | null>(null)
 
   const [removedEntryIds, setRemovedEntryIds] = useState<Set<string>>(new Set())
@@ -47,6 +49,11 @@ export function ApprovalsView({ approvals, className }: ApprovalsViewProps) {
       }
     })
     .filter((group) => group.entries.length > 0)
+
+  const allEntries = visibleApprovals.flatMap((group) => group.entries)
+  const allEntryIds = allEntries.map((entry) => entry.id)
+  const projectCount = new Set(allEntries.map((entry) => entry.projectId)).size
+  const isApprovingEverything = activeTarget === 'everything'
 
   if (visibleApprovals.length === 0) {
     return (
@@ -125,8 +132,56 @@ export function ApprovalsView({ approvals, className }: ApprovalsViewProps) {
     }
   }
 
+  const handleApproveEverything = async () => {
+    if (allEntryIds.length === 0) return
+
+    setActiveTarget('everything')
+    try {
+      const res = await updateTimeEntriesStatus(
+        allEntryIds,
+        'approved',
+        orgSlug
+      )
+
+      if (res.success) {
+        setRemovedEntryIds((prev) => new Set([...prev, ...allEntryIds]))
+        toast.success(
+          `Approved ${allEntryIds.length} ${
+            allEntryIds.length === 1 ? 'entry' : 'entries'
+          }`
+        )
+      } else {
+        toast.error(res.error || 'Failed to approve entries. Please try again.')
+        router.refresh()
+      }
+    } catch (err) {
+      toast.error('An unexpected error occurred while approving entries.')
+      console.error('Error approving all entries:', err)
+      router.refresh()
+    } finally {
+      setActiveTarget(null)
+    }
+  }
+
   return (
     <div className={cn('space-y-4', className)}>
+      <div className="bg-card border-border/70 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-5 py-3.5 shadow-xs">
+        <p className="text-foreground text-[13px]">
+          {allEntryIds.length} {allEntryIds.length === 1 ? 'entry' : 'entries'}{' '}
+          across {projectCount} {projectCount === 1 ? 'project' : 'projects'}{' '}
+          waiting on you
+        </p>
+        <FxButton
+          size="sm"
+          disabled={activeTarget !== null}
+          onClick={handleApproveEverything}
+          className="gap-1.5 px-4 py-4.5 font-semibold shadow-xs disabled:opacity-50"
+        >
+          {isApprovingEverything && <Loader2 className="size-4 animate-spin" />}
+          Approve everything
+        </FxButton>
+      </div>
+
       {visibleApprovals.map((userGroup) => {
         const isUserGroupPending = activeTarget === `user-${userGroup.userId}`
         const groupEntryIds = userGroup.entries.map((e) => e.id)
@@ -162,7 +217,7 @@ export function ApprovalsView({ approvals, className }: ApprovalsViewProps) {
                         (acc, cur) => acc + (cur.durationMinutes || 0),
                         0
                       )
-                    )}{' '}
+                    )}
                     awaiting review
                   </span>
                 </div>
@@ -175,7 +230,7 @@ export function ApprovalsView({ approvals, className }: ApprovalsViewProps) {
                 onClick={() =>
                   handleApproveWeek(userGroup.userId, groupEntryIds)
                 }
-                className="gap-1.5 px-4 py-4.5 font-medium shadow-xs disabled:opacity-50"
+                className="bg-success gap-1.5 px-4 py-4.5 font-medium shadow-xs disabled:opacity-50"
               >
                 {isUserGroupPending ? (
                   <Loader2 className="size-4 animate-spin" />

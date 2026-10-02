@@ -48,8 +48,6 @@ const ENGAGEMENT_BADGE_CONFIG: Record<
   EngagementModel,
   { label: string; variant: 'default' | 'info' | 'warning' | 'success' }
 > = {
-  full_time: { label: 'Full-time', variant: 'default' },
-  part_time: { label: 'Part-time', variant: 'info' },
   retainer: { label: 'Retainer', variant: 'warning' },
   fixed: { label: 'Fixed price', variant: 'success' },
   budget: { label: 'Budget-based', variant: 'default' },

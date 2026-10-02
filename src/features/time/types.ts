@@ -45,6 +45,7 @@ export interface TimeTrackingHeaderProps {
 export interface PendingApprovalEntry {
   id: string
   workDate: string
+  projectId: string
   projectName: string
   description: string
   durationMinutes: number

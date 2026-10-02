@@ -1,59 +1,51 @@
+import 'server-only'
+
+import type {
+  InvoiceClientOption,
+  InvoiceKind,
+  InvoiceListStatus,
+  InvoiceRow,
+} from '@/features/invoices/components/list/types'
+import { getUserTimeZone } from '@/lib/dal'
+import { dateIn, todayIn } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
 
-export interface InvoiceListItem {
-  id: string
-  number: string
-  projectName: string
-  clientName: string
-  amount: number
-  status: 'draft' | 'due' | 'paid' | 'overdue' | 'cancelled'
-}
-
-export interface GetInvoicesResponse {
-  invoices: InvoiceListItem[]
-  totalCount: number
-  totalPages: number
-  currentPage: number
-}
-
-// Internal type shapes for primary database query
-interface SupabaseProjectRelation {
+interface InvoiceProjectRelation {
   name: string
-  /**
-   * The client COMPANY. This used to read `client_id`, which points at `auth.users` — so
-   * the ids collected below were looked up in the `clients` table and never matched, and
-   * every invoice's client rendered as an em dash.
-   */
+  engagement: string
+  /** The client COMPANY (`clients.id`), not the portal login in `client_id`. */
   client_org_id: string | null
 }
 
-interface SupabaseInvoiceRow {
-  id: string
-  invoice_number: string | null
-  amount: number | string | null
-  status: InvoiceListItem['status']
-  projects: SupabaseProjectRelation | SupabaseProjectRelation[] | null
+const KIND_BY_ENGAGEMENT: Record<string, InvoiceKind> = {
+  retainer: 'retainer',
+  fixed: 'fixed',
+  budget: 'hours',
+  hourly: 'hours',
 }
 
-interface ClientRow {
-  id: string
-  name: string
-  contact_name: string | null
-  contact_email: string | null
+/** The calendar day of a timestamptz in the user's zone - slicing the string would read UTC. */
+function isoDateIn(timeZone: string, value: string | null): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : dateIn(timeZone, date)
 }
 
-export async function getInvoices(
-  orgId: string,
-  page: number = 1,
-  pageSize: number = 10
-): Promise<GetInvoicesResponse> {
+/**
+ * Every invoice in the workspace for the Invoices table, newest first. The table filters,
+ * searches and paginates in the browser, so all rows are returned at once - fine for the
+ * hundreds an agency issues; this is where server-side paging would go if that changes.
+ */
+export async function getInvoiceRows(orgId: string): Promise<{
+  invoices: InvoiceRow[]
+  clients: InvoiceClientOption[]
+  today: string
+}> {
   const supabase = await createClient()
+  const timeZone = await getUserTimeZone()
+  const today = todayIn(timeZone)
 
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
-
-  // 1. Fetch Invoices and joined Project details
-  const { data, count, error } = await supabase
+  const { data, error } = await supabase
     .from('invoices')
     .select(
       `
@@ -61,86 +53,92 @@ export async function getInvoices(
       invoice_number,
       amount,
       status,
+      due_date,
+      paid_at,
+      invoice_url,
       projects (
         name,
+        engagement,
         client_org_id
       )
-    `,
-      { count: 'exact' }
+    `
     )
     .eq('org_id', orgId)
     .order('created_at', { ascending: false })
-    .range(from, to)
 
   if (error || !data) {
-    console.error('getInvoices Error:', error)
-    return { invoices: [], totalCount: 0, totalPages: 0, currentPage: page }
+    console.error('getInvoiceRows error:', error?.message)
+    return { invoices: [], clients: [], today }
   }
 
-  const invoiceRows = data as unknown as SupabaseInvoiceRow[]
+  const projectOf = (row: (typeof data)[number]) =>
+    (Array.isArray(row.projects)
+      ? row.projects[0]
+      : row.projects) as InvoiceProjectRelation | null
 
-  // 2. Extract the distinct client companies across fetched projects
-  const clientIds = Array.from(
-    new Set(
-      invoiceRows
-        .map((inv) => {
-          const rawProject = Array.isArray(inv.projects)
-            ? inv.projects[0]
-            : inv.projects
-          return rawProject?.client_org_id
-        })
-        .filter((id): id is string => Boolean(id))
-    )
-  )
+  const clientIds = [
+    ...new Set(
+      data.flatMap((row) => {
+        const id = projectOf(row)?.client_org_id
+        return id ? [id] : []
+      })
+    ),
+  ]
 
-  // 3. Batch fetch client details from public.clients in a single database call
-  const clientMap = new Map<string, string>()
-
+  const clientNames = new Map<string, string>()
   if (clientIds.length > 0) {
-    const { data: clientsData, error: clientsError } = await supabase
+    const { data: clients, error: clientsError } = await supabase
       .from('clients')
       .select('id, name, contact_name, contact_email')
       .in('id', clientIds)
       .eq('org_id', orgId)
 
-    if (!clientsError && clientsData) {
-      const clients = clientsData as ClientRow[]
-      clients.forEach((client) => {
-        const displayName =
-          client.name || client.contact_name || client.contact_email || '—'
-        clientMap.set(client.id, displayName)
-      })
-    } else if (clientsError) {
-      console.error('Error fetching clients:', clientsError)
+    if (clientsError) {
+      console.error('getInvoiceRows clients:', clientsError.message)
+    }
+    for (const c of clients ?? []) {
+      clientNames.set(
+        c.id,
+        c.name || c.contact_name || c.contact_email || 'Client'
+      )
     }
   }
 
-  // 4. Map final response
-  const invoices: InvoiceListItem[] = invoiceRows.map((inv) => {
-    const rawProject = Array.isArray(inv.projects)
-      ? inv.projects[0]
-      : inv.projects
+  const invoices: InvoiceRow[] = data.map((row) => {
+    const project = projectOf(row)
+    const clientId = project?.client_org_id ?? null
+    const dueDate = isoDateIn(timeZone, row.due_date)
 
-    const clientId = rawProject?.client_org_id || null
-    const clientName = clientId ? clientMap.get(clientId) || '—' : '—'
+    // Same rule as the Overdue card: past its date counts as overdue even if the nightly
+    // job hasn't updated the stored status yet.
+    const status: InvoiceListStatus =
+      row.status === 'due'
+        ? dueDate !== null && dueDate < today
+          ? 'overdue'
+          : 'sent'
+        : row.status
 
     return {
-      id: inv.id,
-      number: inv.invoice_number || `INV-${inv.id.slice(0, 4)}`,
-      projectName: rawProject?.name || '—',
-      clientName,
-      amount: Number(inv.amount) || 0,
-      status: inv.status,
+      id: row.id,
+      number: row.invoice_number || `INV-${row.id.slice(0, 4).toUpperCase()}`,
+      kind: KIND_BY_ENGAGEMENT[project?.engagement ?? ''] ?? 'hours',
+      projectName: project?.name ?? 'Unknown project',
+      clientId,
+      clientName: clientId
+        ? (clientNames.get(clientId) ?? 'Client')
+        : 'Internal',
+      amount: Number(row.amount) || 0,
+      status,
+      dueDate,
+      paidAt: isoDateIn(timeZone, row.paid_at),
+      invoiceUrl: row.invoice_url ?? null,
     }
   })
 
-  const totalCount = count || 0
-  const totalPages = Math.ceil(totalCount / pageSize)
+  // The client filter only lists clients that actually have invoices.
+  const clients = [...clientNames.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name))
 
-  return {
-    invoices,
-    totalCount,
-    totalPages,
-    currentPage: page,
-  }
+  return { invoices, clients, today }
 }

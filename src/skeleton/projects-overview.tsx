@@ -8,15 +8,19 @@ import {
 } from '@/components/shared/fx-table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TableBody } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 
 interface ProjectsLoadingSkeletonProps {
   count?: number
   variant?: 'full' | 'rows'
+  /** Matches ProjectTable's `showOwner` so the loading rows line up with the real ones. */
+  showOwner?: boolean
 }
 
 export function ProjectsLoadingSkeleton({
   count = 10,
   variant = 'full',
+  showOwner = false,
 }: ProjectsLoadingSkeletonProps) {
   const renderRows = () =>
     Array.from({ length: count }).map((_, index) => (
@@ -38,6 +42,14 @@ export function ProjectsLoadingSkeleton({
             <Skeleton className="h-4 w-24" />
           </div>
         </FxTableCell>
+        {showOwner && (
+          <FxTableCell className="align-middle">
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-6 rounded-full" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          </FxTableCell>
+        )}
         <FxTableCell className="align-middle">
           <div className="flex justify-start">
             <Skeleton className="h-4 w-20 rounded-full" />
@@ -99,11 +111,20 @@ export function ProjectsLoadingSkeleton({
       <section aria-labelledby="all-projects-table-heading">
         <FxCard className="border-border shadow-card overflow-hidden p-0">
           <div className="min-h-162.5 w-full overflow-x-auto">
-            <FxTable className="w-full min-w-236 table-fixed">
+            <FxTable
+              // Column widths sum to 236 (272 with Owner); below that the table scrolls.
+              className={cn(
+                'w-full table-fixed',
+                showOwner ? 'min-w-272' : 'min-w-236'
+              )}
+            >
               <FxTableHeader>
                 <FxTableRow className="bg-secondary/30 hover:bg-secondary/30 justify-center">
                   <FxTableHead className="w-56">Project</FxTableHead>
                   <FxTableHead className="w-32">Client</FxTableHead>
+                  {showOwner && (
+                    <FxTableHead className="w-36">Owner</FxTableHead>
+                  )}
                   <FxTableHead className="w-28">Health</FxTableHead>
                   <FxTableHead className="w-36">Hours burned</FxTableHead>
                   <FxTableHead className="w-36">Progress</FxTableHead>

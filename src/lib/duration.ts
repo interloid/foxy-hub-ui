@@ -13,9 +13,11 @@ export function parseDurationToMinutes(val: string): number | null {
     return isNaN(total) || total <= 0 ? null : total
   }
 
-  const num = parseFloat(trimmed)
-  if (!isNaN(num) && num > 0) {
-    return Math.round(num * 60)
+  // A bare number is hours ("1.5" = 90m). It must be the WHOLE input: parseFloat alone
+  // reads a leading number and ignores the rest, so "4abc" used to be taken as 4 hours.
+  if (/^\d+(?:\.\d+)?$/.test(trimmed)) {
+    const num = parseFloat(trimmed)
+    if (num > 0) return Math.round(num * 60)
   }
 
   return null

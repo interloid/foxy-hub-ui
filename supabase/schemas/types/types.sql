@@ -74,18 +74,20 @@ CREATE TYPE public.subscription_status AS ENUM (
   'paused'
 );
 
--- How a project bills, per `raw-src/WorkspacePage.dc.html`'s New project panel. The four
--- values are the design's own (`engCards`), and they are NOT interchangeable with
--- `project_status` — one says how work is charged, the other how far along it is.
--- See decisions.md D044.
+-- How a project bills - the four cards of the New project wizard's "How it bills" step. NOT
+-- interchangeable with `project_status`: one says how work is charged, the other how far
+-- along it is. See decisions.md D044.
 --
--- `budget` and `hourly` come from the full-page New project wizard ("How it bills"):
--- budget is hours × bill rate capped at `contract_value`, hourly is the same with no cap.
--- Appended, not renamed - existing rows and screens still use `full_time`/`part_time`, and
--- the accompanying migration must ALTER TYPE ... ADD VALUE them in this same order.
+--   retainer - a periodic fee for a bucket of hours (the `retainer_*` columns)
+--   fixed    - "Contract value": a fixed total, hours tracked but not billed
+--   budget   - approved hours × bill rate, capped at `contract_value`
+--   hourly   - approved hours × bill rate, no cap
+--
+-- `full_time` and `part_time` used to be values too. They billed exactly like `budget`, so
+-- every such project was converted to it and the values were removed. Removing an enum value
+-- means rebuilding the type, so that migration was written by hand (db diff would drop and
+-- recreate every table that uses it).
 create type public.engagement_model as enum (
-  'full_time',
-  'part_time',
   'retainer',
   'fixed',
   'budget',

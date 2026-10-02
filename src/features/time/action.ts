@@ -1,5 +1,6 @@
 'use server'
 
+import { getWorkspace } from '@/lib/dal'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -86,4 +87,61 @@ export async function submitAllDraftEntries(
   orgSlug: string
 ): Promise<UpdateStatusResult> {
   return updateTimeEntriesStatus(entryIds, 'submitted', orgSlug)
+}
+
+export interface DayCapacity {
+  dailyCapacityHours: number
+  alreadyLoggedMinutes: number
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * The Log time page's capacity check for one day. Uses the SAME rule as
+ * `create_time_entry_with_capacity_check`: the workspace's daily capacity, against
+ * everything the user has logged that day across all of the workspace's projects (every
+ * status, as the function counts them). Showing anything else would let the page accept a
+ * duration the save then rejects.
+ */
+export async function getDayCapacity(
+  orgSlug: string,
+  workDate: string
+): Promise<DayCapacity | null> {
+  if (!orgSlug || !ISO_DATE.test(workDate)) return null
+
+  const workspace = await getWorkspace(orgSlug)
+  if (!workspace) return null
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const [orgRes, entriesRes] = await Promise.all([
+    supabase
+      .from('organizations')
+      .select('daily_capacity_hours')
+      .eq('id', workspace.id)
+      .maybeSingle(),
+    supabase
+      .from('time_entries')
+      .select('duration_minutes, projects!inner(org_id)')
+      .eq('user_id', user.id)
+      .eq('work_date', workDate)
+      .eq('projects.org_id', workspace.id),
+  ])
+
+  if (entriesRes.error) {
+    console.error('getDayCapacity entries:', entriesRes.error.message)
+    return null
+  }
+
+  return {
+    dailyCapacityHours: Number(orgRes.data?.daily_capacity_hours ?? 8),
+    alreadyLoggedMinutes: (entriesRes.data ?? []).reduce(
+      (sum, e) => sum + (e.duration_minutes || 0),
+      0
+    ),
+  }
 }

@@ -29,7 +29,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Sheet } from '@/components/ui/sheet'
+import { updateMemberRatesAction } from '@/features/dashboard/actions'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 import { initialsOf } from '@/lib/initials'
+import { getCurrencySymbol } from '@/lib/money'
 import { isAdminRole, roleLabel, type UserRole } from '@/lib/role'
 
 import {
@@ -59,6 +62,29 @@ interface EditMemberSheetProps {
   onOpenChange: (open: boolean) => void
 }
 
+const RATE_MAX = 9_999_999_999.99
+
+/** '' -> null (unset). Anything else must be a positive amount. */
+function parseRate(raw: string): {
+  value: number | null
+  error: string | null
+} {
+  const trimmed = raw.trim()
+  if (trimmed === '') return { value: null, error: null }
+  if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) {
+    return { value: null, error: 'Enter an amount like 120 or 120.50' }
+  }
+  const value = Number(trimmed)
+  if (value <= 0) return { value: null, error: 'Must be more than 0' }
+  if (value > RATE_MAX)
+    return { value: null, error: 'That amount is too large' }
+  return { value, error: null }
+}
+
+function rateToInput(value: number | null): string {
+  return value === null ? '' : String(value)
+}
+
 export function EditMemberSheet({ member, ...props }: EditMemberSheetProps) {
   if (!member) return null
   return (
@@ -80,6 +106,10 @@ function EditMemberSheetForm({
   const [jobTitle, setJobTitle] = useState(member.jobTitle ?? '')
   const nameRef = useRef<HTMLInputElement>(null)
   const [role, setRole] = useState<UserRole>(member.role)
+  const [billRate, setBillRate] = useState(rateToInput(member.defaultRate))
+  const [costRate, setCostRate] = useState(rateToInput(member.costRate))
+  const { currency } = useWorkspace()
+  const currencySymbol = getCurrencySymbol(currency)
   const [isSaving, setIsSaving] = useState(false)
   const [isWorking, setIsWorking] = useState(false)
   const [touched, setTouched] = useState({ fullName: false, jobTitle: false })
@@ -97,12 +127,27 @@ function EditMemberSheetForm({
   const showReactivate = canReactivateMember(viewerRole, viewerId, member)
   const nameError = fieldError(fullNameSchema, fullName)
   const jobTitleError = fieldError(jobTitleSchema, jobTitle)
-  const hasErrors = Boolean(nameError || jobTitleError)
 
-  const isDirty =
+  const canSeeRates = canManage && isAdminRole(viewerRole)
+  const canSeeCost = viewerRole === 'primary_admin'
+  const canEditRates = canEdit && canSeeRates
+  const parsedBill = parseRate(billRate)
+  const parsedCost = parseRate(costRate)
+  const billChanged = parsedBill.value !== member.defaultRate
+  const costChanged = canSeeCost && parsedCost.value !== member.costRate
+  const ratesChanged = canEditRates && (billChanged || costChanged)
+
+  const hasErrors = Boolean(
+    nameError ||
+    jobTitleError ||
+    (canEditRates && (parsedBill.error || (canSeeCost && parsedCost.error)))
+  )
+
+  const profileChanged =
     fullName.trim() !== (member.savedName ?? '') ||
     jobTitle.trim() !== (member.jobTitle ?? '') ||
     role !== member.role
+  const isDirty = profileChanged || ratesChanged
 
   // Lost-authenticator reset: admins only, never yourself, and the primary admin's own
   // factors only by the primary admin (who is then resetting themselves — so never here).
@@ -121,6 +166,8 @@ function EditMemberSheetForm({
     setFullName(member.savedName ?? '')
     setJobTitle(member.jobTitle ?? '')
     setRole(member.role)
+    setBillRate(rateToInput(member.defaultRate))
+    setCostRate(rateToInput(member.costRate))
     setTouched({ fullName: false, jobTitle: false })
     setShowDiscard(false)
     onOpenChange(false)
@@ -143,13 +190,32 @@ function EditMemberSheetForm({
     // Only send the name when it changed. '' becomes null in the action and the
     // database keeps the current name — so an unchanged or empty field writes nothing.
     const nameChanged = fullName.trim() !== (member.savedName ?? '')
-    let result
     try {
-      result = await updateMemberAction(orgSlug, member.membershipId, {
-        fullName: nameChanged ? fullName : '',
-        jobTitle,
-        role,
-      })
+      if (profileChanged) {
+        const result = await updateMemberAction(orgSlug, member.membershipId, {
+          fullName: nameChanged ? fullName : '',
+          jobTitle,
+          role,
+        })
+        if (!result.ok) {
+          toast.error(result.error)
+          return
+        }
+      }
+
+      if (ratesChanged) {
+        const result = await updateMemberRatesAction({
+          orgSlug,
+          userId: member.userId,
+          defaultRate: parsedBill.value,
+          // Only the primary admin's request carries a cost rate at all.
+          ...(canSeeCost && { costRate: parsedCost.value }),
+        })
+        if (!result.ok) {
+          toast.error(result.error)
+          return
+        }
+      }
     } catch {
       toast.error(NETWORK_ERROR)
       return
@@ -157,10 +223,6 @@ function EditMemberSheetForm({
       setIsSaving(false)
     }
 
-    if (!result.ok) {
-      toast.error(result.error)
-      return
-    }
     toast.success(`${fullName.trim() || member.fullName} was updated.`)
     onOpenChange(false)
   }
@@ -331,6 +393,62 @@ function EditMemberSheetForm({
                     )}
                   </FxField>
                 )}
+              </section>
+            )}
+
+            {canSeeRates && (
+              <section className="space-y-1">
+                <SectionLabel>Rates</SectionLabel>
+                <div
+                  className={
+                    canSeeCost ? 'grid grid-cols-1 gap-3 sm:grid-cols-2' : ''
+                  }
+                >
+                  <FxField>
+                    <FxLabel htmlFor="edit-member-bill-rate">
+                      Bill rate ({currencySymbol}/hr)
+                    </FxLabel>
+                    <FxInput
+                      id="edit-member-bill-rate"
+                      inputMode="decimal"
+                      disabled={!canEditRates}
+                      placeholder="Not set"
+                      value={billRate}
+                      aria-invalid={parsedBill.error !== null}
+                      onChange={(e) => setBillRate(e.target.value)}
+                      className="font-mono"
+                    />
+                    {canEditRates && parsedBill.error && (
+                      <FxFieldError>{parsedBill.error}</FxFieldError>
+                    )}
+                  </FxField>
+
+                  {canSeeCost && (
+                    <FxField>
+                      <FxLabel htmlFor="edit-member-cost-rate">
+                        Cost rate ({currencySymbol}/hr)
+                      </FxLabel>
+                      <FxInput
+                        id="edit-member-cost-rate"
+                        inputMode="decimal"
+                        disabled={!canEditRates}
+                        placeholder="Not set"
+                        value={costRate}
+                        aria-invalid={parsedCost.error !== null}
+                        onChange={(e) => setCostRate(e.target.value)}
+                        className="font-mono"
+                      />
+                      {canEditRates && parsedCost.error && (
+                        <FxFieldError>{parsedCost.error}</FxFieldError>
+                      )}
+                    </FxField>
+                  )}
+                </div>
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  {canSeeCost
+                    ? 'Bill rate is what the client is charged; cost rate is what they are paid and never appears on an invoice. Both seed new project teams - running projects keep their rates.'
+                    : 'Bill rate is what the client is charged. It seeds new project teams - running projects keep their rates.'}
+                </p>
               </section>
             )}
 

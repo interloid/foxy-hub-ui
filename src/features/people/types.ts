@@ -18,6 +18,11 @@ export interface PersonRow {
   ownedProjectCount: number
   jobTitle: string | null
   avatarUrl: string | null
+  /** `memberships.default_rate` - the bill rate. Null unless the viewer is an admin. */
+  defaultRate: number | null
+  /** `memberships.cost_rate` - what this person is paid. Null unless the viewer is the
+   * primary admin; it never reaches anyone else's browser. */
+  costRate: number | null
 }
 
 export interface ClientCompanyRow {

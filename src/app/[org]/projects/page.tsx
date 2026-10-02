@@ -11,6 +11,7 @@ import {
   type ProjectsTab,
 } from '@/features/projects/constants'
 import { ProjectsLoadingSkeleton } from '@/skeleton/projects-overview'
+import { isProjectOwnerRole } from '@/lib/role'
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 
@@ -21,7 +22,7 @@ interface ProjectsPageSearchParams {
   tab?: string
   status?: string
   client?: string
-  team?: string
+  owner?: string
   engagement?: string
 }
 
@@ -76,7 +77,7 @@ async function ProjectsContent({
       status: searchParams.status as ProjectStatus | undefined,
       engagement: searchParams.engagement as EngagementModel | undefined,
       clientId: searchParams.client,
-      teamMemberId: searchParams.team,
+      ownerId: searchParams.owner,
     }),
     getClientsForOrg(org),
     getTeamMembersForOrg(org),
@@ -88,7 +89,8 @@ async function ProjectsContent({
       metrics={metrics}
       tabCounts={tabCounts}
       clients={clients}
-      teamMembers={teamMembers}
+      // Only roles that can own a project are worth filtering by.
+      owners={teamMembers.filter((m) => isProjectOwnerRole(m.role))}
       orgSlug={org}
       page={currentPage}
       pageSize={currentPageSize}
@@ -119,7 +121,7 @@ export default async function ProjectsPage({
     : DEFAULT_PAGE_SIZE
 
   return (
-    <Suspense fallback={<ProjectsLoadingSkeleton />}>
+    <Suspense fallback={<ProjectsLoadingSkeleton showOwner />}>
       <ProjectsContent
         org={org}
         page={page}

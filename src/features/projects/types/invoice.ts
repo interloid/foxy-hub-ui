@@ -62,8 +62,7 @@ export interface InvoiceBuildContext {
   alreadyInvoicedAmount?: number
 }
 
-export type EngagementModel =
-  'full_time' | 'part_time' | 'retainer' | 'fixed' | 'budget' | 'hourly'
+export type EngagementModel = 'retainer' | 'fixed' | 'budget' | 'hourly'
 
 export interface InvoiceLine {
   id: string

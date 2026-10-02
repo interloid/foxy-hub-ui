@@ -7,6 +7,10 @@ create table public.time_entries (
   duration_minutes integer     not null    check (duration_minutes > 0),
   description      text        not null,
   status           public.time_entry_status        not null    default 'draft',
+  -- The Log time page's "Billable" toggle. False is internal work: it is still logged and
+  -- approved like any other time, but never invoiced and never burns a retainer.
+  -- Defaults to true because every existing entry was treated as billable.
+  billable         boolean     not null    default true,
   created_at       timestamptz not null    default now(),
 
   -- ── Billing state ──────────────────────────────────────────────────────────────────────

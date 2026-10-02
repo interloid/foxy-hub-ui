@@ -13,7 +13,7 @@ interface ProjectsOverviewProps {
   metrics: ProjectMetrics
   tabCounts: ProjectTabCounts
   clients: ClientOption[]
-  teamMembers: TeamMemberOption[]
+  owners: TeamMemberOption[]
   orgSlug: string
   page?: number
   totalPages?: number
@@ -25,7 +25,7 @@ export function ProjectsOverview({
   initialProjects,
   tabCounts,
   clients,
-  teamMembers,
+  owners,
   orgSlug,
   page = 1,
   totalCount,
@@ -88,7 +88,7 @@ export function ProjectsOverview({
         <ProjectFilters
           tabCounts={tabCounts}
           clients={clients}
-          teamMembers={teamMembers}
+          owners={owners}
           isPending={isPending}
           updateParams={updateParams}
           page={page}
@@ -106,6 +106,7 @@ export function ProjectsOverview({
           isPending={isPending}
           onPageChange={handlePageChange}
           onPageSizeChange={handlePageSizeChange}
+          showOwner
         />
       </div>
     </main>

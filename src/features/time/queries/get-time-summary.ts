@@ -188,6 +188,7 @@ export async function getPendingApprovals(
       `
       id,
       user_id,
+      project_id,
       work_date,
       duration_minutes,
       description,
@@ -246,6 +247,7 @@ export async function getPendingApprovals(
     const formattedEntry: PendingApprovalEntry = {
       id: entry.id,
       workDate: entry.work_date,
+      projectId: entry.project_id,
       projectName: projectObj?.name || 'General',
       description: entry.description,
       durationMinutes: entry.duration_minutes || 0,

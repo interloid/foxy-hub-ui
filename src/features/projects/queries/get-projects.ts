@@ -133,7 +133,7 @@ export async function getProjectsData({
   status,
   engagement,
   clientId,
-  teamMemberId,
+  ownerId,
   allocatedProject = false,
 }: GetProjectsParams): Promise<GetProjectsResult> {
   const supabase = await createClient()
@@ -176,19 +176,8 @@ export async function getProjectsData({
     ? await getAllocatedProjectIds(supabase, orgId, user.id)
     : []
 
-  const memberFilter =
-    teamMemberId && teamMemberId !== 'all' ? teamMemberId : null
-
-  let allocationFilterIds: string[] | null = null
-  if (tab === 'mine' || allocatedProject) {
-    allocationFilterIds = mineProjectIds
-  } else if (memberFilter) {
-    allocationFilterIds = await getAllocatedProjectIds(
-      supabase,
-      orgId,
-      memberFilter
-    )
-  }
+  const allocationFilterIds: string[] | null =
+    tab === 'mine' || allocatedProject ? mineProjectIds : null
 
   // Calculate range offset for pagination
   const from = (page - 1) * pageSize
@@ -219,6 +208,7 @@ export async function getProjectsData({
       estimated_hours,
       override_reason,
       client_org_id,
+      owner_id,
       client:clients (
         id,
         name
@@ -237,6 +227,10 @@ export async function getProjectsData({
 
   if (clientId && clientId !== 'all') {
     projectsQuery = projectsQuery.eq('client_org_id', clientId)
+  }
+
+  if (ownerId && ownerId !== 'all') {
+    projectsQuery = projectsQuery.eq('owner_id', ownerId)
   }
 
   if (engagement) {
@@ -312,12 +306,43 @@ export async function getProjectsData({
       updatedAt: p.updated_at || p.created_at,
       progressPercent: percentage,
       estimatedHour: p.estimated_hours ? Number(p.estimated_hours) : null,
+      owner: p.owner_id
+        ? { id: p.owner_id, name: 'Unnamed teammate', avatarUrl: null }
+        : null,
     }
   })
 
   const healthSummaries = await getProjectHealthSummaries(supabase, projects)
   for (const project of projects) {
     project.health = healthSummaries.get(project.id)
+  }
+
+  // `owner_id` references auth.users, not profiles, so it can't be embedded in the select
+  // above - the owners' names and photos come from one extra query.
+  const ownerIds = [
+    ...new Set(projects.flatMap((p) => (p.owner ? [p.owner.id] : []))),
+  ]
+  if (ownerIds.length > 0) {
+    const { data: owners, error: ownersError } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url')
+      .in('id', ownerIds)
+
+    if (ownersError) {
+      console.error('Error fetching project owners:', ownersError.message)
+    }
+
+    const ownerById = new Map((owners ?? []).map((o) => [o.id, o]))
+    for (const project of projects) {
+      const profile = project.owner ? ownerById.get(project.owner.id) : null
+      if (project.owner && profile) {
+        project.owner = {
+          id: project.owner.id,
+          name: profile.full_name?.trim() || 'Unnamed teammate',
+          avatarUrl: profile.avatar_url ?? null,
+        }
+      }
+    }
   }
 
   // 4. Calculate organization-wide metrics and tab counts

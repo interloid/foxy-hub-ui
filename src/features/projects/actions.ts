@@ -689,9 +689,9 @@ export async function updateProjectWithValidation(input: UpdateProjectInput) {
       0
     )
 
-    const requiresFullValue = ['full_time', 'part_time', 'fixed'].includes(
-      project.engagement
-    )
+    // Only a fixed fee has to be invoiced in full before completing. Budget-based treats
+    // `contract_value` as a cap, so a project that came in under budget can still close.
+    const requiresFullValue = project.engagement === 'fixed'
 
     if (requiresFullValue) {
       const requiredValue = Number(project.contract_value) || 0

@@ -39,10 +39,10 @@ create table public.projects (
   -- shipped writing only name/client/due_date/description and the panel said so out loud
   -- (D042). These are the columns that close that gap.
   --
-  -- `engagement` defaults to `full_time` because every existing row predates the column and
-  -- the design's own form opens on that card. It is NOT NULL: a project always bills somehow,
-  -- and a null would mean "nobody has decided", which the form does not allow.
-  engagement       public.engagement_model not null default 'full_time',
+  -- `engagement` defaults to `budget`, the card the New project wizard opens on. It is NOT
+  -- NULL: a project always bills somehow, and a null would mean "nobody has decided", which
+  -- the form does not allow.
+  engagement       public.engagement_model not null default 'budget',
 
   -- The hourly engagements' budget and the fixed engagement's fee share one column: they are
   -- the same fact (what this project is worth), and the design shows one field for both —

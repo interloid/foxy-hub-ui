@@ -41,7 +41,7 @@ function getInitials(name: string): string {
 }
 
 export async function EngagementCard({
-  engagementModel = 'full_time',
+  engagementModel = 'budget',
   allocations = [],
   projectId,
   canManage = false,
@@ -54,12 +54,6 @@ export async function EngagementCard({
 }: EngagementCardProps) {
   const locale = await getUserLocale()
   const safeAllocations = allocations ?? []
-
-  // Total committed hours per day across active allocations
-  const totalHoursPerDay = safeAllocations.reduce(
-    (acc, item) => acc + (item.hoursPerDay || 0),
-    0
-  )
 
   return (
     <section
@@ -90,7 +84,6 @@ export async function EngagementCard({
             <EngagementDetails
               locale={locale}
               model={engagementModel}
-              totalHoursPerDay={totalHoursPerDay}
               retainerBucketHours={retainerBucketHours}
               retainerPeriod={retainerPeriod}
               retainerFee={retainerFee}
@@ -175,18 +168,6 @@ export async function EngagementCard({
 /* Badge selector matching design color schemes */
 function BadgeForModel({ model }: { model?: EngagementModel | null }) {
   switch (model) {
-    case 'full_time':
-      return (
-        <FxBadge variant="warning" shape="pill" dot>
-          Full-time
-        </FxBadge>
-      )
-    case 'part_time':
-      return (
-        <FxBadge variant="info" shape="pill" dot>
-          Part-time
-        </FxBadge>
-      )
     case 'retainer':
       return (
         <FxBadge variant="warning" shape="pill" dot>
@@ -220,7 +201,6 @@ function BadgeForModel({ model }: { model?: EngagementModel | null }) {
 function EngagementDetails({
   locale,
   model,
-  totalHoursPerDay,
   retainerBucketHours,
   retainerPeriod,
   retainerFee,
@@ -229,7 +209,6 @@ function EngagementDetails({
 }: {
   locale: Locale
   model?: EngagementModel | null
-  totalHoursPerDay: number
   retainerBucketHours?: number | null
   retainerPeriod?: RetainerPeriod | null
   retainerFee?: number | null
@@ -240,20 +219,6 @@ function EngagementDetails({
   const periodAdjective = retainerPeriod === 'weekly' ? 'weekly' : 'monthly'
 
   switch (model) {
-    case 'full_time':
-      return (
-        <p className="text-subtle-foreground text-xs font-normal">
-          {totalHoursPerDay} h/day committed
-        </p>
-      )
-
-    case 'part_time':
-      return (
-        <p className="text-muted-foreground text-xs font-normal">
-          Any fraction of a day
-        </p>
-      )
-
     case 'retainer':
       return (
         <div className="space-y-2 border-b pb-4">

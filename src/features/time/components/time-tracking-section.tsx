@@ -1,23 +1,23 @@
 'use client'
 
-import { LogTimeSheet } from '@/features/dashboard/components/sheets/log-time-sheet'
-import * as React from 'react'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import { useRouter } from 'next/navigation'
 import { TimeTrackingHeader } from './time-tracking-header'
 
 interface TimeTrackingSectionProps {
   userName?: string
 }
 export function TimeTrackingSection({ userName }: TimeTrackingSectionProps) {
-  const [isLogTimeOpen, setIsLogTimeOpen] = React.useState(false)
+  const router = useRouter()
+  const { orgSlug } = useWorkspace()
 
   return (
     <div className="space-y-6">
       <TimeTrackingHeader
         userName={userName}
-        onLogTime={() => setIsLogTimeOpen(true)}
+        // Logging time has its own page now.
+        onLogTime={() => router.push(`/${orgSlug}/time/log`)}
       />
-
-      <LogTimeSheet open={isLogTimeOpen} onOpenChange={setIsLogTimeOpen} />
     </div>
   )
 }

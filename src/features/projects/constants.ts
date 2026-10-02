@@ -52,8 +52,6 @@ export const PROJECT_STATUS_CONFIG: Record<ProjectStatus, ProjectStatusStyle> =
   }
 
 export const ENGAGEMENT_LABELS: Record<EngagementModel, string> = {
-  full_time: 'Full Time',
-  part_time: 'Part Time',
   fixed: 'Fixed Fee',
   retainer: 'Retainer',
   budget: 'Budget-based',
@@ -65,8 +63,6 @@ export const ENGAGEMENT_LABELS: Record<EngagementModel, string> = {
  * with a cap at `contract_value` (going past it is allowed, just flagged); `hourly` has no cap.
  */
 export const HOURLY_ENGAGEMENTS: readonly EngagementModel[] = [
-  'full_time',
-  'part_time',
   'budget',
   'hourly',
 ]
