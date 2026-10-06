@@ -17,7 +17,6 @@ export const ONBOARD_ACCOUNT = {
     slug: {
       label: 'Workspace URL',
       placeholder: 'interloid',
-      suffix: '.foxyhub.app',
     },
   },
 } as const
@@ -39,7 +38,6 @@ export type OnboardPlan = {
   blurb: string
   priceMonthly: number
   priceYearly: number
-  seats: string
   features: readonly string[]
   popular?: boolean
 }
@@ -51,7 +49,6 @@ export const ONBOARD_PLANS: readonly OnboardPlan[] = [
     blurb: 'For solo freelancers getting started',
     priceMonthly: 19,
     priceYearly: 190,
-    seats: '5 seats',
     features: [
       'Up to 5 active projects',
       'Client portal & approvals',
@@ -64,7 +61,6 @@ export const ONBOARD_PLANS: readonly OnboardPlan[] = [
     blurb: 'For growing studios',
     priceMonthly: 49,
     priceYearly: 490,
-    seats: '10 seats',
     features: [
       'Unlimited projects & clients',
       'AI weekly updates',
@@ -78,7 +74,6 @@ export const ONBOARD_PLANS: readonly OnboardPlan[] = [
     blurb: 'For established agencies',
     priceMonthly: 99,
     priceYearly: 990,
-    seats: '15 seats',
     features: [
       'Everything in Studio',
       'Subscriptions & retainers',
@@ -91,8 +86,8 @@ export const ONBOARD_TEAM = {
   title: 'Invite your team',
   subtitle: 'Add teammates now, or skip and do it later from Settings.',
   placeholder: 'teammate@agency.com',
-  roles: ['Admin', 'Member'] as const,
-  initialRows: [{ role: 'Admin' }, { role: 'Member' }] as const,
+  roles: ['Admin', 'Manager', 'Contributor'] as const,
+  initialRows: [{ role: 'Admin' }, { role: 'Contributor' }] as const,
   addLabel: 'Add another',
 } as const
 

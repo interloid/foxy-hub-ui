@@ -1,7 +1,7 @@
 -- =====================================================================
 -- foxy-hub — demo seed data
 --
--- One fully-populated workspace ("Foxy Studio") with four accounts, six
+-- One fully-populated workspace ("Foxy Studio") with five accounts, six
 -- projects, and enough rows behind them that every dashboard reader in
 -- `src/lib/dal.ts` returns something real instead of an empty state.
 --
@@ -50,12 +50,16 @@
 -- RE-RUNNABLE. Section 0 deletes exactly the rows this file creates, by
 -- fixed UUID, and nothing else.
 --
--- DEMO CREDENTIALS — all four accounts share the password
+-- DEMO CREDENTIALS — all five accounts share the password
 --
---   priya.nair@example.com          owner    Priya Nair
---   marcus.lee@example.com          admin    Marcus Lee
---   ana.torres@example.com          member   Ana Torres
---   erik.lund@nordwave.example.com  client   Erik Lund   (Nordwave Coffee)
+--   priya.nair@example.com          primary_admin  Priya Nair
+--   marcus.lee@example.com          admin          Marcus Lee
+--   sofia.reyes@example.com         manager        Sofia Reyes
+--   ana.torres@example.com          contributor    Ana Torres
+--   erik.lund@nordwave.example.com  client         Erik Lund   (Nordwave Coffee)
+--
+-- The org is marked `is_demo`, so these are the accounts behind the sign-in
+-- page's "Log in as demo" role picker.
 --
 --   password: FoxyDemo!2345
 --
@@ -65,7 +69,7 @@
 --   Pending approvals    3 submitted      (2 fall due within 7 days)
 --   Hours to approve     10h 45m          across 3 submitted timesheets
 --   Outstanding          $18,480          1 of 2 unpaid invoices overdue
---   Plan                 Studio, monthly  3 of 5 seats used
+--   Plan                 Studio, monthly  4 of 5 seats used
 --   Team capacity        85% / 103% / 55% — Marcus is the "1 over" badge
 --
 -- DATES ARE RELATIVE (`now()`, `current_date`, `date_trunc`), never literal,
@@ -84,7 +88,7 @@
 --
 -- Deleting the organization cascades to projects, milestones, allocations,
 -- deliveries, assets, invoices, clients, subscriptions and activity events.
--- Deleting the four users cascades to profiles, memberships, time entries
+-- Deleting the five users cascades to profiles, memberships, time entries
 -- and updates. Between them that is every row below — nothing else in the
 -- database is touched, because every id here is one this file wrote.
 -- ---------------------------------------------------------------------
@@ -94,7 +98,8 @@ delete from auth.users where id in (
   '10000000-0000-4000-8000-000000000001',
   '10000000-0000-4000-8000-000000000002',
   '10000000-0000-4000-8000-000000000003',
-  '10000000-0000-4000-8000-000000000004'
+  '10000000-0000-4000-8000-000000000004',
+  '10000000-0000-4000-8000-000000000006'
 );
 
 -- ---------------------------------------------------------------------
@@ -103,7 +108,7 @@ delete from auth.users where id in (
 -- `on_auth_user_created` fires `public.handle_new_user_signup()` for every
 -- INSERT on auth.users, and that function has exactly two paths: redeem an
 -- `invite_token`, or build a brand-new org from `org_name` / `slug` in the
--- signup metadata. A seed does neither — it wants four users in ONE org it
+-- signup metadata. A seed does neither — it wants five users in ONE org it
 -- controls the id of — so the trigger would raise "An organisation name is
 -- required" on the first row. It is disabled for the transaction and turned
 -- back on in section 12; the profile rows it would have written are written
@@ -175,7 +180,17 @@ values
    now() - interval '40 days',
    '{"provider":"email","providers":["email"]}'::jsonb,
    '{"user_name":"Erik Lund"}'::jsonb,
-   now() - interval '40 days', now() - interval '40 days', '', '', '', '');
+   now() - interval '40 days', now() - interval '40 days', '', '', '', ''),
+
+  ('00000000-0000-0000-0000-000000000000',
+   '10000000-0000-4000-8000-000000000006',
+   'authenticated', 'authenticated',
+   'sofia.reyes@example.com',
+   extensions.crypt('FoxyDemo!2345', extensions.gen_salt('bf')),
+   now() - interval '88 days',
+   '{"provider":"email","providers":["email"]}'::jsonb,
+   '{"user_name":"Sofia Reyes"}'::jsonb,
+   now() - interval '88 days', now() - interval '88 days', '', '', '', '');
 
 -- Without a matching identity row GoTrue treats the account as having no
 -- email provider linked, and the password grant fails even though the hash
@@ -204,7 +219,8 @@ where u.id in (
   '10000000-0000-4000-8000-000000000001',
   '10000000-0000-4000-8000-000000000002',
   '10000000-0000-4000-8000-000000000003',
-  '10000000-0000-4000-8000-000000000004'
+  '10000000-0000-4000-8000-000000000004',
+  '10000000-0000-4000-8000-000000000006'
 );
 
 -- The trigger's own first act, done by hand. `full_name` is what
@@ -215,7 +231,8 @@ values
   ('10000000-0000-4000-8000-000000000001', 'Priya Nair', null),
   ('10000000-0000-4000-8000-000000000002', 'Marcus Lee', null),
   ('10000000-0000-4000-8000-000000000003', 'Ana Torres', null),
-  ('10000000-0000-4000-8000-000000000004', 'Erik Lund',  null);
+  ('10000000-0000-4000-8000-000000000004', 'Erik Lund',  null),
+  ('10000000-0000-4000-8000-000000000006', 'Sofia Reyes', null);
 
 -- ---------------------------------------------------------------------
 -- 2. The workspace
@@ -226,7 +243,8 @@ values
 -- ---------------------------------------------------------------------
 insert into public.organizations (
   id, name, slug, logo_url, website_url, user_id,
-  daily_capacity_hours, days_per_week, currency, rounding_minutes, created_at
+  daily_capacity_hours, days_per_week, currency, rounding_minutes, created_at,
+  is_demo
 )
 values (
   '20000000-0000-4000-8000-000000000001',
@@ -236,27 +254,30 @@ values (
   'https://foxystudio.example.com',
   '10000000-0000-4000-8000-000000000001',
   8, 5, 'USD', 15,
-  now() - interval '120 days'
+  now() - interval '120 days',
+  true
 );
 
--- Seats are staff only — `getDashboardMetrics` counts owner/admin/member and
+-- Seats are staff only — `getDashboardMetrics` counts primary_admin/admin/manager/contributor and
 -- excludes clients, so Erik is a guest on the plan rather than a billed seat.
 insert into public.memberships (id, user_id, org_id, role, created_at)
 values
   ('20000000-0000-4000-8000-000000000011', '10000000-0000-4000-8000-000000000001',
-   '20000000-0000-4000-8000-000000000001', 'owner',  now() - interval '120 days'),
+   '20000000-0000-4000-8000-000000000001', 'primary_admin',  now() - interval '120 days'),
   ('20000000-0000-4000-8000-000000000012', '10000000-0000-4000-8000-000000000002',
    '20000000-0000-4000-8000-000000000001', 'admin',  now() - interval '96 days'),
   ('20000000-0000-4000-8000-000000000013', '10000000-0000-4000-8000-000000000003',
-   '20000000-0000-4000-8000-000000000001', 'member', now() - interval '74 days'),
+   '20000000-0000-4000-8000-000000000001', 'contributor', now() - interval '74 days'),
   ('20000000-0000-4000-8000-000000000014', '10000000-0000-4000-8000-000000000004',
-   '20000000-0000-4000-8000-000000000001', 'client', now() - interval '40 days');
+   '20000000-0000-4000-8000-000000000001', 'client', now() - interval '40 days'),
+  ('20000000-0000-4000-8000-000000000016', '10000000-0000-4000-8000-000000000006',
+   '20000000-0000-4000-8000-000000000001', 'manager', now() - interval '88 days');
 
 -- The plan comes from `plans`, which is seeded by MIGRATIONS
 -- (20260729102721_seed_plans.sql), not from here — a second copy of the
 -- pricing tiers is a second thing to keep in step. Studio/monthly is chosen
 -- because its `features.max_members` is 5, which is what makes the plan card
--- read "3 of 5 seats" rather than hiding the meter as unlimited.
+-- read "4 of 5 seats" rather than hiding the meter as unlimited.
 --
 -- `subscriptions_org_id_active_key` allows exactly one active row per org, so
 -- this insert is also the reason section 0 deletes the org first.
@@ -379,7 +400,7 @@ values
    -- 1st of a month: a created_at in the future would still be counted, but it
    -- would contradict the start_date on the same row.
    least(date_trunc('month', now()) + interval '1 day', now()), null,
-   'full_time', 48000.00,
+   'budget', 48000.00,
    null, null, null, null,
    -- The design blocks Create when an allocation pushes somebody past a
    -- working day and demands a reason to proceed. This is that audit trail:
@@ -394,7 +415,7 @@ values
    'draft',
    null, now() + interval '110 days',
    now() - interval '6 days', null,
-   'part_time', 15000.00,
+   'budget', 15000.00,
    null, null, null, null,
    null),
 
@@ -419,7 +440,7 @@ values
    'on-hold',
    now() - interval '70 days', null,
    now() - interval '70 days', now() - interval '30 days',
-   'part_time', 18000.00,
+   'budget', 18000.00,
    null, null, null, null,
    null);
 
@@ -713,7 +734,7 @@ values (
   '20000000-0000-4000-8000-000000000001',
   null,
   'jules.okafor@example.com',
-  'member',
+  'contributor',
   encode(extensions.digest('foxy-demo-invite-0001', 'sha256'), 'hex'),
   '10000000-0000-4000-8000-000000000001',
   now() - interval '2 days',

@@ -46,7 +46,7 @@ const fxMenuItemVariants = cva(
         destructive: 'text-destructive',
       },
       highlighted: {
-        true: 'bg-accent',
+        true: 'bg-muted',
         false: 'bg-transparent',
       },
     },

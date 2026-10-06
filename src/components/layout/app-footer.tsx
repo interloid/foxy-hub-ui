@@ -108,7 +108,7 @@ export function AppFooter({
                   const Mark = SOCIAL_ICONS[item.icon]
 
                   return (
-                    <li key={item.href}>
+                    <li key={item.label}>
                       <Link
                         href={item.href}
                         target="_blank"
@@ -136,7 +136,7 @@ export function AppFooter({
 
               <ul className="flex flex-col gap-2.25">
                 {group.items.map((link) => (
-                  <li key={link.href}>
+                  <li key={link.label}>
                     <FooterLinkItem {...link} />
                   </li>
                 ))}

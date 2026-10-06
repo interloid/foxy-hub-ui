@@ -1,10 +1,15 @@
 'use server'
 
-import { isDemoModeEnabled, serverEnv } from '@/config/env.server'
+import { serverEnv } from '@/config/env.server'
 import { siteConfig } from '@/config/site'
+import { demoBlocked, demoEmailFor, isDemoEmail, isDemoUser } from '@/lib/demo'
+import { hasVerifiedFactor, MFA_VERIFY_PATH } from '@/lib/mfa'
+import { decodePassword } from '@/lib/password-encoding'
+import { rateLimit } from '@/lib/rate-limit'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
+import { demoRoleSchema } from './demo'
 import {
   changePasswordSchema,
   firstIssue,
@@ -12,10 +17,16 @@ import {
   setPasswordSchema,
   signInSchema,
 } from './schemas'
-import { decodePassword } from '@/lib/password-encoding'
+import { resolveLanding } from './landing'
 
 export type AuthResult =
-  | { ok: true; redirectTo?: string; role?: string }
+  | {
+      ok: true
+      redirectTo?: string
+      role?: string
+      /** Password accepted, but the account has 2FA — the code page comes next. */
+      mfaRequired?: boolean
+    }
   | { ok: false; error: string }
 
 export async function signInWithPassword(
@@ -27,6 +38,22 @@ export async function signInWithPassword(
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) }
   const { email: address, password: secret } = parsed.data
 
+  const headerList = await headers()
+  const rawIp = headerList.get('x-forwarded-for')
+  const ip = rawIp?.split(',')[0]?.trim() ?? 'anonymous'
+
+  const isAllowed = await rateLimit(`sign-in:${ip}:${address}`, {
+    limit: 5,
+    windowMs: 60_000,
+  })
+
+  if (!isAllowed) {
+    return {
+      ok: false,
+      error: 'Too many login attempts. Please try again in a minute.',
+    }
+  }
+
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signInWithPassword({
     email: address,
@@ -37,21 +64,18 @@ export async function signInWithPassword(
     return { ok: false, error: 'That email and password do not match.' }
   }
 
-  const userId = data.user.id
-  const { data: membership, error: membershipError } = await supabase
-    .from('memberships')
-    .select('organizations(slug)')
-    .eq('user_id', userId)
-    .limit(1)
-    .maybeSingle()
-
-  const orgSlug = membership?.organizations?.slug
-
-  if (membershipError || !orgSlug) {
-    return { ok: true, redirectTo: '/onboard' }
+  // Two-factor accounts stop here: the session is aal1 until the code, so memberships are
+  // not readable yet (restrictive MFA policy). The code page resolves the landing instead,
+  // and shows the "Logged in" toast once the code is accepted.
+  if (hasVerifiedFactor(data.user)) {
+    return {
+      ok: true,
+      mfaRequired: true,
+      redirectTo: `${MFA_VERIFY_PATH}?next=${encodeURIComponent('/')}`,
+    }
   }
 
-  return { ok: true, redirectTo: `/${orgSlug}` }
+  return resolveLanding(supabase, data.user.id)
 }
 
 export async function sendPasswordReset(
@@ -61,6 +85,15 @@ export async function sendPasswordReset(
   const parsed = resetRequestSchema.safeParse({ email })
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) }
   const { email: address } = parsed.data
+
+  // The demo accounts are shared by every visitor; a reset link would let one of them
+  // lock everybody else out.
+  if (isDemoEmail(address)) {
+    return {
+      ok: false,
+      error: 'Password reset is not available for the demo accounts.',
+    }
+  }
 
   const queryParams = new URLSearchParams({ reset: '1' })
   if (forgotPassword) {
@@ -78,23 +111,42 @@ export async function sendPasswordReset(
   return { ok: true }
 }
 
-export async function signInAsDemo(): Promise<AuthResult> {
-  if (!isDemoModeEnabled()) {
-    return { ok: false, error: 'The demo account is not configured.' }
+/** Signs into the shared demo workspace as the picked role. */
+export async function signInAsDemo(role: string): Promise<AuthResult> {
+  const parsed = demoRoleSchema.safeParse(role)
+  if (!parsed.success) return { ok: false, error: 'Pick a demo role.' }
+
+  const email = demoEmailFor(parsed.data)
+  if (!email) {
+    return { ok: false, error: 'That demo account is not configured.' }
   }
 
-  const email = serverEnv.DEMO_ACCOUNT_EMAIL!
-  const password = serverEnv.DEMO_ACCOUNT_PASSWORD!
+  const headerList = await headers()
+  const ip =
+    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anonymous'
+  const isAllowed = await rateLimit(`demo-sign-in:${ip}`, {
+    limit: 10,
+    windowMs: 60_000,
+  })
+  if (!isAllowed) {
+    return {
+      ok: false,
+      error: 'Too many demo logins. Please try again in a minute.',
+    }
+  }
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password: serverEnv.DEMO_ACCOUNT_PASSWORD!,
+  })
 
   if (error) {
-    console.error('demo sign-in failed:', error.message)
+    console.error(`demo sign-in (${parsed.data}) failed:`, error.message)
     return { ok: false, error: 'The demo account is unavailable right now.' }
   }
 
-  redirect('/')
+  return resolveLanding(supabase, data.user.id)
 }
 
 export async function signOut() {
@@ -128,10 +180,22 @@ export async function setPassword(
 
   const supabase = await createClient()
 
+  if (await isDemoUser()) {
+    return {
+      ok: false,
+      error: 'The demo accounts keep their shared password.',
+    }
+  }
+
   const { data: updateData, error: updateError } =
     await supabase.auth.updateUser({
       password: decodedPassword,
-      data: { password_set: true },
+      // Saved in the SAME call as the password, so the two can never disagree. Supabase
+      // does not record when a password changed; Settings → Security shows this.
+      data: {
+        password_set: true,
+        password_changed_at: new Date().toISOString(),
+      },
     })
 
   if (updateError) {
@@ -143,11 +207,11 @@ export async function setPassword(
     .from('memberships')
     .select('role')
     .eq('user_id', userId)
-    .maybeSingle()
+    .limit(1)
   if (membershipError) {
     return { ok: false, error: membershipError.message }
   }
-  return { ok: true, role: membership?.role ?? undefined }
+  return { ok: true, role: membership?.[0]?.role ?? undefined }
 }
 
 export async function changePassword(
@@ -155,6 +219,9 @@ export async function changePassword(
   encodePassword: string,
   encodeConfirm: string
 ): Promise<AuthResult> {
+  const blocked = await demoBlocked()
+  if (blocked) return blocked
+
   const parsed = changePasswordSchema.safeParse({
     current: decodePassword(encodeCurrent),
     password: decodePassword(encodePassword),
@@ -189,6 +256,7 @@ export async function changePassword(
   const { error } = await supabase.auth.updateUser({
     password: parsed.data.password,
     current_password: parsed.data.current,
+    data: { password_changed_at: new Date().toISOString() },
   })
 
   if (error) {
@@ -205,40 +273,14 @@ export async function changePassword(
     }
   }
 
-  return { ok: true }
-}
-
-export async function getUserDailyCapacityAndLoggedMinutes(
-  userId: string,
-  orgSlug: string,
-  workDate: string
-) {
-  const supabase = await createClient()
-
-  // 1. Fetch organization daily capacity (default to 8h if missing)
-  const { data: orgData } = await supabase
-    .from('organizations')
-    .select('daily_capacity_hours, id')
-    .eq('slug', orgSlug)
-    .maybeSingle()
-
-  const dailyCapacityMinutes = (orgData?.daily_capacity_hours ?? 8) * 60
-
-  if (!orgData) {
-    return { dailyCapacityMinutes: 8 * 60, alreadyLoggedMinutes: 0 }
+  // The tips beside the form promise this: a new password ends every other session, so
+  // whoever knew the old one is logged out too. This session stays signed in.
+  const { error: signOutError } = await supabase.auth.signOut({
+    scope: 'others',
+  })
+  if (signOutError) {
+    console.error('sign out other sessions failed:', signOutError.message)
   }
 
-  const { data: entries } = await supabase
-    .from('time_entries')
-    .select('duration_minutes, projects!inner(org_id)')
-    .eq('user_id', userId)
-    .eq('work_date', workDate)
-    .eq('projects.org_id', orgData?.id) // Optional if scoped by orgId or RLS
-
-  const alreadyLoggedMinutes = (entries ?? []).reduce(
-    (sum, entry) => sum + (entry.duration_minutes ?? 0),
-    0
-  )
-
-  return { dailyCapacityMinutes, alreadyLoggedMinutes }
+  return { ok: true }
 }

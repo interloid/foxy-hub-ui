@@ -28,6 +28,20 @@ create table public.project_allocations (
   -- Nullable: a fixed-price project may staff people with no per-hour rate at all.
   rate           numeric(10, 2) check (rate is null or rate >= 0),
 
+  -- What this person COST at the time they were staffed, snapshotted from
+  -- `memberships.cost_rate`. Internal — it never reaches an invoice.
+  --
+  -- Snapshotted for the same reason `rate` is dated: cost changes too. Reading it live from
+  -- `memberships` would mean last year's margin silently re-computes the day someone gets a
+  -- raise, and a job that was profitable when it shipped would stop being so. Worse, it is
+  -- not reconstructible after the fact — if the number was never written down, what someone
+  -- cost last March is simply gone.
+  --
+  -- Filled by `create_project_with_allocations`, which looks it up server-side. It is
+  -- deliberately not accepted from the client: cost is an internal figure and has no reason
+  -- to travel through a browser.
+  cost_rate      numeric(10, 2) check (cost_rate is null or cost_rate >= 0),
+
   -- `date`, not `timestamptz`. An allocation starts on a day, not at an instant, and storing
   -- a timezone-bearing moment would make "from 1 July" mean different days for different
   -- readers. Same reasoning as `time_entries.work_date` and `milestones.due_date`.

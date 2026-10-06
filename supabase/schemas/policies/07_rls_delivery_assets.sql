@@ -15,7 +15,7 @@ create policy "staff_and_project_client_view_delivery_assets"
         and (
           public.has_org_role(
             d.org_id,
-            array['owner', 'admin', 'member']::public.user_role[]
+            array['primary_admin', 'admin', 'manager', 'contributor']::public.user_role[]
           )
           or exists (
             select 1 from public.projects p
@@ -34,7 +34,7 @@ create policy "staff_insert_delivery_assets"
       join public.memberships m on d.org_id = m.org_id
       where d.id     = delivery_assets.delivery_id
         and m.user_id = (select auth.uid())
-        and m.role   in ('owner', 'admin', 'member')
+        and m.role   in ('primary_admin', 'admin', 'manager', 'contributor')
     )
   );
 
@@ -46,6 +46,6 @@ create policy "staff_update_delivery_assets"
       join public.memberships m on d.org_id = m.org_id
       where d.id     = delivery_assets.delivery_id
         and m.user_id = (select auth.uid())
-        and m.role   in ('owner', 'admin', 'member')
+        and m.role   in ('primary_admin', 'admin', 'manager', 'contributor')
     )
   );

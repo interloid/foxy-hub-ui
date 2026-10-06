@@ -1,5 +1,6 @@
 import { OnboardCompleteClient } from '@/features/onboarding/components/onboard-complete-client'
 import { verifySession } from '@/lib/dal'
+import { isDemoUser } from '@/lib/demo'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
@@ -17,6 +18,8 @@ export default async function OnboardCompletePage({
 
   const session = await verifySession()
   if (!session) redirect('/sign-in?error=session_expired')
+  // This page starts a checkout as soon as it loads; the demo has nothing to buy.
+  if (await isDemoUser()) redirect('/')
 
   const planName = params.plan?.trim()
   if (!planName) redirect('/')

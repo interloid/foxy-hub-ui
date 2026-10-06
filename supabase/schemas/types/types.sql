@@ -5,7 +5,22 @@ create type public.project_status as enum (
 
 create type public.roles as enum ('admin', 'user');
 
-create type public.user_role as enum ('owner', 'admin', 'member', 'client');
+-- The workspace privilege ladder, in order.
+--
+-- `primary_admin` and `contributor` were originally spelled `owner` and `member`; they were
+-- renamed in place with `alter type ... rename value`, which keeps each pg_enum row's OID, so
+-- no `memberships` or `invitations` row was rewritten and every stored policy expression
+-- followed automatically. See migrations/20260922150000_rename_user_role_values.sql.
+--
+-- `manager` sits between `admin` and `contributor`: it does everything an admin does EXCEPT
+-- billing. Concretely, manager is absent from exactly four places and present everywhere else —
+-- `08_rls_invoices` (insert/update), `18_rls_invoice_lines` (insert), `11_rls_subscriptions`
+-- (select) and `create_invoice_with_entries`. It still READS invoices, because the staff read
+-- policy is the same one `contributor` sits in.
+--
+-- `primary_admin` remains the only role that can delete a membership
+-- (`owners_can_delete_members`) and the only one that cannot be assigned through an invitation.
+create type public.user_role as enum ('primary_admin', 'admin', 'manager', 'contributor', 'client');
 
 CREATE TYPE public.delivery_status as enum (
   'pending',
@@ -59,20 +74,41 @@ CREATE TYPE public.subscription_status AS ENUM (
   'paused'
 );
 
--- How a project bills, per `raw-src/WorkspacePage.dc.html`'s New project panel. The four
--- values are the design's own (`engCards`), and they are NOT interchangeable with
--- `project_status` — one says how work is charged, the other how far along it is.
--- See decisions.md D044.
+-- How a project bills - the four cards of the New project wizard's "How it bills" step. NOT
+-- interchangeable with `project_status`: one says how work is charged, the other how far
+-- along it is. See decisions.md D044.
+--
+--   retainer - a periodic fee for a bucket of hours (the `retainer_*` columns)
+--   fixed    - "Contract value": a fixed total, hours tracked but not billed
+--   budget   - approved hours × bill rate, capped at `contract_value`
+--   hourly   - approved hours × bill rate, no cap
+--
+-- `full_time` and `part_time` used to be values too. They billed exactly like `budget`, so
+-- every such project was converted to it and the values were removed. Removing an enum value
+-- means rebuilding the type, so that migration was written by hand (db diff would drop and
+-- recreate every table that uses it).
 create type public.engagement_model as enum (
-  'full_time',
-  'part_time',
   'retainer',
-  'fixed'
+  'fixed',
+  'budget',
+  'hourly'
 );
 
 -- A retainer's bucket refills weekly or monthly. The prototype renders this as
 -- "40 h / month", so the period is a fact about the retainer, not a display choice.
 create type public.retainer_period as enum ('weekly', 'monthly');
+
+-- How often the client gets a status update, from the wizard's "Update cadence" field. The
+-- weekly values carry the day because the design offers "Weekly, Monday" as a choice.
+-- `at_milestone` ties updates to delivery rather than the calendar, and `on_request` means
+-- no scheduled updates at all - only when the client asks.
+create type public.update_cadence as enum (
+  'weekly_monday',
+  'weekly_friday',
+  'fortnightly',
+  'at_milestone',
+  'on_request'
+);
 
 -- Who did the thing, for the Recent activity feed. This is an ENUM because it is a closed set
 -- that drives RENDERING: the prototype tints each avatar by exactly these three kinds
@@ -84,3 +120,15 @@ create type public.retainer_period as enum ('weekly', 'monthly');
 -- `system` is for events with no human actor (an invoice paid by webhook), which is also why
 -- `activity_events.actor_id` is nullable.
 create type public.activity_actor_kind as enum ('system', 'client', 'member');
+
+create type public.billing_payment_status as enum (
+  'pending',
+  'requires_action',
+  'paid',
+  'failed',
+  'refunded',
+  'partially_refunded',
+  'disputed',
+  'dispute_lost',
+  'void'
+);

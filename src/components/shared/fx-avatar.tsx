@@ -1,11 +1,8 @@
 import { Avatar, AvatarFallback, AvatarGroup } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
-import * as React from 'react'
+import { ComponentProps } from 'react'
 
-function FxAvatar({
-  className,
-  ...props
-}: React.ComponentProps<typeof Avatar>) {
+function FxAvatar({ className, ...props }: ComponentProps<typeof Avatar>) {
   return (
     <Avatar
       data-slot="fx-avatar"
@@ -21,7 +18,7 @@ function FxAvatar({
 function FxAvatarFallback({
   className,
   ...props
-}: React.ComponentProps<typeof AvatarFallback>) {
+}: ComponentProps<typeof AvatarFallback>) {
   return (
     <AvatarFallback
       data-slot="fx-avatar-fallback"
@@ -34,7 +31,7 @@ function FxAvatarFallback({
 function FxAvatarGroup({
   className,
   ...props
-}: React.ComponentProps<typeof AvatarGroup>) {
+}: ComponentProps<typeof AvatarGroup>) {
   return (
     <AvatarGroup
       data-slot="fx-avatar-group"

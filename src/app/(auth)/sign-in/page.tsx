@@ -2,6 +2,7 @@ import { AuthLayout } from '@/components/layout/auth'
 import { AuthHeroPanel } from '@/components/shared/app/auth-hero-panel'
 import { SignInForm } from '@/features/auth/components/sign-in-form'
 import { AUTH_CARD_TAGLINE, AUTH_HERO, SIGN_IN } from '@/features/auth/data'
+import { enabledDemoRoles } from '@/lib/demo'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -15,6 +16,8 @@ const ERRORS: Record<string, string> = {
   invalid_link: 'That sign-in link has expired or was already used.',
   session_expired: 'Your session expired. Sign in again.',
   missing_code: 'That sign-in link has expired or was already used.',
+  link_expired: 'That link has expired. Ask for a new invite.',
+  link_already_used: 'That link was already used. Sign in with your password.',
 }
 
 export default async function SignInPage({
@@ -40,7 +43,7 @@ export default async function SignInPage({
         />
       }
     >
-      <SignInForm initialError={initialError} />
+      <SignInForm initialError={initialError} demoRoles={enabledDemoRoles()} />
     </AuthLayout>
   )
 }

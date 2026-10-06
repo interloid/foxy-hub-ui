@@ -1,11 +1,3 @@
-/**
- * Reversible base64 encode/decode helpers.
- *
- * NOTE: this is encoding, not encryption — it does not add security against
- * network interception (TLS already handles that). Do not rely on this for
- * confidentiality; anyone who can see the encoded value can decode it.
- */
-
 export function encodePassword(value: string): string {
   const bytes = new TextEncoder().encode(value)
   const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join('')

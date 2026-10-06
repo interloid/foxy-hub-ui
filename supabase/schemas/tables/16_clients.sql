@@ -33,6 +33,47 @@ create table public.clients (
   contact_name  text,
   contact_email text,
 
+  -- ── Whether this company is still a live client of THIS workspace ────────────────────
+  --
+  -- The mirror of `memberships.status`, and for the same reason: the Clients table offers
+  -- "deactivate", not "delete". A hard delete would take the company's name with it, and
+  -- `projects.client_org_id` is `on delete set null` — so every project that company ever
+  -- paid for would silently lose the name on its row, in the invoices and in the dashboard's
+  -- pending-approval list. Keeping the row keeps those labels readable forever; the flag is
+  -- what stops the company appearing in pickers and seat counts.
+  --
+  -- NOT NULL with a default: every existing row starts active, and "is this still a client"
+  -- has no third unknown state.
+  status        boolean     not null default true,
+
+  -- ── Whether this client gets a portal ────────────────────────────────────────────────
+  --
+  -- Distinct from `status`, which is access to the WORKSPACE (deactivation frees the seat
+  -- and hides the row). `portal` is whether this company is meant to have a client-facing
+  -- portal at all: some clients are billing-only records behind an invoice and never get a
+  -- login.
+  --
+  -- Also distinct from the New client form's "Email them a portal invite" checkbox. That
+  -- one is an ACTION taken once — send a mail now. This is the durable intent, which is
+  -- what the Clients list and the "with portal access" count need to read later.
+  --
+  -- NOT NULL with `default true` because that is what the form defaults to, and because a
+  -- flag that gates a surface has no meaningful third "unknown" state. Every existing row
+  -- becomes portal-enabled on migration, which matches how they were created — there was
+  -- no way to opt out before this column existed.
+  portal        boolean     not null default true,
+
+  -- The Stripe Customer this company bills through.
+  --
+  -- Without it every invoice created a throwaway customer from `customer_email`, so a client
+  -- with six invoices was six unrelated customers in Stripe — no payment history, no saved
+  -- card, and nothing to reconcile a refund against. Held here rather than on `invoices`
+  -- because the customer belongs to the company, not to one bill.
+  --
+  -- Nullable: it is minted the first time an invoice is issued, and a client who has never
+  -- been billed has no reason to exist in Stripe at all.
+  stripe_customer_id text unique,
+
   created_at    timestamptz not null default now(),
 
   -- Two companies with one name inside one workspace are a data-entry slip, not two clients.
@@ -40,7 +81,7 @@ create table public.clients (
   unique (org_id, name)
 );
 
-create index if not exists clients_org_id_idx on public.clients(org_id);
+create index if not exists clients_org_id_idx on public.clients(org_id, status);
 
 -- The company a project belongs to. Nullable: every existing project predates this column, and
 -- an internal project has no client at all. `on delete set null` rather than cascade — deleting

@@ -8,6 +8,28 @@ create table public.projects (
   start_date  date,
   start_from  text,
   due_date    timestamptz,
+  -- ── Who opened this project ───────────────────────────────────────────────────────────
+  --
+  -- Backs the "Owns N" figure on the People screen. There was no notion of project
+  -- ownership at all before this: the table could say who was ALLOCATED to a project
+  -- (`project_allocations`) but not whose project it was.
+  --
+  -- `on delete set null` rather than cascade — deleting the person must not delete the
+  -- project. A null here reads as "opened by someone no longer in the system", which is
+  -- also the honest value for every project created before this column existed.
+  --
+  -- Set by `create_project_with_allocations` from `auth.uid()`, never from the payload:
+  -- a caller-supplied creator is a caller-supplied lie.
+  created_by uuid references auth.users(id) on delete set null,
+
+  -- ── Who the project belongs to ────────────────────────────────────────────────────────
+  --
+  -- Distinct from `created_by`: an admin often sets a project up for someone else, and the
+  -- wizard's "Project owner" is who timesheets and invoices on this project route to.
+  -- Nullable, since every existing project predates the column; `on delete set null` for the
+  -- same reason as `created_by`.
+  owner_id   uuid references auth.users(id) on delete set null,
+
   created_at  timestamptz           not null    default now(),
   updated_at  timestamptz,
 
@@ -17,10 +39,10 @@ create table public.projects (
   -- shipped writing only name/client/due_date/description and the panel said so out loud
   -- (D042). These are the columns that close that gap.
   --
-  -- `engagement` defaults to `full_time` because every existing row predates the column and
-  -- the design's own form opens on that card. It is NOT NULL: a project always bills somehow,
-  -- and a null would mean "nobody has decided", which the form does not allow.
-  engagement       public.engagement_model not null default 'full_time',
+  -- `engagement` defaults to `budget`, the card the New project wizard opens on. It is NOT
+  -- NULL: a project always bills somehow, and a null would mean "nobody has decided", which
+  -- the form does not allow.
+  engagement       public.engagement_model not null default 'budget',
 
   -- The hourly engagements' budget and the fixed engagement's fee share one column: they are
   -- the same fact (what this project is worth), and the design shows one field for both —
@@ -38,11 +60,41 @@ create table public.projects (
   retainer_amount  numeric(12, 2) check (retainer_amount is null or retainer_amount >= 0),
   retainer_overage numeric(4, 2)  check (retainer_overage is null or retainer_overage >= 0),
 
+  -- How big the job is thought to be, for a FIXED project.
+  --
+  -- Fixed work is scoped in HOURS, not dates: "this site build is about 80 hours". The other
+  -- three engagements can derive a duration from `due_date` and their allocations, but a fixed
+  -- fee has no rate to multiply by a span — so without this there is nothing to estimate a
+  -- price from, and nothing to compare the actual hours against once the work is done.
+  --
+  -- Nullable, and nullable even for `fixed`: a fee that was negotiated rather than estimated is
+  -- perfectly normal, and demanding an estimate to record it would be inventing one.
+  --
+  -- `numeric(8, 2)` rather than `retainer_hours`'s `(6, 2)`: a bucket is one period's worth and
+  -- fits in four digits, while a fixed project can legitimately run to tens of thousands.
+  estimated_hours  numeric(8, 2) check (estimated_hours is null or estimated_hours > 0),
+
   -- Why an over-commit was accepted. The design blocks Create when an allocation pushes
   -- someone past a working day and demands a reason to proceed — so this column is the audit
   -- trail for a rule that was deliberately overridden, not a note field.
-  override_reason  text
+  override_reason  text,
+
+  -- ── Scope & sign-off, per the wizard's "Scope & milestones" step ──────────────────────
+  --
+  -- In and out are two columns, not one `description`: the design asks for them side by
+  -- side, and naming the exclusions is what a change request is later checked against.
+  -- `description` stays as the free-form "Notes for delivery".
+  scope_in         text,
+  scope_out        text,
+  -- "The client calls it done when..." - the acceptance line, in the client's own terms.
+  done_when        text,
+  -- Who on the client side signs off. Free text because there is no client contacts table
+  -- yet (`clients` holds a single contact); null reads as the design's "Not decided yet".
+  sign_off_by      text,
+  -- Not null: every project gets updates at some rhythm, and the wizard opens on Monday.
+  update_cadence   public.update_cadence not null default 'weekly_monday'
 );
 
 create index if not exists projects_org_id_idx    on public.projects(org_id);
 create index if not exists projects_client_id_idx on public.projects(client_id);
+create index if not exists projects_owner_id_idx  on public.projects(owner_id);

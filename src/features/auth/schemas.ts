@@ -50,3 +50,8 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>
 export function firstIssue(error: z.ZodError): string {
   return error.issues[0]?.message ?? 'Check the details and try again.'
 }
+
+export const mfaCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, 'Enter the 6-digit code from your authenticator app.')

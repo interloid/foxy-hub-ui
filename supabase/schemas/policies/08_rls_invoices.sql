@@ -12,7 +12,7 @@ create policy "staff_and_own_client_view_invoices"
       where p.id = invoices.project_id
         and (
           p.client_id = (select auth.uid())
-          or public.has_org_role(p.org_id, array['owner', 'admin', 'member']::public.user_role[])
+          or public.has_org_role(p.org_id, array['primary_admin', 'admin', 'manager', 'contributor']::public.user_role[])
         )
     )
   );
@@ -24,7 +24,7 @@ create policy "owners_admins_insert_invoices"
       select 1 from public.memberships m
       where m.org_id  = invoices.org_id
         and m.user_id = (select auth.uid())
-        and m.role    in ('owner', 'admin')
+        and m.role    in ('primary_admin', 'admin')
     )
   );
 
@@ -35,6 +35,6 @@ create policy "owners_admins_update_invoices"
       select 1 from public.memberships m
       where m.org_id  = invoices.org_id
         and m.user_id = (select auth.uid())
-        and m.role    in ('owner', 'admin')
+        and m.role    in ('primary_admin', 'admin')
     )
   );

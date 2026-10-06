@@ -8,6 +8,16 @@ Built with the Next.js App Router, TypeScript, and a security-first backend arch
 
 ---
 
+## ✨ Core Features
+
+- **Projects** — project list + detail view with deliverables, milestones, updates feed, and per-project time & invoicing.
+- **Invoices** — org-level billing overview: paid/outstanding/overdue metrics, a paginated invoice table, and a "New invoice" flow generated from approved, unbilled hours.
+- **Time tracking** — org-level weekly time entries with a draft → submitted → approved/rejected workflow, an admin approvals queue, and a team capacity view.
+- **Billing & subscriptions** — Stripe-backed plan checkout and invoice payments.
+- **Multi-tenant workspaces** — org-scoped routing (`/[org]/...`) backed by Postgres Row Level Security.
+
+---
+
 ## 🛠️ Tech Stack
 
 | Area           | Choice                                                                      |
@@ -42,7 +52,12 @@ foxy-hub-ui/
 ├── src/
 │   ├── app/                  # App Router routes, layouts, loading states
 │   │   ├── (auth)/           # sign-in, onboard, set-password, forgot-password
-│   │   ├── [org]/            # Tenant-scoped workspace (dashboard, profile, billing)
+│   │   ├── [org]/            # Tenant-scoped workspace
+│   │   │   ├── projects/     # Projects list + project detail (deliverables, milestones, hours, updates)
+│   │   │   ├── invoices/     # Org-level billing overview, metrics, invoice list
+│   │   │   ├── time/         # Org-level time tracking: entries, approvals, capacity
+│   │   │   ├── billing/      # Subscription & plan management
+│   │   │   └── profile/      # Account management
 │   │   ├── api/              # Route handlers
 │   │   └── auth/             # OAuth / magic-link callback + confirm handlers
 │   ├── actions/              # Shared server actions
@@ -55,7 +70,10 @@ foxy-hub-ui/
 │   ├── features/             # Feature-based domain logic
 │   │   ├── auth/             # Sign-in, password, session flows
 │   │   ├── onboarding/       # Workspace signup wizard, plan checkout, invitations
-│   │   ├── dashboard/        # Projects, allocations, deliveries, activity
+│   │   ├── dashboard/        # Org dashboard metrics, activity, allocations
+│   │   ├── projects/         # Project CRUD, deliverables, milestones, project-level time & invoicing
+│   │   ├── invoices/         # Org-level invoice queries + components (metrics, table, new-invoice header)
+│   │   ├── time/             # Org-level time entries, submit/approve/reject workflow, capacity view
 │   │   └── profile/          # Account management
 │   ├── config/
 │   │   ├── env.ts            # Type-safe Zod parser for public env vars

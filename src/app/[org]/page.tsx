@@ -4,8 +4,25 @@ import { getDashboardData } from '@/features/dashboard/data'
 import { getAccount } from '@/lib/dal'
 import { DashboardSkeleton } from '@/skeleton/dashboard'
 import { PaymentSuccessLoader } from '@/skeleton/payment-success-card'
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ org: string }>
+}): Promise<Metadata> {
+  const { org } = await params
+  const account = await getAccount(org)
+
+  const orgName = account?.orgName ?? 'Workspace'
+
+  return {
+    title: `Dashboard - ${orgName} | Foxy Hub`,
+    description: `Workspace overview and metrics for ${orgName}`,
+  }
+}
 
 export default async function WorkspaceHomePage({
   params,

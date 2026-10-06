@@ -1,4 +1,10 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
+
+export const metadata: Metadata = {
+  title: 'Access Denied | Foxy Hub',
+  description: 'You do not have permission to access this organization',
+}
 
 export default async function UnauthorizedPage({
   searchParams,

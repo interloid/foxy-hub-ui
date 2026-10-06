@@ -16,6 +16,15 @@ export function ProfileCardSkeleton() {
 
       {/* Form Fields */}
       <div className="flex flex-col gap-3.5 p-5">
+        {/* Profile photo */}
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-24" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-9 w-32 rounded-md" />
+            <Skeleton className="h-3 w-44" />
+          </div>
+        </div>
+
         {/* Full Name field */}
         <div className="space-y-1.5">
           <Skeleton className="h-4 w-20" />

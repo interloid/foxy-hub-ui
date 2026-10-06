@@ -1,0 +1,628 @@
+'use client'
+
+import { FxBadge } from '@/components/shared/fx-badge'
+import { FxButton } from '@/components/shared/fx-button'
+import { FxConfirmDialog } from '@/components/shared/fx-confirm-dialog'
+import {
+  FxInputGroup,
+  FxInputGroupAddon,
+  FxInputGroupInput,
+} from '@/components/shared/fx-input-group'
+import {
+  FxTable,
+  FxTableCell,
+  FxTableHead,
+  FxTableHeader,
+  FxTableRow,
+  FxTableScroll,
+} from '@/components/shared/fx-table'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { TableBody } from '@/components/ui/table'
+import { useFormatter, useLocale } from '@/context/locale-provider'
+import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import type { ActionResult } from '@/features/onboarding/types'
+import { formatCurrency } from '@/lib/money'
+import { isBillingRole } from '@/lib/role'
+import { cn } from '@/lib/utils'
+import { ChevronLeft, ChevronRight, Info, Loader2, Search } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useState, useTransition } from 'react'
+import { toast } from 'sonner'
+import {
+  markInvoicesPaidAction,
+  sendDraftInvoicesAction,
+  sendInvoiceReminderAction,
+  sendInvoiceRemindersAction,
+  type BulkInvoiceResult,
+} from '../../actions'
+import { daysBetween } from '../../lib/dates'
+import type {
+  InvoiceClientOption,
+  InvoiceKind,
+  InvoiceListStatus,
+  InvoiceRow,
+} from './types'
+
+const PAGE_SIZE = 10
+const EVERY_CLIENT = 'all'
+
+type StatusTab = 'all' | 'draft' | 'awaiting' | 'overdue' | 'paid'
+
+const TABS: { id: StatusTab; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'draft', label: 'Draft' },
+  { id: 'awaiting', label: 'Awaiting payment' },
+  { id: 'overdue', label: 'Overdue' },
+  { id: 'paid', label: 'Paid' },
+]
+
+// "Awaiting payment" is everything issued and unpaid - sent or overdue.
+function inTab(status: InvoiceListStatus, tab: StatusTab) {
+  if (tab === 'all') return true
+  if (tab === 'awaiting') return status === 'sent' || status === 'overdue'
+  return status === tab
+}
+
+export const KIND_LABEL: Record<InvoiceKind, string> = {
+  hours: 'Hours',
+  retainer: 'Retainer',
+  fixed: 'Fixed fee',
+}
+
+export const STATUS_BADGE: Record<
+  InvoiceListStatus,
+  { label: string; variant: 'success' | 'destructive' | 'secondary' | 'info' }
+> = {
+  overdue: { label: 'Overdue', variant: 'destructive' },
+  paid: { label: 'Paid', variant: 'success' },
+  sent: { label: 'Sent', variant: 'secondary' },
+  draft: { label: 'Draft', variant: 'info' },
+  cancelled: { label: 'Cancelled', variant: 'secondary' },
+}
+
+type BulkAction = 'send' | 'remind' | 'paid'
+
+/** Which selected invoices each bulk button acts on - the rest are left alone. */
+const BULK_APPLIES: Record<BulkAction, (status: InvoiceListStatus) => boolean> =
+  {
+    send: (status) => status === 'draft',
+    remind: (status) => status === 'sent' || status === 'overdue',
+    paid: (status) =>
+      status === 'draft' || status === 'sent' || status === 'overdue',
+  }
+
+const BULK_DONE: Record<BulkAction, (n: number) => string> = {
+  send: (n) => `Sent ${n} ${n === 1 ? 'draft' : 'drafts'}`,
+  remind: (n) => `Sent ${n} ${n === 1 ? 'reminder' : 'reminders'}`,
+  paid: (n) => `Marked ${n} ${n === 1 ? 'invoice' : 'invoices'} paid`,
+}
+
+export function InvoiceList({
+  invoices,
+  clients,
+  today,
+}: {
+  invoices: InvoiceRow[]
+  clients: InvoiceClientOption[]
+  today: string
+}) {
+  const fmt = useFormatter()
+  const locale = useLocale()
+  const router = useRouter()
+  const { currency, orgSlug, userRole } = useWorkspace()
+  const detailHref = (inv: InvoiceRow) => `/${orgSlug}/invoices/${inv.id}`
+  // Reminding a client about money is billing: primary admin and admin only.
+  const canRemindClients = isBillingRole(userRole)
+  const [remindingId, setRemindingId] = useState<string | null>(null)
+  const [, startReminding] = useTransition()
+
+  const [tab, setTab] = useState<StatusTab>('all')
+  const [search, setSearch] = useState('')
+  const [clientId, setClientId] = useState(EVERY_CLIENT)
+  const [page, setPage] = useState(1)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkAction, setBulkAction] = useState<BulkAction | null>(null)
+  const [confirmPaidOpen, setConfirmPaidOpen] = useState(false)
+  const [, startBulk] = useTransition()
+
+  // From `invoices`, not the current page: a selection survives paging and filtering, and an
+  // invoice that disappears on refresh drops out of it.
+  const selectedInvoices = invoices.filter((inv) => selected.has(inv.id))
+  const bulkTargets = (action: BulkAction) =>
+    selectedInvoices.filter((inv) => BULK_APPLIES[action](inv.status))
+
+  const runBulk = (action: BulkAction) => {
+    const targets = bulkTargets(action)
+    if (targets.length === 0) return
+    const ids = targets.map((inv) => inv.id)
+    const run: Record<
+      BulkAction,
+      () => Promise<ActionResult<BulkInvoiceResult>>
+    > = {
+      send: () => sendDraftInvoicesAction(orgSlug, ids),
+      remind: () => sendInvoiceRemindersAction(orgSlug, ids),
+      paid: () => markInvoicesPaidAction(orgSlug, ids),
+    }
+
+    setBulkAction(action)
+    startBulk(async () => {
+      const res = await run[action]()
+      setBulkAction(null)
+      setConfirmPaidOpen(false)
+      if (!res.ok) {
+        toast.error(res.error)
+        return
+      }
+      const { done, failures } = res.data
+      if (done > 0) toast.success(BULK_DONE[action](done))
+      if (failures.length > 0) {
+        toast.error(failures.map((f) => `${f.number}: ${f.error}`).join('; '))
+      }
+      // Keep only what failed selected, so it can be retried.
+      const failed = new Set(failures.map((f) => f.number))
+      setSelected(
+        new Set(
+          selectedInvoices
+            .filter((inv) => !ids.includes(inv.id) || failed.has(inv.number))
+            .map((inv) => inv.id)
+        )
+      )
+    })
+  }
+
+  // Counts reflect search + client, so each tab says what clicking it would show.
+  const query = search.trim().toLowerCase()
+  const matchesFilters = (inv: InvoiceRow) =>
+    (clientId === EVERY_CLIENT || inv.clientId === clientId) &&
+    (!query ||
+      inv.number.toLowerCase().includes(query) ||
+      inv.projectName.toLowerCase().includes(query) ||
+      inv.clientName.toLowerCase().includes(query))
+
+  const filtered = invoices.filter(matchesFilters)
+  const counts = Object.fromEntries(
+    TABS.map((t) => [
+      t.id,
+      filtered.filter((inv) => inTab(inv.status, t.id)).length,
+    ])
+  ) as Record<StatusTab, number>
+
+  const rows = filtered.filter((inv) => inTab(inv.status, tab))
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const pageRows = rows.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  )
+  const rangeStart = rows.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, rows.length)
+
+  const allOnPageSelected =
+    pageRows.length > 0 && pageRows.every((inv) => selected.has(inv.id))
+
+  const resetPage = () => setPage(1)
+
+  const toggleAll = () =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      for (const inv of pageRows) {
+        if (allOnPageSelected) next.delete(inv.id)
+        else next.add(inv.id)
+      }
+      return next
+    })
+
+  const toggleOne = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  const remind = (inv: InvoiceRow) => {
+    setRemindingId(inv.id)
+    startReminding(async () => {
+      const res = await sendInvoiceReminderAction(orgSlug, inv.id)
+      setRemindingId(null)
+      if (!res.ok) {
+        toast.error(res.error)
+        return
+      }
+      toast.success(`Reminder for ${inv.number} sent to ${res.data.sentTo}`)
+    })
+  }
+
+  const dueCaption = (inv: InvoiceRow) => {
+    if (inv.status === 'paid' && inv.paidAt) {
+      return {
+        text: `Paid ${fmt.date(inv.paidAt, 'day')}`,
+        className: 'text-success',
+      }
+    }
+    if (!inv.dueDate || inv.status === 'draft' || inv.status === 'cancelled') {
+      return null
+    }
+    const days = daysBetween(today, inv.dueDate)
+    if (inv.status === 'overdue' || days < 0) {
+      return {
+        text: `${Math.abs(days)}d overdue`,
+        className: 'text-destructive',
+      }
+    }
+    return {
+      text: days === 0 ? 'Due today' : `in ${days}d`,
+      className: 'text-muted-foreground',
+    }
+  }
+
+  return (
+    <section aria-label="Invoices" className="space-y-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div
+          role="tablist"
+          aria-label="Invoice status"
+          className="bg-card border-border/80 flex w-fit flex-wrap items-center gap-1 rounded-xl border p-1"
+        >
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              onClick={() => {
+                setTab(t.id)
+                resetPage()
+              }}
+              className={cn(
+                'text-muted-foreground hover:text-foreground cursor-pointer rounded-lg px-3 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors',
+                tab === t.id && 'bg-muted text-foreground font-semibold'
+              )}
+            >
+              {t.label} · {counts[t.id]}
+            </button>
+          ))}
+        </div>
+
+        <FxInputGroup className="bg-card h-10 lg:max-w-72">
+          <FxInputGroupAddon className="border-none">
+            <Search className="text-muted-foreground size-4" />
+          </FxInputGroupAddon>
+          <FxInputGroupInput
+            placeholder="Invoice no, project or client"
+            aria-label="Search invoices"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              resetPage()
+            }}
+          />
+        </FxInputGroup>
+
+        <Select
+          value={clientId}
+          onValueChange={(value) => {
+            setClientId(value)
+            resetPage()
+          }}
+        >
+          <SelectTrigger
+            aria-label="Client"
+            className="bg-card h-10! w-full cursor-pointer text-[13px] lg:w-48"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent
+            position="popper"
+            align="start"
+            sideOffset={6}
+            className="p-1"
+          >
+            <SelectItem
+              value={EVERY_CLIENT}
+              className="cursor-pointer p-2 text-[13px]"
+            >
+              Every client
+            </SelectItem>
+            {clients.map((c) => (
+              <SelectItem
+                key={c.id}
+                value={c.id}
+                className="cursor-pointer p-2 text-[13px]"
+              >
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {selectedInvoices.length > 0 && (
+        <div
+          role="region"
+          aria-label="Bulk invoice actions"
+          className="border-primary/40 bg-primary/5 flex flex-col gap-3 rounded-xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="text-primary text-[13px] font-semibold">
+            {selectedInvoices.length}{' '}
+            {selectedInvoices.length === 1 ? 'invoice' : 'invoices'} selected
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {canRemindClients && (
+              <>
+                <FxButton
+                  type="button"
+                  variant="outline"
+                  disabled={
+                    bulkAction !== null || bulkTargets('send').length === 0
+                  }
+                  title={
+                    bulkTargets('send').length === 0
+                      ? 'No drafts in the selection'
+                      : undefined
+                  }
+                  onClick={() => runBulk('send')}
+                  className="bg-card gap-1"
+                >
+                  {bulkAction === 'send' && (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  )}
+                  Send drafts
+                </FxButton>
+                <FxButton
+                  type="button"
+                  variant="outline"
+                  disabled={
+                    bulkAction !== null || bulkTargets('remind').length === 0
+                  }
+                  title={
+                    bulkTargets('remind').length === 0
+                      ? 'No sent or overdue invoices in the selection'
+                      : undefined
+                  }
+                  onClick={() => runBulk('remind')}
+                  className="bg-card gap-1"
+                >
+                  {bulkAction === 'remind' && (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  )}
+                  Send reminders
+                </FxButton>
+                <FxButton
+                  type="button"
+                  disabled={
+                    bulkAction !== null || bulkTargets('paid').length === 0
+                  }
+                  title={
+                    bulkTargets('paid').length === 0
+                      ? 'Everything selected is already paid'
+                      : undefined
+                  }
+                  onClick={() => setConfirmPaidOpen(true)}
+                >
+                  Mark paid
+                </FxButton>
+              </>
+            )}
+            <FxButton
+              type="button"
+              variant="ghost"
+              disabled={bulkAction !== null}
+              className="bg-transparent"
+              onClick={() => setSelected(new Set())}
+            >
+              Clear
+            </FxButton>
+          </div>
+        </div>
+      )}
+
+      <FxConfirmDialog
+        open={confirmPaidOpen}
+        onOpenChange={(open) => {
+          if (bulkAction === null) setConfirmPaidOpen(open)
+        }}
+        destructive={false}
+        title={`Mark ${bulkTargets('paid').length} ${bulkTargets('paid').length === 1 ? 'invoice' : 'invoices'} paid?`}
+        description="Use this when the client paid outside Stripe, such as by bank transfer. Their Stripe payment link is closed so they can't pay twice."
+        confirmLabel="Mark paid"
+        pendingLabel="Marking paid..."
+        isPending={bulkAction === 'paid'}
+        onConfirm={() => runBulk('paid')}
+      />
+
+      <div className="bg-card border-border/80 overflow-hidden rounded-2xl border shadow-xs">
+        <FxTableScroll>
+          <FxTable className="w-full min-w-225 table-fixed text-xs">
+            <FxTableHeader>
+              <FxTableRow>
+                <FxTableHead className="w-10">
+                  <Checkbox
+                    aria-label="Select all invoices on this page"
+                    checked={allOnPageSelected}
+                    onCheckedChange={toggleAll}
+                    disabled={pageRows.length === 0}
+                  />
+                </FxTableHead>
+                <FxTableHead className="w-28">INVOICE</FxTableHead>
+                <FxTableHead className="w-44">PROJECT</FxTableHead>
+                <FxTableHead className="w-44">CLIENT</FxTableHead>
+                <FxTableHead className="w-28">AMOUNT</FxTableHead>
+                <FxTableHead className="w-28">STATUS</FxTableHead>
+                <FxTableHead className="w-28">DUE</FxTableHead>
+                <FxTableHead className="text w-25">ACTIONS</FxTableHead>
+              </FxTableRow>
+            </FxTableHeader>
+
+            <TableBody>
+              {pageRows.length === 0 ? (
+                <FxTableRow>
+                  <FxTableCell
+                    colSpan={8}
+                    className="text-muted-foreground py-8 text-center text-sm"
+                  >
+                    No invoices match these filters.
+                  </FxTableCell>
+                </FxTableRow>
+              ) : (
+                pageRows.map((inv) => {
+                  const badge = STATUS_BADGE[inv.status]
+                  const caption = dueCaption(inv)
+                  const canRemind =
+                    canRemindClients &&
+                    (inv.status === 'sent' || inv.status === 'overdue')
+
+                  return (
+                    <FxTableRow
+                      key={inv.id}
+                      className="h-15 cursor-pointer"
+                      // The whole row opens the invoice; the number is the keyboard / middle-click
+                      // link, and the checkbox and action cells stop the click from reaching here.
+                      onClick={() => router.push(detailHref(inv))}
+                    >
+                      <FxTableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          aria-label={`Select ${inv.number}`}
+                          checked={selected.has(inv.id)}
+                          onCheckedChange={() => toggleOne(inv.id)}
+                        />
+                      </FxTableCell>
+                      <FxTableCell>
+                        <Link
+                          href={detailHref(inv)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-foreground block font-mono text-[13px] font-bold hover:underline"
+                        >
+                          {inv.number}
+                        </Link>
+                        <p className="text-muted-foreground text-2xs">
+                          {KIND_LABEL[inv.kind]}
+                        </p>
+                      </FxTableCell>
+                      <FxTableCell className="text-foreground truncate text-[13px]">
+                        {inv.projectName}
+                      </FxTableCell>
+                      <FxTableCell className="text-muted-foreground truncate text-[13px]">
+                        {inv.clientName}
+                      </FxTableCell>
+                      <FxTableCell className="text-foreground font-mono text-[13px] font-bold">
+                        {formatCurrency(inv.amount, currency, { locale })}
+                      </FxTableCell>
+                      <FxTableCell>
+                        <FxBadge variant={badge.variant} size="sm" dot>
+                          {badge.label}
+                        </FxBadge>
+                      </FxTableCell>
+                      <FxTableCell>
+                        <p className="text-foreground text-[13px]">
+                          {inv.dueDate ? fmt.date(inv.dueDate, 'day') : '-'}
+                        </p>
+                        {caption && (
+                          <p
+                            className={cn(
+                              'text-2xs font-medium',
+                              caption.className
+                            )}
+                          >
+                            {caption.text}
+                          </p>
+                        )}
+                      </FxTableCell>
+                      <FxTableCell onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-start gap-2">
+                          {canRemind && (
+                            <FxButton
+                              type="button"
+                              variant="secondary"
+                              size="xs"
+                              disabled={remindingId !== null}
+                              onClick={() => remind(inv)}
+                              className="gap-1"
+                            >
+                              {remindingId === inv.id && (
+                                <Loader2 className="size-3.5 animate-spin" />
+                              )}
+                              {remindingId === inv.id ? 'Sending...' : 'Remind'}
+                            </FxButton>
+                          )}
+                          {inv.invoiceUrl ? (
+                            <FxButton asChild variant="outline" size="xs">
+                              {/* The Stripe-hosted invoice - what the client sees and pays. */}
+                              <a
+                                href={inv.invoiceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                Open
+                              </a>
+                            </FxButton>
+                          ) : (
+                            <FxButton
+                              type="button"
+                              variant="outline"
+                              size="xs"
+                              disabled
+                              title="No Stripe invoice yet - it is created when the invoice is issued"
+                            >
+                              Open
+                            </FxButton>
+                          )}
+                        </div>
+                      </FxTableCell>
+                    </FxTableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </FxTable>
+        </FxTableScroll>
+
+        <div className="border-border text-muted-foreground flex items-center justify-between border-t px-4 py-3 text-xs">
+          <p>
+            Showing {rangeStart}-{rangeEnd} of {rows.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <span>
+              Page {currentPage} of {totalPages}
+            </span>
+            <FxButton
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Previous page"
+              disabled={currentPage <= 1}
+              onClick={() => setPage(currentPage - 1)}
+            >
+              <ChevronLeft className="size-4" />
+            </FxButton>
+            <FxButton
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Next page"
+              disabled={currentPage >= totalPages}
+              onClick={() => setPage(currentPage + 1)}
+            >
+              <ChevronRight className="size-4" />
+            </FxButton>
+          </div>
+        </div>
+      </div>
+
+      <p className="text-muted-foreground flex items-start gap-1.5 text-xs">
+        <Info className="mt-0.5 size-3.5 shrink-0" />
+        Sending an invoice emails the client a Stripe-hosted payment link. No
+        card data touches our servers; a signed webhook flips the status to
+        Paid.
+      </p>
+    </section>
+  )
+}

@@ -1,11 +1,11 @@
 'use client'
 
 import { FxButton } from '@/components/shared/fx-button'
+import { isAdminRole } from '@/lib/role'
 import { Clock, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useWorkspace } from '../../context/workspace-context'
 import { UserRole } from '../../types'
-import { LogTimeSheet } from '../sheets/log-time-sheet'
-import { NewProjectSheet } from '../sheets/new-project-sheet'
 import { TimeGreeting } from './time-greetings'
 
 interface DashboardHeadersProps {
@@ -19,22 +19,22 @@ interface DashboardHeadersProps {
 
 export function DashboardHeaders({
   userName,
-  orgName = 'Interloid Studio',
   role,
   onDraftUpdateClick,
   onLogTimeClick,
   onNewProjectClick,
 }: DashboardHeadersProps) {
-  const [isLogTimeOpen, setIsLogTimeOpen] = useState(false)
-  const [isNewProjectOpen, setIsNewProjectOpen] = useState(false)
-
+  const router = useRouter()
+  const { orgSlug } = useWorkspace()
   const handleLogTimeClick = () => {
-    setIsLogTimeOpen(true)
+    // Logging time has its own page.
+    router.push(`/${orgSlug}/time/log`)
     onLogTimeClick?.()
   }
 
   const handleNewProjectClick = () => {
-    setIsNewProjectOpen(true)
+    // New projects are created on their own page; only admins can open it.
+    if (isAdminRole(role)) router.push(`/${orgSlug}/projects/new`)
     onNewProjectClick?.()
   }
 
@@ -50,7 +50,7 @@ export function DashboardHeaders({
           <FxButton
             variant="secondary"
             onClick={onDraftUpdateClick}
-            className="text-card-foreground compact:flex-row border-border hover:bg-card hover:text-accent-foreground flex h-auto flex-col justify-center gap-1.5 px-2 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:px-3 sm:whitespace-nowrap"
+            className="text-card-foreground compact:flex-row border-border hover:bg-card flex h-auto flex-col justify-center gap-1.5 px-2 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:px-3 sm:whitespace-nowrap"
           >
             <Sparkles
               className="text-primary shrink-0"
@@ -64,7 +64,7 @@ export function DashboardHeaders({
           <FxButton
             variant="secondary"
             onClick={handleLogTimeClick}
-            className="text-card-foreground compact:flex-row border-border hover:bg-card hover:text-accent-foreground flex h-auto flex-col justify-center gap-1.5 px-2 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:px-3 sm:whitespace-nowrap"
+            className="text-card-foreground compact:flex-row border-border hover:bg-card flex h-auto flex-col justify-center gap-1.5 px-2 py-2 text-center text-[13px] font-medium whitespace-normal sm:h-9 sm:px-3 sm:whitespace-nowrap"
           >
             <Clock className="text-primary shrink-0" width={14} height={14} />
             <span className="leading-tight">Log time</span>
@@ -80,16 +80,6 @@ export function DashboardHeaders({
           </FxButton>
         </div>
       </div>
-
-      {/* Sheets */}
-      <LogTimeSheet open={isLogTimeOpen} onOpenChange={setIsLogTimeOpen} />
-      {role === 'admin' ||
-        (role === 'owner' && (
-          <NewProjectSheet
-            open={isNewProjectOpen}
-            onOpenChange={setIsNewProjectOpen}
-          />
-        ))}
     </>
   )
 }

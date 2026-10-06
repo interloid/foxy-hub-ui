@@ -22,10 +22,10 @@ function FxSheetContent({
     <SheetContent
       data-slot="fx-sheet-content"
       side="right"
-
       className={cn(
         'border-l-border-strong bg-popover shadow-panel gap-0 p-0',
         'data-[side=right]:w-full data-[side=right]:sm:max-w-125',
+        '[&>button]:cursor-pointer [&>button]:bg-transparent [&>button]:hover:bg-transparent [&>button]:focus:outline-none',
         className
       )}
       {...props}

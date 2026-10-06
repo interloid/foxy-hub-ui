@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { ReactNode, useState } from 'react'
 import { AppFooter, type FooterProps } from './app-footer'
 import { AppSidebar, type NavSection } from './app-sidebar'
-import { TopBar } from './top-bar'
+import { TopBar, type BreadcrumbNavItem } from './top-bar'
 
 export function AppShell({
   sections,
@@ -13,9 +13,11 @@ export function AppShell({
   workspace,
   account,
   breadcrumb,
+  projectName,
   footer,
   notificationCount,
   onSearch,
+  banner,
   children,
   className,
 }: {
@@ -27,12 +29,16 @@ export function AppShell({
     email: string
     role: string
     initials: string
+    avatarUrl?: string | null
     org?: string
   }
-  breadcrumb?: ReactNode
+  breadcrumb?: BreadcrumbNavItem[]
+  projectName?: string
   footer: FooterProps
   notificationCount?: number
   onSearch?: () => void
+  /** A strip above the top bar, e.g. the demo workspace notice. */
+  banner?: ReactNode
   children: ReactNode
   className?: string
 }) {
@@ -41,7 +47,8 @@ export function AppShell({
 
   const currentActiveHref = activeHref ?? pathname
 
-  const currentBreadcrumb = breadcrumb ?? getBreadcrumbFromPath(pathname)
+  const currentBreadcrumbs =
+    breadcrumb ?? generateBreadcrumbs(pathname, workspace.org, projectName)
 
   return (
     <div
@@ -63,7 +70,7 @@ export function AppShell({
         <div className="shell:hidden fixed inset-0 z-50 flex">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/50 transition-opacity"
+            className="bg-popover/80 fixed inset-0 backdrop-blur-xs transition-opacity"
             onClick={() => setMobileOpen(false)}
           />
 
@@ -86,8 +93,9 @@ export function AppShell({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {banner}
         <TopBar
-          breadcrumb={currentBreadcrumb}
+          breadcrumbs={currentBreadcrumbs}
           account={{ ...account, org: account.org ?? workspace.org }}
           notificationCount={notificationCount}
           onMenuClick={() => setMobileOpen(true)}
@@ -104,8 +112,61 @@ export function AppShell({
   )
 }
 
-function getBreadcrumbFromPath(pathname: string): ReactNode {
-  if (pathname.endsWith('/profile/password')) return 'Change password'
-  if (pathname.endsWith('/profile')) return 'Profile'
-  return 'Home'
+function generateBreadcrumbs(
+  pathname: string,
+  orgSlug: string,
+  projectName?: string
+): BreadcrumbNavItem[] {
+  const segments = pathname.split('/').filter(Boolean)
+  const projectsIndex = segments.indexOf('projects')
+
+  // Handle Projects & Project Detail Routes
+  if (projectsIndex !== -1) {
+    const isDetailPage = segments.length > projectsIndex + 1
+    const projectId = segments[projectsIndex + 1]
+
+    if (isDetailPage && projectId) {
+      return [
+        {
+          label: 'Projects',
+          href: `/${orgSlug}/projects`,
+        },
+        {
+          label: projectName ?? 'Project Details',
+        },
+      ]
+    }
+
+    return [
+      {
+        label: 'Projects',
+      },
+    ]
+  }
+
+  // Handle Profile & Password Routes
+  if (pathname.endsWith('/profile/password')) {
+    return [
+      { label: 'Profile', href: `/${orgSlug}/profile` },
+      { label: 'Change password' },
+    ]
+  }
+
+  if (pathname.endsWith('/profile')) {
+    return [{ label: 'Profile' }]
+  }
+
+  if (pathname.endsWith('/time')) {
+    return [{ label: 'Time' }]
+  }
+
+  if (pathname.endsWith('/activity')) {
+    return [{ label: 'Activity' }]
+  }
+
+  if (pathname.endsWith('/ai-updates')) {
+    return [{ label: 'AI updates' }]
+  }
+
+  return [{ label: 'Home', href: `/${orgSlug}` }]
 }

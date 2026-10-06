@@ -1,0 +1,299 @@
+-- =====================================================================
+-- Invoices: creating one and claiming the hours it bills, in one transaction.
+-- SECURITY DEFINER functions: all must set search_path = '' and fully
+-- qualify every reference.
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- Invoice: create and claim the hours it bills, in one transaction
+-- ---------------------------------------------------------------------
+--
+-- The two writes MUST be atomic. An invoice that inserts but fails to stamp its entries
+-- leaves those hours looking unbilled, and next month's invoice bills them a second time —
+-- which is the exact bug `time_entries.invoice_id` was added to close. Doing it from the
+-- action as two round trips reintroduces it on any error between them.
+--
+-- SECURITY DEFINER is required, not preferred: `09_rls_time_entries` lets a user update only
+-- their OWN entries and only while they are `draft`. Stamping an approved entry that belongs
+-- to a teammate is impossible under that policy, so the role check happens here instead —
+-- the same shape as `approve_time_entry` and `create_project_with_allocations`.
+--
+-- Lines travel INSIDE `invoice_data` rather than as a third parameter. `create or replace`
+-- cannot change a function's signature — it would define an overload and leave the old
+-- two-argument version behind, which PostgREST then has to disambiguate. Keeping the
+-- signature stable means this file replaces the function it already declared.
+create or replace function public.create_invoice_with_entries(
+  invoice_data jsonb,
+  entry_ids    uuid[] default '{}'::uuid[]
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_invoice_id uuid;
+  v_line       jsonb;
+  v_sort       smallint := 0;
+  v_org_id     uuid;
+  v_project_id uuid;
+  v_engagement public.engagement_model;
+  v_period     date;
+  v_year       text;
+  v_seq        int;
+  v_number     text;
+  v_claimed    int;
+  v_fixed_count int;
+  v_status      public.project_status;
+begin
+  v_org_id     := (invoice_data->>'org_id')::uuid;
+  v_project_id := (invoice_data->>'project_id')::uuid;
+  v_period     := nullif(invoice_data->>'period_start', '')::date;
+
+  -- 1. Authorization: only primary admins and admins bill. `manager` is deliberately absent —
+  --    billing is the one thing that role does not do. See schemas/types/types.sql.
+  if not public.has_org_role(v_org_id, array['primary_admin', 'admin']::public.user_role[]) then
+    raise exception 'Not authorized to create invoices for this organization' using errcode = '42501';
+  end if;
+
+  -- 2. The project must belong to the org the caller is billing under, and its engagement model
+  --    decides which double-billing guard applies below. Read from the table rather than trusted
+  --    from the payload, since without the org check a caller who administers org A could raise
+  --    an invoice against org B's project by passing its id.
+  select p.engagement into v_engagement
+    from public.projects p
+   where p.id = v_project_id and p.org_id = v_org_id;
+
+  if v_engagement is null then
+    raise exception 'Project does not belong to this organization' using errcode = '42501';
+  end if;
+
+  -- 3. Period guard for retainers. `invoices_project_period_key` enforces this too, but reaching
+  --    it surfaces a unique-violation; this raises something a user can read.
+  --    A voided (cancelled) invoice no longer holds its period, so the period can be re-billed.
+  if v_period is not null and exists (
+    select 1 from public.invoices i
+    where i.project_id = v_project_id
+      and i.period_start = v_period
+      and i.status <> 'cancelled'
+  ) then
+    raise exception 'This project is already invoiced for the period starting %', v_period
+      using errcode = '23505';
+  end if;
+
+  -- 4. Fixed-price guard. A fixed engagement bills in exactly two stages rather than one flat
+  --    fee: half once the project reaches `in-progress`, the remaining half once it reaches
+  --    `pending-approval`. Capped at two invoices total, and each stage can only be raised while
+  --    the project is actually at that stage — read from the table rather than trusted from the
+  --    payload, so a stale client can't submit the wrong half out of order.
+  if v_engagement = 'fixed' then
+    -- Voided invoices don't count: the stage they billed can be raised again.
+    select count(*) into v_fixed_count
+      from public.invoices i
+     where i.project_id = v_project_id
+       and i.status <> 'cancelled';
+
+    if v_fixed_count >= 2 then
+      raise exception 'This fixed-price project has already been fully invoiced' using errcode = '23505';
+    end if;
+
+    select p.status into v_status from public.projects p where p.id = v_project_id;
+
+    if v_fixed_count = 0 and v_status <> 'in-progress' then
+      raise exception 'The first fixed-price invoice can only be raised while the project is in progress'
+        using errcode = '22023';
+    end if;
+
+    if v_fixed_count = 1 and v_status <> 'pending-approval' then
+      raise exception 'The final fixed-price invoice can only be raised once the project is pending approval'
+        using errcode = '22023';
+    end if;
+  end if;
+
+  -- Billable guard. Time logged as non-billable (the Log time page's toggle) is internal work:
+  -- approved like any other, but never invoiced. The app already leaves it out of drafts; this
+  -- refuses it outright, before anything is written, with a message that says why - rather
+  -- than letting the claim below under-count and report it as "already invoiced".
+  if array_length(entry_ids, 1) > 0 and exists (
+    select 1
+      from public.time_entries te
+     where te.id = any(entry_ids)
+       and not te.billable
+  ) then
+    raise exception 'Non-billable hours cannot be invoiced' using errcode = '22023';
+  end if;
+
+  -- 5. Invoice number: INV-<year>-<seq>, sequential per org per year. Derived inside the
+  --    transaction so two concurrent generations cannot read the same max; if they interleave
+  --    anyway, `invoice_number`'s unique constraint rejects the loser rather than duplicating.
+  v_year := to_char(now(), 'YYYY');
+
+  select coalesce(max((regexp_replace(i.invoice_number, '^.*-', ''))::int), 0) + 1
+    into v_seq
+    from public.invoices i
+   where i.org_id = v_org_id
+     and i.invoice_number like 'INV-' || v_year || '-%';
+
+  v_number := 'INV-' || v_year || '-' || lpad(v_seq::text, 3, '0');
+
+  -- 6. Insert the invoice.
+  insert into public.invoices (
+    invoice_number,
+    org_id,
+    project_id,
+    amount,
+    subtotal,
+    currency,
+    description,
+    status,
+    due_date,
+    period_start,
+    period_end
+  )
+  values (
+    v_number,
+    v_org_id,
+    v_project_id,
+    (invoice_data->>'amount')::numeric,
+    (invoice_data->>'amount')::numeric,
+    coalesce(nullif(invoice_data->>'currency', ''), 'USD'),
+    nullif(invoice_data->>'description', ''),
+    coalesce(nullif(invoice_data->>'status', '')::public.invoice_status, 'draft'::public.invoice_status),
+    nullif(invoice_data->>'due_date', '')::timestamptz,
+    v_period,
+    nullif(invoice_data->>'period_end', '')::date
+  )
+  returning id into v_invoice_id;
+
+  -- 7. Freeze the lines.
+  --
+  -- Written in the same transaction as the invoice for the same reason the hours are: an
+  -- invoice whose lines failed to save is a total with nothing behind it, and no later run
+  -- can reconstruct them once rates or entries have moved on.
+  if jsonb_array_length(coalesce(invoice_data->'lines', '[]'::jsonb)) > 0 then
+    for v_line in select * from jsonb_array_elements(invoice_data->'lines')
+    loop
+      insert into public.invoice_lines (
+        invoice_id,
+        description,
+        type_label,
+        quantity,
+        unit_rate,
+        amount,
+        sort_order
+      )
+      values (
+        v_invoice_id,
+        v_line->>'description',
+        v_line->>'type_label',
+        nullif(v_line->>'quantity', '')::numeric,
+        nullif(v_line->>'unit_rate', '')::numeric,
+        (v_line->>'amount')::numeric,
+        v_sort
+      );
+
+      v_sort := v_sort + 1;
+    end loop;
+  end if;
+
+  -- 8. Claim the hours. The where clause re-states every precondition rather than trusting the
+  --    caller's list: right project, approved, billable, and STILL unbilled. `invoice_id is null` is the
+  --    one that matters — it makes the claim idempotent under a concurrent generation, because
+  --    the second transaction finds nothing left to take.
+  if array_length(entry_ids, 1) > 0 then
+    update public.time_entries te
+       set invoice_id = v_invoice_id
+     where te.id         = any(entry_ids)
+       and te.project_id = v_project_id
+       and te.status     = 'approved'
+       and te.billable
+       and te.invoice_id is null;
+
+    get diagnostics v_claimed = row_count;
+
+    -- Under-claiming means someone billed these hours between the draft being built and this
+    -- call. Rolling back is right: the amount was computed FROM those hours, so an invoice
+    -- that keeps the total but loses the lines would overbill.
+    if v_claimed <> array_length(entry_ids, 1) then
+      raise exception 'Some hours were already invoiced; refresh and try again'
+        using errcode = '40001';
+    end if;
+  end if;
+
+  return v_invoice_id;
+end;
+$$;
+
+-- Role authorization happens inside the function, as with the other definers above.
+grant execute on function public.create_invoice_with_entries(jsonb, uuid[]) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- Invoice: void, and release what it billed, in one transaction
+-- ---------------------------------------------------------------------
+--
+-- The undo of `create_invoice_with_entries`. Voiding sets the invoice to `cancelled` and
+-- un-claims its hours (`time_entries.invoice_id` back to null), so the next invoice can bill
+-- them. The period and fixed-stage guards above already skip cancelled invoices, so a voided
+-- retainer period or fixed stage is free to be raised again too.
+--
+-- The invoice row and its lines are KEPT: a voided invoice is still a document that existed,
+-- and its number is never reused.
+--
+-- SECURITY DEFINER for the same reason as creating: releasing a teammate's approved entries
+-- is impossible under `09_rls_time_entries`. Billing roles only - primary admin and admin -
+-- matching who can raise an invoice. The Stripe side (voiding the hosted invoice so it can't
+-- be paid) is the `void-invoice` Edge Function's job, done BEFORE this is called.
+--
+-- Returns how many entries were released.
+create or replace function public.void_invoice(p_invoice_id uuid)
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_org_id   uuid;
+  v_status   public.invoice_status;
+  v_released int;
+begin
+  if not public.mfa_satisfied() then
+    raise exception 'Two-factor verification required' using errcode = '42501';
+  end if;
+
+  -- Locked, so a webhook marking it paid can't interleave with the void.
+  select i.org_id, i.status
+    into v_org_id, v_status
+    from public.invoices i
+   where i.id = p_invoice_id
+     for update;
+
+  if v_org_id is null then
+    raise exception 'Invoice not found' using errcode = 'P0002';
+  end if;
+
+  if not public.has_org_role(v_org_id, array['primary_admin', 'admin']::public.user_role[]) then
+    raise exception 'Not authorized to void invoices for this organization' using errcode = '42501';
+  end if;
+
+  if v_status = 'cancelled' then
+    return 0;
+  end if;
+
+  if v_status = 'paid' then
+    raise exception 'A paid invoice cannot be voided' using errcode = '22023';
+  end if;
+
+  update public.invoices
+     set status = 'cancelled'
+   where id = p_invoice_id;
+
+  update public.time_entries
+     set invoice_id = null
+   where invoice_id = p_invoice_id;
+
+  get diagnostics v_released = row_count;
+  return v_released;
+end;
+$$;
+
+grant execute on function public.void_invoice(uuid) to authenticated;

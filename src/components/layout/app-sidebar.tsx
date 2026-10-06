@@ -1,5 +1,6 @@
 'use client'
 
+import { UserAvatar } from '@/components/shared/app/user-avatar'
 import {
   FxTooltip,
   FxTooltipContent,
@@ -14,12 +15,15 @@ import { cn } from '@/lib/utils'
 import { Fragment, useSyncExternalStore } from 'react'
 import { NAV_ICONS, type NavIconName } from './nav-icons'
 import { NavItem } from './nav-item'
+import { FxBadge } from '../shared/fx-badge'
+import { roleLabel } from '@/lib/role'
 
 export type NavEntry = {
   label: string
   icon: NavIconName
   href: string
   count?: number
+  exact?: boolean
 }
 
 export type NavSection = {
@@ -45,7 +49,13 @@ export function AppSidebar({
   sections: NavSection[]
   activeHref: string
   workspace: { name: string; org: string }
-  account: { name: string; role: string; initials: string; email: string }
+  account: {
+    name: string
+    role: string
+    initials: string
+    avatarUrl?: string | null
+    email: string
+  }
   onSearch?: () => void
   className?: string
   isMobile?: boolean
@@ -150,7 +160,7 @@ export function AppSidebar({
 
             <span className="flex-1 text-left">Search</span>
 
-            <span className="bg-accent text-2xs rounded-lg px-1.25 py-px font-mono">
+            <span className="bg-muted text-2xs rounded-lg px-1.25 py-px font-mono">
               ⌘K
             </span>
           </button>
@@ -162,18 +172,24 @@ export function AppSidebar({
               <>
                 <div className="bg-border mx-1 my-1.5 h-px" />
                 {!collapsed && (
-                  <div className="text-2xs text-subtle-foreground px-2.5 pt-1 pb-1.5 leading-4 font-semibold">
+                  <div className="text-2xs text-subtle-foreground px-2.5 pt-1 pb-1.5 leading-4 font-semibold uppercase">
                     {section.label}
                   </div>
                 )}
               </>
             )}
             {section.items.map((item) => {
+              const isActive =
+                item.href === activeHref ||
+                (!item.exact &&
+                  item.href !== '/' &&
+                  activeHref.startsWith(`${item.href}/`))
+
               const navItem = (
                 <NavItem
                   density="product"
                   href={item.href}
-                  active={item.href === activeHref}
+                  active={isActive}
                   icon={<NavIcon name={item.icon} />}
                   count={item.count}
                   collapsed={collapsed}
@@ -181,18 +197,18 @@ export function AppSidebar({
                   onClick={() => {
                     if (isMobile) onClose?.()
                   }}
-                  aria-current={item.href === activeHref ? 'page' : undefined}
+                  aria-current={isActive ? 'page' : undefined}
                 >
                   {item.label}
                 </NavItem>
               )
 
               if (!collapsed) {
-                return <Fragment key={item.href}>{navItem}</Fragment>
+                return <Fragment key={item.label}>{navItem}</Fragment>
               }
 
               return (
-                <FxTooltip key={item.href}>
+                <FxTooltip key={item.label}>
                   <FxTooltipTrigger asChild>{navItem}</FxTooltipTrigger>
 
                   <FxTooltipContent side="right">{item.label}</FxTooltipContent>
@@ -212,17 +228,21 @@ export function AppSidebar({
           )}
           title={collapsed ? `${account.name} · ${account.role}` : undefined}
         >
-          <span className="bg-brand-gradient text-2xs text-primary-foreground flex size-7.5 shrink-0 items-center justify-center rounded-full font-semibold">
-            {account.initials}
-          </span>
+          <UserAvatar
+            initials={account.initials}
+            avatarUrl={account.avatarUrl}
+            className="text-2xs size-7.5"
+          />
           {!collapsed && (
-            <span className="flex min-w-0 flex-col">
+            <span className="flex min-w-0 gap-2">
               <span className="truncate text-base leading-3.75 font-medium">
                 {account.name}
               </span>
-              <span className="text-2xs text-subtle-foreground truncate leading-3.25">
-                {account.role}
-              </span>
+              {account.role && (
+                <FxBadge variant={'info'} size={'sm'}>
+                  {roleLabel(account.role)}
+                </FxBadge>
+              )}
             </span>
           )}
         </div>

@@ -1,0 +1,375 @@
+'use client'
+
+import { Check } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { toast } from 'sonner'
+
+import { UserAvatar } from '@/components/shared/app/user-avatar'
+import { FxBadge } from '@/components/shared/fx-badge'
+import { DemoDisabled } from '@/components/shared/demo-disabled'
+import { FxButton } from '@/components/shared/fx-button'
+import { FxConfirmDialog } from '@/components/shared/fx-confirm-dialog'
+import {
+  FxField,
+  FxFieldError,
+  FxInput,
+  FxLabel,
+} from '@/components/shared/fx-field'
+import {
+  FxSheetBody,
+  FxSheetContent,
+  FxSheetFooter,
+  FxSheetHeader,
+} from '@/components/shared/fx-sheet'
+import { Sheet } from '@/components/ui/sheet'
+import { Switch } from '@/components/ui/switch'
+
+import { setClientStatusAction, updateClientAction } from '../actions'
+import { clientStatusCopy } from '../lib/client-copy'
+import { NETWORK_ERROR } from '../lib/network-error'
+import { clientNameSchema, contactNameSchema, fieldError } from '../schemas'
+import type { ClientCompanyRow } from '../types'
+
+interface EditClientSheetProps {
+  orgSlug: string
+  client: ClientCompanyRow | null
+  open: boolean
+  canManage: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
+export function EditClientSheet({ client, ...props }: EditClientSheetProps) {
+  if (!client) return null
+  return <EditClientSheetForm key={client.id} client={client} {...props} />
+}
+
+function EditClientSheetForm({
+  orgSlug,
+  client,
+  canManage,
+  open,
+  onOpenChange,
+}: EditClientSheetProps & { client: ClientCompanyRow }) {
+  const [name, setName] = useState(client.name)
+  const [contactName, setContactName] = useState(client.contactName ?? '')
+  const [portal, setPortal] = useState(client.hasPortal)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false)
+  const [touched, setTouched] = useState({ name: false, contactName: false })
+  const [showDiscard, setShowDiscard] = useState(false)
+  const [showStatusConfirm, setShowStatusConfirm] = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null)
+
+  const nameError = fieldError(clientNameSchema, name)
+  const contactNameError = fieldError(contactNameSchema, contactName)
+  const hasErrors = Boolean(nameError || contactNameError)
+
+  const isDirty =
+    name.trim() !== client.name ||
+    contactName.trim() !== (client.contactName ?? '') ||
+    portal !== client.hasPortal
+
+  // The form stays mounted while the sheet is closed, so discarding puts the saved
+  // values back — otherwise reopening this client shows the discarded edits.
+  const close = () => {
+    setName(client.name)
+    setContactName(client.contactName ?? '')
+    setPortal(client.hasPortal)
+    setTouched({ name: false, contactName: false })
+    setShowDiscard(false)
+    onOpenChange(false)
+  }
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next && isDirty) {
+      setShowDiscard(true)
+      return
+    }
+    onOpenChange(next)
+  }
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setTouched({ name: true, contactName: true })
+    if (hasErrors) return
+
+    setIsSaving(true)
+    let result
+    try {
+      result = await updateClientAction(orgSlug, client.id, {
+        name,
+        contactName,
+        portal,
+      })
+    } catch {
+      toast.error(NETWORK_ERROR)
+      return
+    } finally {
+      setIsSaving(false)
+    }
+
+    if (!result.ok) {
+      toast.error(result.error)
+      return
+    }
+
+    toast.success(`${name.trim()} was updated.`)
+    onOpenChange(false)
+  }
+
+  const handleToggleStatus = async () => {
+    setIsTogglingStatus(true)
+    const next = !client.isActive
+    let result
+    try {
+      result = await setClientStatusAction(orgSlug, client.id, next)
+    } catch {
+      toast.error(NETWORK_ERROR)
+      return
+    } finally {
+      setIsTogglingStatus(false)
+      setShowStatusConfirm(false)
+    }
+
+    if (!result.ok) {
+      toast.error(result.error)
+      return
+    }
+
+    toast.success(`${client.name} was ${next ? 'reactivated' : 'deactivated'}.`)
+    onOpenChange(false)
+  }
+
+  const statusCopy = clientStatusCopy(client.name, client.isActive)
+
+  const projectLabel =
+    client.projectCount === 1
+      ? '1 project in the workspace'
+      : `${client.projectCount} projects in the workspace`
+
+  return (
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <FxSheetContent
+        className="data-[side=right]:sm:max-w-165"
+        onOpenAutoFocus={(e) => {
+          // Radix focuses the first input with its text selected; put the caret at the end instead.
+          const input = nameRef.current
+          if (!input || input.disabled) return
+          e.preventDefault()
+          input.focus()
+          input.setSelectionRange(input.value.length, input.value.length)
+        }}
+      >
+        <FxSheetHeader>
+          <div className="flex items-start gap-3">
+            <UserAvatar
+              initials={initialsOf(client.name)}
+              avatarUrl={client.avatarUrl}
+              className="text-brand-white bg-info size-9 bg-none text-xs font-bold"
+            />
+            <div className="min-w-0 space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-foreground truncate text-[15px] font-semibold">
+                  {client.name}
+                </span>
+                <FxBadge
+                  variant={client.isActive ? 'success' : 'secondary'}
+                  size="sm"
+                  shape="pill"
+                >
+                  {client.isActive ? 'Active' : 'Deactivated'}
+                </FxBadge>
+              </div>
+              <p className="text-muted-foreground truncate text-xs">
+                {client.contactEmail
+                  ? `${client.contactEmail} · ${projectLabel}`
+                  : projectLabel}
+              </p>
+            </div>
+          </div>
+        </FxSheetHeader>
+
+        <form onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col">
+          <FxSheetBody className="space-y-6">
+            <div className="space-y-1">
+              <FxField>
+                <FxLabel htmlFor="edit-client-name">
+                  Client name <span className="text-destructive">*</span>
+                </FxLabel>
+                <FxInput
+                  ref={nameRef}
+                  id="edit-client-name"
+                  required
+                  disabled={!canManage}
+                  maxLength={80}
+                  value={name}
+                  aria-invalid={touched.name && nameError !== null}
+                  aria-describedby={
+                    touched.name && nameError
+                      ? 'edit-client-name-error'
+                      : undefined
+                  }
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={() => setTouched((p) => ({ ...p, name: true }))}
+                />
+                {touched.name && nameError && (
+                  <FxFieldError id="edit-client-name-error">
+                    {nameError}
+                  </FxFieldError>
+                )}
+              </FxField>
+
+              <FxField>
+                <FxLabel htmlFor="edit-client-contact-name">
+                  Primary contact
+                </FxLabel>
+                <FxInput
+                  id="edit-client-contact-name"
+                  maxLength={80}
+                  disabled={!canManage}
+                  placeholder="Erik Lund"
+                  value={contactName}
+                  aria-invalid={
+                    touched.contactName && contactNameError !== null
+                  }
+                  aria-describedby={
+                    touched.contactName && contactNameError
+                      ? 'edit-client-contact-name-error'
+                      : undefined
+                  }
+                  onChange={(e) => setContactName(e.target.value)}
+                  onBlur={() =>
+                    setTouched((p) => ({ ...p, contactName: true }))
+                  }
+                />
+                {touched.contactName && contactNameError && (
+                  <FxFieldError id="edit-client-contact-name-error">
+                    {contactNameError}
+                  </FxFieldError>
+                )}
+              </FxField>
+
+              <label className="border-border bg-muted flex cursor-pointer items-center gap-3 rounded-lg border p-3">
+                <Switch
+                  checked={portal}
+                  disabled={!canManage}
+                  onCheckedChange={setPortal}
+                  className="[&>span]:data-[state=checked]:bg-brand-white [&>span]:data-[state=unchecked]:bg-brand-white"
+                  aria-label="Portal access"
+                />
+                <span className="space-y-0.5">
+                  <span className="text-foreground block text-[13px] font-medium">
+                    Portal access
+                  </span>
+                  <span className="text-muted-foreground block text-xs">
+                    Turning this off hides approvals and invoices from the
+                    contact immediately.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            {canManage && client.isActive && (
+              <section className="border-destructive/25 bg-destructive-subtle space-y-3 rounded-lg border p-3.5">
+                <div className="space-y-1">
+                  <h3 className="text-destructive text-2xs font-semibold tracking-wide uppercase">
+                    Danger zone
+                  </h3>
+                  <p className="text-destructive/80 text-xs leading-relaxed">
+                    Deactivating revokes their portal access immediately.
+                    Projects and invoices stay, and this can be undone later.
+                  </p>
+                </div>
+                <DemoDisabled className="flex w-full">
+                  <FxButton
+                    type="button"
+                    variant="secondary"
+                    className="border-destructive/30 text-destructive hover:border-destructive hover:bg-card w-full"
+                    disabled={isTogglingStatus}
+                    onClick={() => setShowStatusConfirm(true)}
+                  >
+                    Deactivate client
+                  </FxButton>
+                </DemoDisabled>
+              </section>
+            )}
+
+            {canManage && !client.isActive && (
+              <section className="border-success/25 bg-success-subtle space-y-3 rounded-lg border p-3.5">
+                <div className="space-y-1">
+                  <h3 className="text-success text-2xs font-semibold tracking-wide uppercase">
+                    Deactivated
+                  </h3>
+                  <p className="text-success/80 text-xs leading-relaxed">
+                    Reactivating puts them back on your client list and counts
+                    against your plan again.
+                  </p>
+                </div>
+                <DemoDisabled className="flex w-full">
+                  <FxButton
+                    type="button"
+                    variant="secondary"
+                    className="border-success/30 text-success hover:border-success hover:bg-card w-full"
+                    disabled={isTogglingStatus}
+                    onClick={() => setShowStatusConfirm(true)}
+                  >
+                    Reactivate client
+                  </FxButton>
+                </DemoDisabled>
+              </section>
+            )}
+          </FxSheetBody>
+
+          <FxSheetFooter className="justify-end">
+            <FxButton
+              type="button"
+              variant="secondary"
+              onClick={() => handleOpenChange(false)}
+            >
+              Close
+            </FxButton>
+            {canManage && (
+              <FxButton
+                type="submit"
+                disabled={isSaving || hasErrors || !isDirty}
+                className="gap-1.5"
+              >
+                <Check className="size-4" />
+                {isSaving ? 'Saving…' : 'Save changes'}
+              </FxButton>
+            )}
+          </FxSheetFooter>
+        </form>
+      </FxSheetContent>
+
+      <FxConfirmDialog
+        nested
+        open={showDiscard}
+        onOpenChange={setShowDiscard}
+        destructive={false}
+        title="Discard your changes?"
+        description="Nothing is saved until you press Save changes - closing now loses what you edited."
+        confirmLabel="Discard changes"
+        onConfirm={close}
+      />
+
+      <FxConfirmDialog
+        nested
+        open={showStatusConfirm}
+        onOpenChange={setShowStatusConfirm}
+        isPending={isTogglingStatus}
+        onConfirm={handleToggleStatus}
+        {...statusCopy}
+      />
+    </Sheet>
+  )
+}
