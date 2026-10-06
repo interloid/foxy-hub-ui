@@ -170,7 +170,8 @@ begin
         days_per_week,
         rate,
         cost_rate,
-        effective_from
+        effective_from,
+        effective_to
       )
       values (
         v_project_id,
@@ -188,7 +189,10 @@ begin
           where m.user_id = (v_alloc->>'user_id')::uuid
             and m.org_id  = v_org_id
         ),
-        nullif(v_alloc->>'effective_from', '')::date
+        nullif(v_alloc->>'effective_from', '')::date,
+        -- When the booking stops; null is open-ended. The wizard defaults it to the project's
+        -- target end date. The table's check keeps it on or after effective_from.
+        nullif(v_alloc->>'effective_to', '')::date
       );
     end loop;
   end if;

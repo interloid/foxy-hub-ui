@@ -523,6 +523,22 @@ entrypoint = "./functions/weekly-digest/index.ts"
 # Remind on the Invoices page: emails the client a payment reminder for one invoice.
 # Must stay true - it reads the invoice and checks the caller's role through their own
 # token; the service role is used only to look up the client's email and record the event.
+[functions.mark-invoice-paid]
+enabled = true
+# Must stay true, for the same reason as issue-invoice: the invoice write goes through the
+# caller's own token, so `owners_admins_update_invoices` authorises it.
+verify_jwt = true
+import_map = "./functions/mark-invoice-paid/deno.json"
+entrypoint = "./functions/mark-invoice-paid/index.ts"
+
+[functions.void-invoice]
+enabled = true
+# Must stay true: the void goes through the caller's own token, so `void_invoice`'s role
+# check and the invoice RLS authorise it.
+verify_jwt = true
+import_map = "./functions/void-invoice/deno.json"
+entrypoint = "./functions/void-invoice/index.ts"
+
 [functions.send-invoice-reminder]
 enabled = true
 verify_jwt = true

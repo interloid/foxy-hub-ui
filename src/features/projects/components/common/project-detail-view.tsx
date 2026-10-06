@@ -16,9 +16,13 @@ import type {
   ProjectAllocationItem,
   ProjectUpdate,
 } from '../../types'
+import type { ProjectActivityItem } from '../../queries/get-project-activity'
+import type { ProjectInvoiceRow } from '../../queries/get-project-invoices'
 import { ProjectInvoiceContext } from '../../types/invoice'
 import { TimeEntryItem } from '../../types/time-entries'
 import { DeliverablesSection } from '../deliverables/deliveries-card'
+import { ProjectActivityCard } from '../activity/project-activity-card'
+import { ProjectInvoicesCard } from '../invoices/project-invoices-card'
 import { ClientCard } from '../meta/client-card'
 import { EngagementCard } from '../meta/engagement-card'
 import { ProgressCard } from '../meta/progress-card'
@@ -53,6 +57,8 @@ interface ProjectDetailViewProps {
   latestDeliveries: QueryResult<GetProjectDeliveriesResult>
   totalLoggedHours: QueryResult<number>
   weeklyLoggedMinutesByUser: QueryResult<Record<string, number>>
+  projectInvoices: QueryResult<ProjectInvoiceRow[]>
+  activity: QueryResult<ProjectActivityItem[]>
   canManageAllocations?: boolean
   hasExistingInvoice?: boolean
 }
@@ -72,6 +78,8 @@ export function ProjectDetailView({
   latestDeliveries,
   totalLoggedHours,
   weeklyLoggedMinutesByUser,
+  projectInvoices,
+  activity,
   canManageAllocations = false,
   hasExistingInvoice,
 }: ProjectDetailViewProps) {
@@ -125,6 +133,12 @@ export function ProjectDetailView({
               className="cursor-pointer"
             >
               Deliveries
+            </FxTabsTriggerUnderline>
+            <FxTabsTriggerUnderline value="invoices" className="cursor-pointer">
+              Invoices
+            </FxTabsTriggerUnderline>
+            <FxTabsTriggerUnderline value="activity" className="cursor-pointer">
+              Activity
             </FxTabsTriggerUnderline>
           </FxTabsListUnderline>
         </div>
@@ -240,6 +254,24 @@ export function ProjectDetailView({
             pageSize={deliveries.data.pageSize}
             totalCount={deliveries.data.totalCount}
             totalPages={deliveries.data.totalPages}
+          />
+        </TabsContent>
+
+        <TabsContent value="invoices">
+          <ProjectInvoicesCard
+            project={project}
+            invoices={projectInvoices.data}
+            isError={projectInvoices.isError}
+            invoiceProjects={invoiceProjects.data}
+            isInvoiceError={invoiceProjects.isError}
+            hasExistingInvoice={hasExistingInvoice}
+          />
+        </TabsContent>
+
+        <TabsContent value="activity">
+          <ProjectActivityCard
+            activities={activity.data}
+            isError={activity.isError}
           />
         </TabsContent>
       </Tabs>

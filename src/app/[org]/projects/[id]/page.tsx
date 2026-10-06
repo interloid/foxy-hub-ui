@@ -9,6 +9,8 @@ import {
   hasInvoiceForProject,
 } from '@/features/projects/queries/get-invoice'
 import { getProjectMilestones } from '@/features/projects/queries/get-milestone'
+import { getProjectActivity } from '@/features/projects/queries/get-project-activity'
+import { getProjectInvoices } from '@/features/projects/queries/get-project-invoices'
 import {
   getClientByProjectId,
   getProjectAllocations,
@@ -78,7 +80,6 @@ export default async function ProjectDetailPage({
   if (!project) {
     notFound()
   }
-  console.log(project)
 
   const workspace = await getWorkspace(org)
   const canManageAllocations = workspace ? isAdminRole(workspace.role) : false
@@ -99,6 +100,8 @@ export default async function ProjectDetailPage({
     latestDeliveriesResult,
     totalLoggedHoursResult,
     weeklyLoggedMinutesByUserResult,
+    projectInvoicesResult,
+    activityResult,
   ] = await Promise.allSettled([
     getProjectsForInvoicing(org),
     getProjectUpdates(id),
@@ -114,6 +117,8 @@ export default async function ProjectDetailPage({
     getProjectDeliveries(id, 1, OVERVIEW_DELIVERIES_LIMIT),
     getTotalLoggedHours(id),
     getWeeklyLoggedMinutesByUser(id),
+    getProjectInvoices(id),
+    getProjectActivity(id),
   ])
   // Retainers: the invoice sheet checks the period the admin picks.
   const hasInvoice = await hasInvoiceForProject(id, project.engagement)
@@ -199,6 +204,12 @@ export default async function ProjectDetailPage({
     'getWeeklyLoggedMinutesByUser',
     {}
   )
+  const projectInvoices = processResult(
+    projectInvoicesResult,
+    'getProjectInvoices',
+    []
+  )
+  const activity = processResult(activityResult, 'getProjectActivity', [])
 
   return (
     <ProjectDetailView
@@ -219,6 +230,8 @@ export default async function ProjectDetailPage({
       totalLoggedHours={totalLoggedHours}
       weeklyLoggedMinutesByUser={weeklyLoggedMinutesByUser}
       hasExistingInvoice={hasInvoice}
+      projectInvoices={projectInvoices}
+      activity={activity}
     />
   )
 }

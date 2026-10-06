@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: '14.5'
+    PostgrestVersion: '14.18'
   }
   graphql_public: {
     Tables: {
@@ -1310,6 +1310,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      void_invoice: { Args: { p_invoice_id: string }; Returns: number }
     }
     Enums: {
       activity_actor_kind: 'system' | 'client' | 'member'

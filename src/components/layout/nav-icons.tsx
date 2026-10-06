@@ -65,6 +65,7 @@ export const NAV_ICONS = {
   docs: BookOpen,
   support: LifeBuoy,
   status: Activity,
+  activity: Activity,
   security: ShieldCheck,
 } satisfies Record<string, LucideIcon>
 

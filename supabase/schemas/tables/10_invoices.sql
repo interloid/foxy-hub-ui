@@ -64,6 +64,7 @@ create index if not exists invoices_number_idx     on public.invoices(invoice_nu
 -- period are constrained. An hourly project can still be billed twice in a month; a retainer
 -- cannot be billed twice for September. This makes "has September been billed?" a database
 -- fact rather than something a person has to remember.
+-- A voided (cancelled) invoice releases its period, so it is outside the index.
 create unique index if not exists invoices_project_period_key
   on public.invoices(project_id, period_start)
-  where period_start is not null;
+  where period_start is not null and status <> 'cancelled';

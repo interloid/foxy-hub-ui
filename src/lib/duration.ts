@@ -22,3 +22,11 @@ export function parseDurationToMinutes(val: string): number | null {
 
   return null
 }
+
+/** 150 -> "2h 30m", 60 -> "1h", 45 -> "45m": a duration as the feed prints it. */
+export function formatMinutes(total: number): string {
+  const hours = Math.floor(total / 60)
+  const minutes = Math.round(total % 60)
+  if (hours === 0) return `${minutes}m`
+  return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`
+}

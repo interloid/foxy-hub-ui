@@ -3,6 +3,7 @@ import { z } from 'zod'
 import {
   NO_SIGN_OFF,
   readAmount,
+  resolveEffectiveTo,
   retainerPeriodSchema,
   updateCadenceSchema,
   type BillingModel,
@@ -51,13 +52,23 @@ export const createProjectPayloadSchema = z
     retainerOverage: z.number().nonnegative().max(99.99).nullable(),
 
     allocations: z.array(
-      z.object({
-        userId: z.guid(),
-        hoursPerDay: z.number().min(0.25).max(24),
-        daysPerWeek: z.number().int().min(1).max(7),
-        rate: z.number().nonnegative().max(9_999_999_999.99).nullable(),
-        effectiveFrom: isoDate,
-      })
+      z
+        .object({
+          userId: z.guid(),
+          hoursPerDay: z.number().min(0.25).max(24),
+          daysPerWeek: z.number().int().min(1).max(7),
+          rate: z.number().nonnegative().max(9_999_999_999.99).nullable(),
+          effectiveFrom: isoDate,
+          effectiveTo: isoDate.nullable(),
+        })
+        // ISO dates compare correctly as strings. Matches the wizard: strictly after.
+        .refine(
+          (a) => a.effectiveTo === null || a.effectiveTo > a.effectiveFrom,
+          {
+            path: ['effectiveTo'],
+            message: 'Effective to must be after effective from.',
+          }
+        )
     ),
     overrideReason: nullableText(500),
     description: nullableText(1000),
@@ -147,6 +158,10 @@ export function toCreateProjectPayload(
       daysPerWeek: Number(row.daysPerWeek),
       rate: amountOrNull(row.billRate),
       effectiveFrom: toISODate(row.effectiveFrom),
+      effectiveTo: (() => {
+        const end = resolveEffectiveTo(row, basics.targetEndDate)
+        return end ? toISODate(end) : null
+      })(),
     })),
     overrideReason: textOrNull(team.overrideReason),
     description: textOrNull(team.deliveryNotes),

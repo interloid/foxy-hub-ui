@@ -5,9 +5,10 @@ import { z } from 'zod'
 
 import { inviteTeam } from '@/features/onboarding/services/invite-team'
 import type { ActionResult, InviteOutcome } from '@/features/onboarding/types'
-import { getWorkspace } from '@/lib/dal'
+import { actorNameOf, logActivity, type ActivityChange } from '@/lib/activity'
+import { getWorkspace, verifySession } from '@/lib/dal'
 import { demoBlocked } from '@/lib/demo'
-import { isAdminRole, type InvitableStaffRole } from '@/lib/role'
+import { isAdminRole, roleLabel, type InvitableStaffRole } from '@/lib/role'
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -37,6 +38,43 @@ async function orNull<T>(promise: Promise<T>): Promise<T | null> {
     console.error((err as Error).message)
     return null
   }
+}
+
+type ServerClient = Awaited<ReturnType<typeof createClient>>
+
+/**
+ * One Access line in the workspace Activity feed. `summary` gets the actor's name, so each
+ * caller only words the rest ("deactivated Marcus Lee"). Never fails the action it records.
+ */
+async function logAccessEvent(
+  supabase: ServerClient,
+  orgId: string,
+  event: {
+    type: string
+    summary: (actor: string) => string
+    entityType: 'membership' | 'client'
+    entityId: string
+    changes?: ActivityChange[] | ((actor: string) => ActivityChange[])
+    note?: string | null
+  }
+) {
+  const session = await verifySession()
+  if (!session) return
+  const actor = await actorNameOf(supabase, session.id)
+  await logActivity(supabase, {
+    orgId,
+    actorId: session.id,
+    actorKind: 'member',
+    type: event.type,
+    summary: event.summary(actor),
+    entityType: event.entityType,
+    entityId: event.entityId,
+    changes:
+      typeof event.changes === 'function'
+        ? event.changes(actor)
+        : event.changes,
+    note: event.note,
+  })
 }
 
 const PLAN_CHECK_FAILED = 'Could not check your plan just now. Try again.'
@@ -265,6 +303,31 @@ export async function createClientAction(
   }
 
   const reactivated = Boolean(existing)
+  if (existing) {
+    await logAccessEvent(supabase, workspace.id, {
+      type: 'client_reactivated',
+      summary: (actor) => `${actor} re-added client ${name}`,
+      entityType: 'client',
+      entityId: existing.id,
+      changes: [{ label: 'Status', from: 'Inactive', to: 'Active' }],
+    })
+  } else {
+    const { data: created } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('org_id', workspace.id)
+      .eq('name', name)
+      .maybeSingle()
+    if (created) {
+      await logAccessEvent(supabase, workspace.id, {
+        type: 'client_created',
+        summary: (actor) => `${actor} added client ${name}`,
+        entityType: 'client',
+        entityId: created.id,
+        note: portal ? 'Portal access on' : null,
+      })
+    }
+  }
   revalidatePath(peoplePath(orgSlug))
 
   const email = contactEmail
@@ -345,6 +408,14 @@ export async function updateClientAction(
   }
 
   const supabase = await createClient()
+  // What it was, for the feed's "Name  Old -> New" chips.
+  const { data: before } = await supabase
+    .from('clients')
+    .select('name, contact_name, portal')
+    .eq('id', clientId)
+    .eq('org_id', workspace.id)
+    .maybeSingle()
+
   const { data, error } = await supabase
     .from('clients')
     .update({
@@ -368,6 +439,36 @@ export async function updateClientAction(
 
   if (!data || data.length === 0) {
     return { ok: false, error: 'Could not find this client.' }
+  }
+
+  if (before) {
+    const changes: ActivityChange[] = []
+    if (before.name !== name.data) {
+      changes.push({ label: 'Name', from: before.name, to: name.data })
+    }
+    if ((before.contact_name ?? '') !== (contactName.data ?? '')) {
+      changes.push({
+        label: 'Contact',
+        from: before.contact_name || null,
+        to: contactName.data || 'None',
+      })
+    }
+    if (before.portal !== input.portal) {
+      changes.push({
+        label: 'Portal',
+        from: before.portal ? 'On' : 'Off',
+        to: input.portal ? 'On' : 'Off',
+      })
+    }
+    if (changes.length > 0) {
+      await logAccessEvent(supabase, workspace.id, {
+        type: 'client_updated',
+        summary: (actor) => `${actor} updated client ${name.data}`,
+        entityType: 'client',
+        entityId: clientId,
+        changes,
+      })
+    }
   }
 
   revalidatePath(peoplePath(orgSlug))
@@ -459,7 +560,7 @@ export async function setClientStatusAction(
     .update({ status: active })
     .eq('id', clientId)
     .eq('org_id', workspace.id)
-    .select('id')
+    .select('id, name')
 
   if (error) {
     return {
@@ -476,6 +577,21 @@ export async function setClientStatusAction(
   if (!data || data.length === 0) {
     return { ok: false, error: 'Could not find this client.' }
   }
+
+  await logAccessEvent(supabase, workspace.id, {
+    type: active ? 'client_reactivated' : 'client_deactivated',
+    summary: (actor) =>
+      `${actor} ${active ? 'reactivated' : 'deactivated'} client ${data[0]!.name}`,
+    entityType: 'client',
+    entityId: clientId,
+    changes: [
+      {
+        label: 'Status',
+        from: active ? 'Inactive' : 'Active',
+        to: active ? 'Active' : 'Inactive',
+      },
+    ],
+  })
 
   revalidatePath(peoplePath(orgSlug))
   return { ok: true }
@@ -504,7 +620,7 @@ export async function deactivateClientAction(
     .update({ status: false })
     .eq('id', clientId)
     .eq('org_id', workspace.id)
-    .select('id')
+    .select('id, name')
 
   if (error) {
     return { ok: false, error: 'Failed to deactivate. Please try again.' }
@@ -516,6 +632,14 @@ export async function deactivateClientAction(
       error: 'Could not find this client — it may already be gone.',
     }
   }
+
+  await logAccessEvent(supabase, workspace.id, {
+    type: 'client_deactivated',
+    summary: (actor) => `${actor} removed client ${data[0]!.name}`,
+    entityType: 'client',
+    entityId: clientId,
+    changes: [{ label: 'Status', from: 'Active', to: 'Inactive' }],
+  })
 
   revalidatePath(peoplePath(orgSlug))
   return { ok: true }
@@ -573,7 +697,7 @@ export async function updateMemberAction(
 
   const { data: target } = await supabase
     .from('memberships')
-    .select('role, user_id')
+    .select('role, user_id, job_title')
     .eq('id', membershipId)
     .eq('org_id', workspace.id)
     .maybeSingle()
@@ -631,6 +755,38 @@ export async function updateMemberAction(
     }
   }
 
+  // The name as saved, for the sentence. Name edits themselves aren't recorded as a chip:
+  // the old name is gone once `update_membership_details` has run.
+  const newName = fullName.data ?? (await actorNameOf(supabase, target.user_id))
+  const changes: ActivityChange[] = []
+  if (role.data !== target.role) {
+    changes.push({
+      label: 'Role',
+      from: roleLabel(target.role),
+      to: roleLabel(role.data),
+    })
+  }
+  if ((target.job_title ?? '') !== (jobTitle.data ?? '')) {
+    changes.push({
+      label: 'Job title',
+      from: target.job_title || null,
+      to: jobTitle.data || 'None',
+    })
+  }
+  if (changes.length > 0) {
+    await logAccessEvent(supabase, workspace.id, {
+      type:
+        role.data !== target.role ? 'member_role_changed' : 'member_updated',
+      summary: (actor) =>
+        role.data !== target.role
+          ? `${actor} changed ${newName}'s role`
+          : `${actor} updated ${newName}'s details`,
+      entityType: 'membership',
+      entityId: membershipId,
+      changes,
+    })
+  }
+
   refreshWorkspace(orgSlug)
   return { ok: true }
 }
@@ -653,6 +809,13 @@ export async function makePrimaryAdminAction(
   }
 
   const supabase = await createClient()
+  const { data: target } = await supabase
+    .from('memberships')
+    .select('role, user_id')
+    .eq('id', membershipId)
+    .eq('org_id', workspace.id)
+    .maybeSingle()
+
   const { error } = await supabase.rpc('transfer_primary_admin', {
     target_membership_id: membershipId,
   })
@@ -662,6 +825,29 @@ export async function makePrimaryAdminAction(
       ok: false,
       error: membershipError(error, 'Could not hand over the role. Try again.'),
     }
+  }
+
+  if (target) {
+    const targetName = await actorNameOf(supabase, target.user_id)
+    await logAccessEvent(supabase, workspace.id, {
+      type: 'member_primary_admin_transferred',
+      summary: (actor) => `${actor} made ${targetName} the primary admin`,
+      entityType: 'membership',
+      entityId: membershipId,
+      // `transfer_primary_admin` steps the previous primary admin down to admin.
+      changes: (actor) => [
+        {
+          label: `${targetName}'s role`,
+          from: roleLabel(target.role),
+          to: roleLabel('primary_admin'),
+        },
+        {
+          label: `${actor}'s role`,
+          from: roleLabel('primary_admin'),
+          to: roleLabel('admin'),
+        },
+      ],
+    })
   }
 
   refreshWorkspace(orgSlug)
@@ -736,6 +922,16 @@ export async function deactivateMembershipAction(
 
   await revokeSessions(data[0]!.user_id)
 
+  const targetName = await actorNameOf(supabase, data[0]!.user_id)
+  await logAccessEvent(supabase, workspace.id, {
+    type: 'member_deactivated',
+    summary: (actor) => `${actor} deactivated ${targetName}`,
+    entityType: 'membership',
+    entityId: membershipId,
+    changes: [{ label: 'Status', from: 'Active', to: 'Deactivated' }],
+    note: 'Signed out of every device',
+  })
+
   revalidatePath(peoplePath(orgSlug))
   return { ok: true }
 }
@@ -760,7 +956,7 @@ export async function reactivateMembershipAction(
   const supabase = await createClient()
   const { data: target } = await supabase
     .from('memberships')
-    .select('role, status')
+    .select('role, status, user_id')
     .eq('id', membershipId)
     .eq('org_id', workspace.id)
     .maybeSingle()
@@ -797,6 +993,15 @@ export async function reactivateMembershipAction(
       error: 'Could not reactivate this person — they may already be active.',
     }
   }
+
+  const targetName = await actorNameOf(supabase, target.user_id)
+  await logAccessEvent(supabase, workspace.id, {
+    type: 'member_reactivated',
+    summary: (actor) => `${actor} reactivated ${targetName}`,
+    entityType: 'membership',
+    entityId: membershipId,
+    changes: [{ label: 'Status', from: 'Deactivated', to: 'Active' }],
+  })
 
   revalidatePath(peoplePath(orgSlug))
   return { ok: true }
@@ -906,6 +1111,15 @@ export async function resetMemberMfaAction(
     console.error('reset member mfa failed:', (err as Error).message)
     return { ok: false, error: 'Could not reset two-factor authentication.' }
   }
+
+  const targetName = await actorNameOf(supabase, membership.user_id)
+  await logAccessEvent(supabase, workspace.id, {
+    type: 'member_mfa_reset',
+    summary: (actor) =>
+      `${actor} reset two-factor authentication for ${targetName}`,
+    entityType: 'membership',
+    entityId: membershipId,
+  })
 
   revalidatePath(peoplePath(orgSlug))
   return { ok: true }

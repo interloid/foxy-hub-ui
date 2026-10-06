@@ -1,7 +1,8 @@
 'use server'
 
+import { actorNameOf, logActivity } from '@/lib/activity'
 import { getWorkspace, isAdminRole } from '@/lib/dal'
-import { parseDurationToMinutes } from '@/lib/duration'
+import { formatMinutes, parseDurationToMinutes } from '@/lib/duration'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
@@ -78,7 +79,7 @@ export async function createTimeEntry(
 
   const { data: project } = await supabase
     .from('projects')
-    .select('id, org_id, organizations!inner(slug)')
+    .select('id, org_id, name, organizations!inner(slug)')
     .eq('id', params.projectId)
     .eq('organizations.slug', params.orgSlug)
     .maybeSingle()
@@ -127,6 +128,27 @@ export async function createTimeEntry(
       error: result?.error || 'Exceeds daily capacity.',
     }
   }
+
+  const description = params.description.trim()
+  await logActivity(supabase, {
+    orgId: project.org_id,
+    actorId: user.id,
+    actorKind: 'member',
+    type: 'time_logged',
+    summary: `${await actorNameOf(supabase, user.id)} logged ${formatMinutes(durationMinutes)} on ${project.name}${params.billable ? '' : ' (non-billable)'}`,
+    projectId: params.projectId,
+    entityType: 'time_entry',
+    entityId: result.id ?? null,
+    payload: {
+      minutes: durationMinutes,
+      work_date: params.workDate,
+      billable: params.billable,
+    },
+    note:
+      description.length > 140
+        ? `${description.slice(0, 140).replace(/\s+\S*$/, '')}...`
+        : description,
+  })
 
   revalidatePath(`/${params.orgSlug}`)
   revalidatePath(`/${params.orgSlug}/time`)

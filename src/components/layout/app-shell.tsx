@@ -160,5 +160,13 @@ function generateBreadcrumbs(
     return [{ label: 'Time' }]
   }
 
+  if (pathname.endsWith('/activity')) {
+    return [{ label: 'Activity' }]
+  }
+
+  if (pathname.endsWith('/ai-updates')) {
+    return [{ label: 'AI updates' }]
+  }
+
   return [{ label: 'Home', href: `/${orgSlug}` }]
 }

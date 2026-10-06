@@ -5,7 +5,8 @@ import { z } from 'zod'
 
 import { env } from '@/config/env'
 import type { ActionResult } from '@/features/onboarding/types'
-import { getWorkspace } from '@/lib/dal'
+import { actorNameOf, logActivity, type ActivityChange } from '@/lib/activity'
+import { getWorkspace, verifySession } from '@/lib/dal'
 import {
   INACTIVITY_METADATA_KEY,
   INACTIVITY_TIMEOUTS,
@@ -71,6 +72,66 @@ function workspaceSettingsError(error: {
   return 'Could not save. Please try again.'
 }
 
+type ServerClient = Awaited<ReturnType<typeof createClient>>
+
+/** The workspace row as it is before a settings save, for the feed's before -> after chips. */
+async function readWorkspaceSettings(supabase: ServerClient, orgId: string) {
+  const { data } = await supabase
+    .from('organizations')
+    .select(
+      'name, daily_capacity_hours, days_per_week, currency, rounding_minutes'
+    )
+    .eq('id', orgId)
+    .maybeSingle()
+  return data
+}
+
+/**
+ * A Workspace line in the Activity feed - only when something actually changed, so saving
+ * an untouched form writes nothing. Never fails the save it records.
+ */
+async function logWorkspaceChange(
+  supabase: ServerClient,
+  orgId: string,
+  type: string,
+  summary: (actor: string) => string,
+  changes: ActivityChange[]
+) {
+  if (changes.length === 0) return
+  const session = await verifySession()
+  if (!session) return
+  await logActivity(supabase, {
+    orgId,
+    actorId: session.id,
+    actorKind: 'member',
+    type,
+    summary: summary(await actorNameOf(supabase, session.id)),
+    entityType: 'organization',
+    entityId: orgId,
+    changes,
+  })
+}
+
+/** One chip per field whose value differs; `format` turns the raw value into the label. */
+function diff<T>(
+  label: string,
+  from: T | null | undefined,
+  to: T,
+  format: (value: T) => string = String
+): ActivityChange[] {
+  // Compared as text: numeric columns can come back from Postgres as strings.
+  if (from !== null && from !== undefined && String(from) === String(to)) {
+    return []
+  }
+  return [
+    {
+      label,
+      from: from === null || from === undefined ? null : format(from),
+      to: format(to),
+    },
+  ]
+}
+
 export async function updateWorkingDayAction(
   orgSlug: string,
   input: WorkingDayInput
@@ -88,6 +149,7 @@ export async function updateWorkingDayAction(
   }
 
   const supabase = await createClient()
+  const before = await readWorkspaceSettings(supabase, workspace.id)
   const { error } = await supabase.rpc('update_workspace_settings', {
     target_org_id: workspace.id,
     new_daily_capacity_hours: parsed.data.dailyCapacityHours,
@@ -97,6 +159,31 @@ export async function updateWorkingDayAction(
   })
 
   if (error) return { ok: false, error: workspaceSettingsError(error) }
+
+  await logWorkspaceChange(
+    supabase,
+    workspace.id,
+    'workspace_settings_changed',
+    (actor) => `${actor} changed the working day settings`,
+    [
+      ...diff(
+        'Standard day',
+        before?.daily_capacity_hours === undefined
+          ? null
+          : Number(before.daily_capacity_hours),
+        parsed.data.dailyCapacityHours,
+        (h) => `${h}h`
+      ),
+      ...diff('Days per week', before?.days_per_week, parsed.data.daysPerWeek),
+      ...diff('Currency', before?.currency, parsed.data.currency),
+      ...diff(
+        'Time rounding',
+        before?.rounding_minutes,
+        parsed.data.roundingMinutes,
+        (m) => `${m} min`
+      ),
+    ]
+  )
 
   revalidatePath(`/${orgSlug}/settings`)
   return { ok: true }
@@ -122,12 +209,21 @@ export async function renameWorkspaceAction(
   }
 
   const supabase = await createClient()
+  const before = await readWorkspaceSettings(supabase, workspace.id)
   const { error } = await supabase.rpc('update_workspace_settings', {
     target_org_id: workspace.id,
     new_name: parsed.data,
   })
 
   if (error) return { ok: false, error: workspaceSettingsError(error) }
+
+  await logWorkspaceChange(
+    supabase,
+    workspace.id,
+    'workspace_renamed',
+    (actor) => `${actor} renamed the workspace`,
+    diff('Name', before?.name, parsed.data)
+  )
 
   revalidatePath(`/${orgSlug}/settings`, 'layout')
   return { ok: true }

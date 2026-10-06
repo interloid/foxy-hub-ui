@@ -37,6 +37,7 @@ declare
   v_invite      public.invitations%rowtype;
   v_org_name    text;
   v_slug        text;
+  v_membership_id uuid;
 begin
   IF COALESCE(NEW.raw_user_meta_data->>'seed_user', 'false') = 'true' THEN
     RETURN NEW;
@@ -82,7 +83,8 @@ begin
     -- either: v_invite.role is already public.user_role, and the table's check
     -- constraint forbids 'primary_admin'. 'manager' IS invitable.
     insert into public.memberships (user_id, org_id, role, job_title)
-    values (v_user_id, v_invite.org_id, v_invite.role, v_invite.job_title);
+    values (v_user_id, v_invite.org_id, v_invite.role, v_invite.job_title)
+    returning id into v_membership_id;
 
     if v_invite.role = 'client' then
       -- The composite FK on invitations already guarantees this project belongs to
@@ -96,6 +98,36 @@ begin
        set accepted_at = now(),
            accepted_by = v_user_id
      where id = v_invite.id;
+
+    -- The Access line in the workspace Activity feed: "Marcus Lee joined as Contributor".
+    -- In its own block, so a problem writing the feed can never roll back the signup
+    -- (this trigger's failures undo the whole auth.users insert).
+    begin
+      insert into public.activity_events (
+        org_id, actor_id, actor_kind, type, summary,
+        project_id, entity_type, entity_id, payload
+      )
+      values (
+        v_invite.org_id,
+        v_user_id,
+        case when v_invite.role = 'client'
+          then 'client'::public.activity_actor_kind
+          else 'member'::public.activity_actor_kind
+        end,
+        case when v_invite.role = 'client' then 'client_joined' else 'member_joined' end,
+        coalesce(nullif(btrim(v_user_name), ''), new.email)
+          || case when v_invite.role = 'client'
+               then ' joined the client portal'
+               else ' joined as ' || initcap(replace(v_invite.role::text, '_', ' '))
+             end,
+        case when v_invite.role = 'client' then v_invite.project_id end,
+        'membership',
+        v_membership_id,
+        jsonb_build_object('invitation_id', v_invite.id, 'role', v_invite.role)
+      );
+    exception when others then
+      raise warning 'activity_events insert failed (joined): %', sqlerrm;
+    end;
 
   else
     -- ---- New primary-admin path ------------------------------------------

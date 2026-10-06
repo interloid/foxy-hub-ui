@@ -82,10 +82,12 @@ export async function buildInvoiceDraft(
 
   const { windowStart, windowEnd } = resolveInvoiceWindow(project)
 
+  // Voided invoices bill nothing and hold no period, so they don't count here.
   const { data: projectInvoices } = await supabase
     .from('invoices')
     .select('amount, period_start')
     .eq('project_id', project.id)
+    .neq('status', 'cancelled')
 
   const retainer =
     project.engagement === 'retainer'
@@ -605,6 +607,7 @@ export async function getProjectsForInvoicing(
         .from('invoices')
         .select('project_id, amount, period_start')
         .in('project_id', projectIds)
+        .neq('status', 'cancelled')
     : { data: [] }
 
   const memberIds = Array.from(
@@ -764,6 +767,7 @@ export async function hasInvoiceForProject(
       .from('invoices')
       .select('id')
       .eq('project_id', projectId)
+      .neq('status', 'cancelled')
       .limit(2)
     if (error) throw error
     return (data?.length ?? 0) >= 2
@@ -782,6 +786,7 @@ export async function hasInvoiceForProject(
     .select('id')
     .eq('project_id', projectId)
     .eq('period_start', periodStart)
+    .neq('status', 'cancelled')
     .limit(1)
 
   if (error) throw error

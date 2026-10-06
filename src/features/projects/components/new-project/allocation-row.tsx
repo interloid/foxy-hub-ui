@@ -27,6 +27,7 @@ import {
   hasBillRate,
   readAmount,
   requiresBillRate,
+  resolveEffectiveTo,
   type NewProjectWizardValues,
 } from './schema'
 
@@ -77,6 +78,7 @@ export function AllocationRow({
     allRows.filter((_, i) => i !== index).map((r) => r.memberId)
   )
   const kickoffDate = useWatch({ control, name: 'basics.kickoffDate' })
+  const targetEndDate = useWatch({ control, name: 'basics.targetEndDate' })
   const rowErrors = errors.team?.allocations?.[index]
   const member = members.find((m) => m.id === row.memberId)
   const costRate = member?.costRate ?? null
@@ -242,8 +244,8 @@ export function AllocationRow({
 
       <div
         className={cn(
-          'grid grid-cols-2 gap-2 sm:grid-cols-3',
-          canSeeCost ? 'lg:grid-cols-5' : 'lg:grid-cols-4'
+          'grid grid-cols-2 gap-2 sm:grid-cols-4',
+          canSeeCost ? 'lg:grid-cols-4' : 'lg:grid-cols-4'
         )}
       >
         {numericCell(
@@ -272,9 +274,7 @@ export function AllocationRow({
           ),
           { required: billRateRequired, invalid: isMissingRequiredRate }
         )}
-        {/* Read-only: the RPC snapshots cost from the membership at insert time, so a
-            figure typed here would never be saved. Change it in the member's settings.
-            Primary admin only - an admin creating a project never sees what people cost. */}
+
         {canSeeCost && (
           <div className="min-w-0">
             <span className={columnLabelClass}>Cost {symbol}/hr</span>
@@ -298,7 +298,10 @@ export function AllocationRow({
             )}
           </div>
         )}
-        <div className="col-span-2 min-w-0 sm:col-span-1">
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="min-w-0">
           <label
             htmlFor={`allocation-${index}-effectiveFrom`}
             className={columnLabelClass}
@@ -315,6 +318,7 @@ export function AllocationRow({
                   value={field.value}
                   onChange={field.onChange}
                   invalid={Boolean(fieldState.error)}
+                  required
                   disabled={(date) =>
                     kickoffDate ? date < kickoffDate : false
                   }
@@ -327,6 +331,59 @@ export function AllocationRow({
                 )}
               </>
             )}
+          />
+        </div>
+
+        <div className="min-w-0">
+          <label
+            htmlFor={`allocation-${index}-effectiveTo`}
+            className={columnLabelClass}
+          >
+            Effective to
+          </label>
+          <Controller
+            control={control}
+            name={`team.allocations.${index}.effectiveTo`}
+            render={({ field, fieldState }) => {
+              // undefined follows the project's target end date; null is open-ended.
+              const isFollowing = field.value === undefined
+              const shown = resolveEffectiveTo(row, targetEndDate)
+              const endsTooEarly =
+                shown !== null &&
+                row.effectiveFrom &&
+                shown <= row.effectiveFrom
+              return (
+                <>
+                  <DatePicker
+                    id={`allocation-${index}-effectiveTo`}
+                    value={shown ?? undefined}
+                    // Clearing stores null (open-ended) - not undefined, which would mean
+                    // "follow the project end" and put the date straight back.
+                    onChange={(date) => field.onChange(date ?? null)}
+                    invalid={Boolean(fieldState.error) || Boolean(endsTooEarly)}
+                    placeholder="Open-ended"
+                    // Only days after Effective from.
+                    disabled={(date) =>
+                      row.effectiveFrom ? date <= row.effectiveFrom : false
+                    }
+                    className="bg-card hover:bg-card h-9"
+                  />
+                  {fieldState.error || endsTooEarly ? (
+                    <p className="text-destructive mt-1 text-xs">
+                      {fieldState.error?.message ??
+                        'Must be after the effective from date'}
+                    </p>
+                  ) : (
+                    isFollowing &&
+                    targetEndDate && (
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        Project end date
+                      </p>
+                    )
+                  )}
+                </>
+              )
+            }}
           />
         </div>
       </div>

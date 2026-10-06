@@ -2,7 +2,8 @@
 
 import { createProjectPayloadSchema } from '@/features/projects/components/new-project/payload'
 import { getTeammateAllocatedHours } from '@/features/dashboard/queries'
-import { getWorkspace, isAdminRole } from '@/lib/dal'
+import { actorNameOf, logActivity } from '@/lib/activity'
+import { getWorkspace, isAdminRole, verifySession } from '@/lib/dal'
 import { PROJECT_OWNER_ROLES, STAFF_ROLES } from '@/lib/role'
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/types/supabase'
@@ -147,6 +148,7 @@ export async function createProjectFromWizard(
     days_per_week: a.daysPerWeek,
     rate: a.rate,
     effective_from: a.effectiveFrom,
+    effective_to: a.effectiveTo,
   }))
 
   const milestonesData = payload.milestones.map((m) => ({
@@ -175,6 +177,20 @@ export async function createProjectFromWizard(
       return { ok: false, error: rpcError.message }
     }
     return { ok: false, error: 'Failed to create the project.' }
+  }
+
+  const session = await verifySession()
+  if (session) {
+    await logActivity(supabase, {
+      orgId: workspace.id,
+      actorId: session.id,
+      actorKind: 'member',
+      type: 'project_created',
+      summary: `${await actorNameOf(supabase, session.id)} created ${payload.name}`,
+      projectId,
+      entityType: 'project',
+      entityId: projectId,
+    })
   }
 
   revalidatePath(`/${orgSlug}`)

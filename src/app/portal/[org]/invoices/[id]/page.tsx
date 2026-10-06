@@ -97,18 +97,22 @@ export default async function PaymentResultPage({
           </dl>
 
           <div className="flex flex-wrap items-center justify-center gap-2">
-            {invoice.invoiceUrl && (
-              <FxButton variant="secondary" asChild>
-                <a
-                  href={invoice.invoiceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  View receipt
-                  <ArrowUpRight className="size-4" />
-                </a>
-              </FxButton>
-            )}
+            {/* The Stripe invoice page: a receipt once paid, the place to pay before. */}
+            {invoice.invoiceUrl &&
+              (settled ||
+                invoice.status === 'due' ||
+                invoice.status === 'overdue') && (
+                <FxButton variant="secondary" asChild>
+                  <a
+                    href={invoice.invoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {settled ? 'View receipt' : 'Pay invoice'}
+                    <ArrowUpRight className="size-4" />
+                  </a>
+                </FxButton>
+              )}
 
             <FxButton asChild>
               <Link href={`/portal/${org}`}>Back to dashboard</Link>

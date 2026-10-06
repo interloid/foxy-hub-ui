@@ -70,9 +70,12 @@ begin
 
   -- 3. Period guard for retainers. `invoices_project_period_key` enforces this too, but reaching
   --    it surfaces a unique-violation; this raises something a user can read.
+  --    A voided (cancelled) invoice no longer holds its period, so the period can be re-billed.
   if v_period is not null and exists (
     select 1 from public.invoices i
-    where i.project_id = v_project_id and i.period_start = v_period
+    where i.project_id = v_project_id
+      and i.period_start = v_period
+      and i.status <> 'cancelled'
   ) then
     raise exception 'This project is already invoiced for the period starting %', v_period
       using errcode = '23505';
@@ -84,8 +87,11 @@ begin
   --    the project is actually at that stage — read from the table rather than trusted from the
   --    payload, so a stale client can't submit the wrong half out of order.
   if v_engagement = 'fixed' then
+    -- Voided invoices don't count: the stage they billed can be raised again.
     select count(*) into v_fixed_count
-      from public.invoices i where i.project_id = v_project_id;
+      from public.invoices i
+     where i.project_id = v_project_id
+       and i.status <> 'cancelled';
 
     if v_fixed_count >= 2 then
       raise exception 'This fixed-price project has already been fully invoiced' using errcode = '23505';
@@ -220,3 +226,74 @@ $$;
 
 -- Role authorization happens inside the function, as with the other definers above.
 grant execute on function public.create_invoice_with_entries(jsonb, uuid[]) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- Invoice: void, and release what it billed, in one transaction
+-- ---------------------------------------------------------------------
+--
+-- The undo of `create_invoice_with_entries`. Voiding sets the invoice to `cancelled` and
+-- un-claims its hours (`time_entries.invoice_id` back to null), so the next invoice can bill
+-- them. The period and fixed-stage guards above already skip cancelled invoices, so a voided
+-- retainer period or fixed stage is free to be raised again too.
+--
+-- The invoice row and its lines are KEPT: a voided invoice is still a document that existed,
+-- and its number is never reused.
+--
+-- SECURITY DEFINER for the same reason as creating: releasing a teammate's approved entries
+-- is impossible under `09_rls_time_entries`. Billing roles only - primary admin and admin -
+-- matching who can raise an invoice. The Stripe side (voiding the hosted invoice so it can't
+-- be paid) is the `void-invoice` Edge Function's job, done BEFORE this is called.
+--
+-- Returns how many entries were released.
+create or replace function public.void_invoice(p_invoice_id uuid)
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_org_id   uuid;
+  v_status   public.invoice_status;
+  v_released int;
+begin
+  if not public.mfa_satisfied() then
+    raise exception 'Two-factor verification required' using errcode = '42501';
+  end if;
+
+  -- Locked, so a webhook marking it paid can't interleave with the void.
+  select i.org_id, i.status
+    into v_org_id, v_status
+    from public.invoices i
+   where i.id = p_invoice_id
+     for update;
+
+  if v_org_id is null then
+    raise exception 'Invoice not found' using errcode = 'P0002';
+  end if;
+
+  if not public.has_org_role(v_org_id, array['primary_admin', 'admin']::public.user_role[]) then
+    raise exception 'Not authorized to void invoices for this organization' using errcode = '42501';
+  end if;
+
+  if v_status = 'cancelled' then
+    return 0;
+  end if;
+
+  if v_status = 'paid' then
+    raise exception 'A paid invoice cannot be voided' using errcode = '22023';
+  end if;
+
+  update public.invoices
+     set status = 'cancelled'
+   where id = p_invoice_id;
+
+  update public.time_entries
+     set invoice_id = null
+   where invoice_id = p_invoice_id;
+
+  get diagnostics v_released = row_count;
+  return v_released;
+end;
+$$;
+
+grant execute on function public.void_invoice(uuid) to authenticated;

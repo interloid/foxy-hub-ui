@@ -173,5 +173,7 @@ export function createAllocation(
     daysPerWeek: String(daysPerWeek),
     billRate: member.defaultRate !== null ? String(member.defaultRate) : '',
     effectiveFrom: kickoffDate ?? new Date(),
+    // Follows the project's target end date until the user picks or clears it.
+    effectiveTo: undefined,
   }
 }

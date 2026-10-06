@@ -18,7 +18,12 @@ export function getNavSections(org: string): NavSection[] {
         { label: 'Time', icon: 'time', href: `${prefix}/time` },
         { label: 'Invoices', icon: 'invoices', href: `${prefix}/invoices` },
         { label: 'Reports', icon: 'reports', href: `#` },
-        { label: 'AI updates', icon: 'ai', href: `#` },
+        // The workspace audit trail: primary admin and admin only (hidden from managers
+        // below, and contributors never see it). The page enforces the same rule.
+        { label: 'Activity', icon: 'activity', href: `${prefix}/activity` },
+        // Primary admin, admin and manager: contributors never see it (CONTRIBUTOR_NAV),
+        // and the page enforces the same rule.
+        { label: 'AI updates', icon: 'ai', href: `${prefix}/ai-updates` },
       ],
     },
     {
@@ -88,7 +93,7 @@ export function getClientFooter(org: string, orgName?: string): FooterProps {
 
 const CONTRIBUTOR_NAV = ['Dashboard', 'Projects', 'Time'] as const
 
-const MANAGER_HIDDEN_NAV = ['Reports', 'Billing & plan'] as const
+const MANAGER_HIDDEN_NAV = ['Reports', 'Billing & plan', 'Activity'] as const
 
 export function filterNavForRole(
   sections: NavSection[],

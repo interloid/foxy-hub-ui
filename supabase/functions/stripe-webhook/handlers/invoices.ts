@@ -4,6 +4,7 @@ import {
   declineReason,
   recordSubscriptionInvoice,
 } from '../lib/billing-payments.ts'
+import { logInvoicePaid } from '../lib/activity.ts'
 import { supabase } from '../lib/clients.ts'
 import { isoFromUnix, loadInvoice } from '../lib/util.ts'
 
@@ -49,22 +50,44 @@ export async function handleInvoicePaid(event: Stripe.Event) {
       ? stripeInvoice.payment_intent
       : (stripeInvoice.payment_intent?.id ?? null)
 
-  let query = supabase.from('invoices').update({
-    status: 'paid',
-    paid_at: new Date(
-      (stripeInvoice.status_transitions?.paid_at ??
-        Math.floor(Date.now() / 1000)) * 1000
-    ).toISOString(),
-    payment_intent: paymentIntent,
-    invoice_url: stripeInvoice.hosted_invoice_url,
-    stripe_invoice_id: stripeInvoice.id,
-  })
+  const settle = () => {
+    const query = supabase.from('invoices').update({
+      status: 'paid',
+      paid_at: new Date(
+        (stripeInvoice.status_transitions?.paid_at ??
+          Math.floor(Date.now() / 1000)) * 1000
+      ).toISOString(),
+      payment_intent: paymentIntent,
+      invoice_url: stripeInvoice.hosted_invoice_url,
+      stripe_invoice_id: stripeInvoice.id,
+    })
+    return appInvoiceId
+      ? query.eq('id', appInvoiceId)
+      : query.eq('stripe_invoice_id', stripeInvoice.id)
+  }
 
-  query = appInvoiceId
-    ? query.eq('id', appInvoiceId)
-    : query.eq('stripe_invoice_id', stripeInvoice.id)
+  // The first of the two events flips the row from unpaid to paid; only that one writes
+  // the feed line. The filter makes it atomic, so two events in the same second can't both
+  // claim it. The second event finds nothing unpaid and re-applies the same values below.
+  const { data: newlyPaid, error: claimError } = await settle()
+    .neq('status', 'paid')
+    .select(
+      'id, org_id, project_id, invoice_number, amount, currency, due_date'
+    )
 
-  const { data: settled, error: settleError } = await query.select('id')
+  if (claimError) {
+    throw new Error(
+      `Failed to settle invoice ${stripeInvoice.id}: ${claimError.message}`
+    )
+  }
+
+  if (newlyPaid && newlyPaid.length > 0) {
+    console.log(`Invoice ${newlyPaid[0].id} marked paid.`)
+    await logInvoicePaid(newlyPaid[0])
+    return
+  }
+
+  const { data: settled, error: settleError } = await settle().select('id')
 
   if (settleError) {
     throw new Error(
@@ -77,7 +100,7 @@ export async function handleInvoicePaid(event: Stripe.Event) {
     // say) has no row here, and retrying would never find one.
     console.warn(`No app invoice matched ${stripeInvoice.id}`)
   } else {
-    console.log(`Invoice ${settled[0].id} marked paid.`)
+    console.log(`Invoice ${settled[0].id} was already paid.`)
   }
 }
 

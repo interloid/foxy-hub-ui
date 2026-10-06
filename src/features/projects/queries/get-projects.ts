@@ -22,6 +22,7 @@ import {
   ProjectAllocationItem,
   ProjectHealthSummary,
   ProjectMetrics,
+  ProjectOwner,
 } from '../types'
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
@@ -438,6 +439,7 @@ export async function getProjectById(
       estimated_hours,
       override_reason,
       client_org_id,
+      owner_id,
       client:clients (
         id,
         name
@@ -462,6 +464,26 @@ export async function getProjectById(
 
   const total = data?.length || 0
   const completed = data?.filter((m) => m.status === 'completed').length || 0
+
+  // `owner_id` references auth.users, not profiles, so the name comes from its own query.
+  let owner: ProjectOwner | null = null
+  if (p.owner_id) {
+    const { data: profile, error: ownerError } = await supabase
+      .from('profiles')
+      .select('full_name, avatar_url')
+      .eq('id', p.owner_id)
+      .maybeSingle()
+
+    if (ownerError) {
+      console.error('Error fetching project owner:', ownerError.message)
+    }
+
+    owner = {
+      id: p.owner_id,
+      name: profile?.full_name?.trim() || 'Unnamed teammate',
+      avatarUrl: profile?.avatar_url ?? null,
+    }
+  }
 
   // 3. Map database record to Project interface
   return {
@@ -488,6 +510,7 @@ export async function getProjectById(
     updatedAt: p.updated_at || p.created_at,
     progressPercent: 0,
     estimatedHour: p.estimated_hours,
+    owner,
   }
 }
 

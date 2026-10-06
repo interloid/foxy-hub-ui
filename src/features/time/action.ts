@@ -1,6 +1,8 @@
 'use server'
 
+import { actorNameOf, logActivity } from '@/lib/activity'
 import { getWorkspace } from '@/lib/dal'
+import { formatMinutes } from '@/lib/duration'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -74,11 +76,142 @@ export async function updateTimeEntriesStatus(
     }
   }
 
+  if (targetStatus === 'approved' || targetStatus === 'rejected') {
+    await logReviewedEntries(supabase, user.id, idsToUpdate, targetStatus)
+  } else if (targetStatus === 'submitted') {
+    await logSubmittedEntries(supabase, user.id, idsToUpdate)
+  }
+
   revalidatePath(`/${orgSlug}/time`)
   revalidatePath(`/${orgSlug}/dashboard`)
   return {
     success: true,
     updatedCount: idsToUpdate.length,
+  }
+}
+
+/**
+ * One feed line per project and person - "Ana approved 6 entries · Marcus Lee" - rather than
+ * one per entry, so a bulk approval doesn't bury the rest of the project's activity.
+ */
+async function logReviewedEntries(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  reviewerId: string,
+  entryIds: string[],
+  status: 'approved' | 'rejected'
+) {
+  const { data: entries, error } = await supabase
+    .from('time_entries')
+    .select('user_id, project_id, projects!inner(org_id)')
+    .in('id', entryIds)
+
+  if (error || !entries?.length) {
+    if (error) console.error('time entry activity lookup:', error.message)
+    return
+  }
+
+  const groups = new Map<
+    string,
+    { orgId: string; projectId: string; userId: string; count: number }
+  >()
+  for (const e of entries) {
+    const key = `${e.project_id}:${e.user_id}`
+    const group = groups.get(key)
+    if (group) group.count += 1
+    else
+      groups.set(key, {
+        orgId: e.projects.org_id,
+        projectId: e.project_id,
+        userId: e.user_id,
+        count: 1,
+      })
+  }
+
+  const reviewer = await actorNameOf(supabase, reviewerId)
+  const { data: people } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .in('id', [...new Set(entries.map((e) => e.user_id))])
+  const nameOf = new Map(
+    (people ?? []).map((p) => [p.id, p.full_name?.trim() || 'a teammate'])
+  )
+
+  for (const g of groups.values()) {
+    const entriesLabel = g.count === 1 ? '1 entry' : `${g.count} entries`
+    await logActivity(supabase, {
+      orgId: g.orgId,
+      actorId: reviewerId,
+      actorKind: 'member',
+      type: status === 'approved' ? 'time_approved' : 'time_rejected',
+      summary: `${reviewer} ${status} ${entriesLabel} · ${nameOf.get(g.userId) ?? 'a teammate'}`,
+      projectId: g.projectId,
+      entityType: 'time_entry',
+      payload: { count: g.count, user_id: g.userId },
+      // Both RPCs only act on a submitted entry, so that is what each one was.
+      changes: [
+        {
+          label: 'Status',
+          from: 'Submitted',
+          to: status === 'approved' ? 'Approved' : 'Rejected',
+        },
+      ],
+    })
+  }
+}
+
+/**
+ * "Marcus Lee submitted 6 entries (14h 30m) for approval on Bloom" - one line per project,
+ * like approvals. `submit_time_entry` only moves the caller's own drafts, so every entry
+ * here is the submitter's and was a draft.
+ */
+async function logSubmittedEntries(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  entryIds: string[]
+) {
+  const { data: entries, error } = await supabase
+    .from('time_entries')
+    .select('project_id, duration_minutes, projects!inner(org_id, name)')
+    .in('id', entryIds)
+
+  if (error || !entries?.length) {
+    if (error) console.error('time entry activity lookup:', error.message)
+    return
+  }
+
+  const groups = new Map<
+    string,
+    { orgId: string; projectName: string; count: number; minutes: number }
+  >()
+  for (const e of entries) {
+    const group = groups.get(e.project_id)
+    if (group) {
+      group.count += 1
+      group.minutes += e.duration_minutes ?? 0
+    } else {
+      groups.set(e.project_id, {
+        orgId: e.projects.org_id,
+        projectName: e.projects.name,
+        count: 1,
+        minutes: e.duration_minutes ?? 0,
+      })
+    }
+  }
+
+  const submitter = await actorNameOf(supabase, userId)
+  for (const [projectId, g] of groups) {
+    const entriesLabel = g.count === 1 ? '1 entry' : `${g.count} entries`
+    await logActivity(supabase, {
+      orgId: g.orgId,
+      actorId: userId,
+      actorKind: 'member',
+      type: 'time_submitted',
+      summary: `${submitter} submitted ${entriesLabel} (${formatMinutes(g.minutes)}) for approval on ${g.projectName}`,
+      projectId,
+      entityType: 'time_entry',
+      payload: { count: g.count, minutes: g.minutes },
+      changes: [{ label: 'Status', from: 'Draft', to: 'Submitted' }],
+    })
   }
 }
 

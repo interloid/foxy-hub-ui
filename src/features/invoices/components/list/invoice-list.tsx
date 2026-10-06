@@ -2,6 +2,7 @@
 
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
+import { FxConfirmDialog } from '@/components/shared/fx-confirm-dialog'
 import {
   FxInputGroup,
   FxInputGroupAddon,
@@ -26,13 +27,23 @@ import {
 import { TableBody } from '@/components/ui/table'
 import { useFormatter, useLocale } from '@/context/locale-provider'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
+import type { ActionResult } from '@/features/onboarding/types'
 import { formatCurrency } from '@/lib/money'
-import { cn } from '@/lib/utils'
 import { isBillingRole } from '@/lib/role'
+import { cn } from '@/lib/utils'
 import { ChevronLeft, ChevronRight, Info, Loader2, Search } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { sendInvoiceReminderAction } from '../../actions'
 import { toast } from 'sonner'
+import {
+  markInvoicesPaidAction,
+  sendDraftInvoicesAction,
+  sendInvoiceReminderAction,
+  sendInvoiceRemindersAction,
+  type BulkInvoiceResult,
+} from '../../actions'
+import { daysBetween } from '../../lib/dates'
 import type {
   InvoiceClientOption,
   InvoiceKind,
@@ -60,13 +71,13 @@ function inTab(status: InvoiceListStatus, tab: StatusTab) {
   return status === tab
 }
 
-const KIND_LABEL: Record<InvoiceKind, string> = {
+export const KIND_LABEL: Record<InvoiceKind, string> = {
   hours: 'Hours',
   retainer: 'Retainer',
   fixed: 'Fixed fee',
 }
 
-const STATUS_BADGE: Record<
+export const STATUS_BADGE: Record<
   InvoiceListStatus,
   { label: string; variant: 'success' | 'destructive' | 'secondary' | 'info' }
 > = {
@@ -77,13 +88,21 @@ const STATUS_BADGE: Record<
   cancelled: { label: 'Cancelled', variant: 'secondary' },
 }
 
-/** Whole days from `from` to `to` (ISO dates); negative when `to` is earlier. */
-function daysBetween(from: string, to: string) {
-  const [fy, fm, fd] = from.split('-').map(Number)
-  const [ty, tm, td] = to.split('-').map(Number)
-  return Math.round(
-    (Date.UTC(ty!, tm! - 1, td!) - Date.UTC(fy!, fm! - 1, fd!)) / 86_400_000
-  )
+type BulkAction = 'send' | 'remind' | 'paid'
+
+/** Which selected invoices each bulk button acts on - the rest are left alone. */
+const BULK_APPLIES: Record<BulkAction, (status: InvoiceListStatus) => boolean> =
+  {
+    send: (status) => status === 'draft',
+    remind: (status) => status === 'sent' || status === 'overdue',
+    paid: (status) =>
+      status === 'draft' || status === 'sent' || status === 'overdue',
+  }
+
+const BULK_DONE: Record<BulkAction, (n: number) => string> = {
+  send: (n) => `Sent ${n} ${n === 1 ? 'draft' : 'drafts'}`,
+  remind: (n) => `Sent ${n} ${n === 1 ? 'reminder' : 'reminders'}`,
+  paid: (n) => `Marked ${n} ${n === 1 ? 'invoice' : 'invoices'} paid`,
 }
 
 export function InvoiceList({
@@ -97,7 +116,9 @@ export function InvoiceList({
 }) {
   const fmt = useFormatter()
   const locale = useLocale()
+  const router = useRouter()
   const { currency, orgSlug, userRole } = useWorkspace()
+  const detailHref = (inv: InvoiceRow) => `/${orgSlug}/invoices/${inv.id}`
   // Reminding a client about money is billing: primary admin and admin only.
   const canRemindClients = isBillingRole(userRole)
   const [remindingId, setRemindingId] = useState<string | null>(null)
@@ -108,6 +129,54 @@ export function InvoiceList({
   const [clientId, setClientId] = useState(EVERY_CLIENT)
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkAction, setBulkAction] = useState<BulkAction | null>(null)
+  const [confirmPaidOpen, setConfirmPaidOpen] = useState(false)
+  const [, startBulk] = useTransition()
+
+  // From `invoices`, not the current page: a selection survives paging and filtering, and an
+  // invoice that disappears on refresh drops out of it.
+  const selectedInvoices = invoices.filter((inv) => selected.has(inv.id))
+  const bulkTargets = (action: BulkAction) =>
+    selectedInvoices.filter((inv) => BULK_APPLIES[action](inv.status))
+
+  const runBulk = (action: BulkAction) => {
+    const targets = bulkTargets(action)
+    if (targets.length === 0) return
+    const ids = targets.map((inv) => inv.id)
+    const run: Record<
+      BulkAction,
+      () => Promise<ActionResult<BulkInvoiceResult>>
+    > = {
+      send: () => sendDraftInvoicesAction(orgSlug, ids),
+      remind: () => sendInvoiceRemindersAction(orgSlug, ids),
+      paid: () => markInvoicesPaidAction(orgSlug, ids),
+    }
+
+    setBulkAction(action)
+    startBulk(async () => {
+      const res = await run[action]()
+      setBulkAction(null)
+      setConfirmPaidOpen(false)
+      if (!res.ok) {
+        toast.error(res.error)
+        return
+      }
+      const { done, failures } = res.data
+      if (done > 0) toast.success(BULK_DONE[action](done))
+      if (failures.length > 0) {
+        toast.error(failures.map((f) => `${f.number}: ${f.error}`).join('; '))
+      }
+      // Keep only what failed selected, so it can be retried.
+      const failed = new Set(failures.map((f) => f.number))
+      setSelected(
+        new Set(
+          selectedInvoices
+            .filter((inv) => !ids.includes(inv.id) || failed.has(inv.number))
+            .map((inv) => inv.id)
+        )
+      )
+    })
+  }
 
   // Counts reflect search + client, so each tab says what clicking it would show.
   const query = search.trim().toLowerCase()
@@ -276,6 +345,100 @@ export function InvoiceList({
         </Select>
       </div>
 
+      {selectedInvoices.length > 0 && (
+        <div
+          role="region"
+          aria-label="Bulk invoice actions"
+          className="border-primary/40 bg-primary/5 flex flex-col gap-3 rounded-xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="text-primary text-[13px] font-semibold">
+            {selectedInvoices.length}{' '}
+            {selectedInvoices.length === 1 ? 'invoice' : 'invoices'} selected
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {canRemindClients && (
+              <>
+                <FxButton
+                  type="button"
+                  variant="outline"
+                  disabled={
+                    bulkAction !== null || bulkTargets('send').length === 0
+                  }
+                  title={
+                    bulkTargets('send').length === 0
+                      ? 'No drafts in the selection'
+                      : undefined
+                  }
+                  onClick={() => runBulk('send')}
+                  className="bg-card gap-1"
+                >
+                  {bulkAction === 'send' && (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  )}
+                  Send drafts
+                </FxButton>
+                <FxButton
+                  type="button"
+                  variant="outline"
+                  disabled={
+                    bulkAction !== null || bulkTargets('remind').length === 0
+                  }
+                  title={
+                    bulkTargets('remind').length === 0
+                      ? 'No sent or overdue invoices in the selection'
+                      : undefined
+                  }
+                  onClick={() => runBulk('remind')}
+                  className="bg-card gap-1"
+                >
+                  {bulkAction === 'remind' && (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  )}
+                  Send reminders
+                </FxButton>
+                <FxButton
+                  type="button"
+                  disabled={
+                    bulkAction !== null || bulkTargets('paid').length === 0
+                  }
+                  title={
+                    bulkTargets('paid').length === 0
+                      ? 'Everything selected is already paid'
+                      : undefined
+                  }
+                  onClick={() => setConfirmPaidOpen(true)}
+                >
+                  Mark paid
+                </FxButton>
+              </>
+            )}
+            <FxButton
+              type="button"
+              variant="ghost"
+              disabled={bulkAction !== null}
+              className="bg-transparent"
+              onClick={() => setSelected(new Set())}
+            >
+              Clear
+            </FxButton>
+          </div>
+        </div>
+      )}
+
+      <FxConfirmDialog
+        open={confirmPaidOpen}
+        onOpenChange={(open) => {
+          if (bulkAction === null) setConfirmPaidOpen(open)
+        }}
+        destructive={false}
+        title={`Mark ${bulkTargets('paid').length} ${bulkTargets('paid').length === 1 ? 'invoice' : 'invoices'} paid?`}
+        description="Use this when the client paid outside Stripe, such as by bank transfer. Their Stripe payment link is closed so they can't pay twice."
+        confirmLabel="Mark paid"
+        pendingLabel="Marking paid..."
+        isPending={bulkAction === 'paid'}
+        onConfirm={() => runBulk('paid')}
+      />
+
       <div className="bg-card border-border/80 overflow-hidden rounded-2xl border shadow-xs">
         <FxTableScroll>
           <FxTable className="w-full min-w-225 table-fixed text-xs">
@@ -290,12 +453,12 @@ export function InvoiceList({
                   />
                 </FxTableHead>
                 <FxTableHead className="w-28">INVOICE</FxTableHead>
-                <FxTableHead>PROJECT</FxTableHead>
+                <FxTableHead className="w-44">PROJECT</FxTableHead>
                 <FxTableHead className="w-44">CLIENT</FxTableHead>
-                <FxTableHead className="w-28 text-right">AMOUNT</FxTableHead>
+                <FxTableHead className="w-28">AMOUNT</FxTableHead>
                 <FxTableHead className="w-28">STATUS</FxTableHead>
                 <FxTableHead className="w-28">DUE</FxTableHead>
-                <FxTableHead className="w-40 text-right">ACTIONS</FxTableHead>
+                <FxTableHead className="text w-25">ACTIONS</FxTableHead>
               </FxTableRow>
             </FxTableHeader>
 
@@ -318,8 +481,14 @@ export function InvoiceList({
                     (inv.status === 'sent' || inv.status === 'overdue')
 
                   return (
-                    <FxTableRow key={inv.id} className="h-15">
-                      <FxTableCell>
+                    <FxTableRow
+                      key={inv.id}
+                      className="h-15 cursor-pointer"
+                      // The whole row opens the invoice; the number is the keyboard / middle-click
+                      // link, and the checkbox and action cells stop the click from reaching here.
+                      onClick={() => router.push(detailHref(inv))}
+                    >
+                      <FxTableCell onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           aria-label={`Select ${inv.number}`}
                           checked={selected.has(inv.id)}
@@ -327,9 +496,13 @@ export function InvoiceList({
                         />
                       </FxTableCell>
                       <FxTableCell>
-                        <p className="text-foreground font-mono text-[13px] font-bold">
+                        <Link
+                          href={detailHref(inv)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-foreground block font-mono text-[13px] font-bold hover:underline"
+                        >
                           {inv.number}
-                        </p>
+                        </Link>
                         <p className="text-muted-foreground text-2xs">
                           {KIND_LABEL[inv.kind]}
                         </p>
@@ -340,7 +513,7 @@ export function InvoiceList({
                       <FxTableCell className="text-muted-foreground truncate text-[13px]">
                         {inv.clientName}
                       </FxTableCell>
-                      <FxTableCell className="text-foreground text-right font-mono text-[13px] font-bold">
+                      <FxTableCell className="text-foreground font-mono text-[13px] font-bold">
                         {formatCurrency(inv.amount, currency, { locale })}
                       </FxTableCell>
                       <FxTableCell>
@@ -363,8 +536,8 @@ export function InvoiceList({
                           </p>
                         )}
                       </FxTableCell>
-                      <FxTableCell>
-                        <div className="flex items-center justify-end gap-2">
+                      <FxTableCell onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-start gap-2">
                           {canRemind && (
                             <FxButton
                               type="button"

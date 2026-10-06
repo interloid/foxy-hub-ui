@@ -65,6 +65,7 @@ export function DatePicker({
   placeholder,
   invalid,
   className,
+  required = false,
 }: {
   id?: string
   value?: Date
@@ -73,6 +74,13 @@ export function DatePicker({
   placeholder?: string
   invalid?: boolean
   className?: string
+  /**
+   * The calendar toggles: clicking the selected day deselects it. For a required date that
+   * would hand the form `undefined`, which react-hook-form answers with the field's starting
+   * value - so the box kept showing a date the calendar no longer had. Required dates simply
+   * keep their value instead.
+   */
+  required?: boolean
 }) {
   const fmt = useFormatter()
   const [isOpen, setIsOpen] = useState(false)
@@ -103,7 +111,7 @@ export function DatePicker({
           mode="single"
           selected={value}
           onSelect={(date) => {
-            onChange(date)
+            if (date || !required) onChange(date)
             setIsOpen(false)
           }}
           disabled={disabled}

@@ -9,6 +9,7 @@ import type {
 import { getUserTimeZone } from '@/lib/dal'
 import { dateIn, todayIn } from '@/lib/date'
 import { createClient } from '@/lib/supabase/server'
+import type { Database } from '@/types/supabase'
 
 interface InvoiceProjectRelation {
   name: string
@@ -17,7 +18,7 @@ interface InvoiceProjectRelation {
   client_org_id: string | null
 }
 
-const KIND_BY_ENGAGEMENT: Record<string, InvoiceKind> = {
+export const KIND_BY_ENGAGEMENT: Record<string, InvoiceKind> = {
   retainer: 'retainer',
   fixed: 'fixed',
   budget: 'hours',
@@ -25,10 +26,26 @@ const KIND_BY_ENGAGEMENT: Record<string, InvoiceKind> = {
 }
 
 /** The calendar day of a timestamptz in the user's zone - slicing the string would read UTC. */
-function isoDateIn(timeZone: string, value: string | null): string | null {
+export function isoDateIn(
+  timeZone: string,
+  value: string | null
+): string | null {
   if (!value) return null
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : dateIn(timeZone, date)
+}
+
+/**
+ * Same rule as the Overdue card: a `due` invoice past its date counts as overdue even if the
+ * nightly job hasn't updated the stored status yet.
+ */
+export function toListStatus(
+  status: Database['public']['Enums']['invoice_status'],
+  dueDate: string | null,
+  today: string
+): InvoiceListStatus {
+  if (status !== 'due') return status
+  return dueDate !== null && dueDate < today ? 'overdue' : 'sent'
 }
 
 /**
@@ -109,14 +126,7 @@ export async function getInvoiceRows(orgId: string): Promise<{
     const clientId = project?.client_org_id ?? null
     const dueDate = isoDateIn(timeZone, row.due_date)
 
-    // Same rule as the Overdue card: past its date counts as overdue even if the nightly
-    // job hasn't updated the stored status yet.
-    const status: InvoiceListStatus =
-      row.status === 'due'
-        ? dueDate !== null && dueDate < today
-          ? 'overdue'
-          : 'sent'
-        : row.status
+    const status = toListStatus(row.status, dueDate, today)
 
     return {
       id: row.id,

@@ -24,6 +24,7 @@ import {
   newProjectWizardSchema,
   NO_SIGN_OFF,
   requiresBillRate,
+  resolveEffectiveTo,
   type NewProjectWizardValues,
 } from './schema'
 import { ScopeStep } from './scope-step'
@@ -120,11 +121,6 @@ export function NewProjectWizard({ orgSlug, data }: NewProjectWizardProps) {
   const step = NEW_PROJECT_STEPS[currentStep]
   const isLastStep = currentStep === NEW_PROJECT_STEPS.length - 1
 
-  // Live check of the CURRENT step against the same schema "Next" validates with, so the
-  // button is disabled while a required field is empty or a field is invalid. Only this
-  // step's section is checked - later steps being empty never blocks an earlier one.
-  // `blockingIssue` is the first problem, shown beside the disabled button so the user
-  // knows what to fix.
   const values = useWatch({ control: form.control })
   const stepKey = STEP_FORM_KEY[step.id]
   const stepCheck = newProjectWizardSchema.shape[stepKey].safeParse(
@@ -148,13 +144,26 @@ export function NewProjectWizard({ orgSlug, data }: NewProjectWizardProps) {
       ? (data.members.find((m) => m.id === allocations[unratedIndex].memberId)
           ?.name ?? 'every teammate')
       : null
+  const targetEndDate = values.basics?.targetEndDate
+  const endsTooEarly =
+    step.id === 'team'
+      ? allocations.find((row) => {
+          const end = resolveEffectiveTo(row, targetEndDate)
+          return end !== null && row.effectiveFrom && end <= row.effectiveFrom
+        })
+      : undefined
   const blockingIssue = !stepCheck.success
     ? (stepCheck.error.issues[0]?.message ?? 'Fix the highlighted fields')
-    : unratedName
-      ? `Add a bill rate for ${unratedName} - Hourly bills every hour at it`
-      : needsOverrideReason
-        ? 'Add an owner override reason for the over-commitment'
-        : null
+    : endsTooEarly
+      ? `Effective to must be after effective from for ${
+          data.members.find((m) => m.id === endsTooEarly.memberId)?.name ??
+          'a teammate'
+        }`
+      : unratedName
+        ? `Add a bill rate for ${unratedName} - Hourly bills every hour at it`
+        : needsOverrideReason
+          ? 'Add an owner override reason for the over-commitment'
+          : null
   const isStepValid = blockingIssue === null
 
   const handleNext = async () => {

@@ -10,7 +10,8 @@ import {
   describeFunctionError,
 } from '@/features/onboarding/services/billing'
 import type { ActionResult } from '@/features/onboarding/types'
-import { getWorkspace } from '@/lib/dal'
+import { actorNameOf, logActivity, type ActivityChange } from '@/lib/activity'
+import { getFormatter, getWorkspace, verifySession } from '@/lib/dal'
 import { demoBlocked } from '@/lib/demo'
 import { isBillingRole } from '@/lib/role'
 import { createClient } from '@/lib/supabase/server'
@@ -38,6 +39,59 @@ export type PlanChangeOutcome =
   | { status: 'unchanged' }
 
 const GENERIC_ERROR = 'Could not change the plan. Try again.'
+
+/** "Studio (monthly)": a plan as the feed names it. */
+function planLabel(name: string, durationMonths: number | null | undefined) {
+  return `${name} (${durationMonths === 12 ? 'yearly' : 'monthly'})`
+}
+
+/** The workspace's current plan, and the one an end-of-period change has booked. */
+async function readPlans(orgId: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('subscriptions')
+    .select(
+      `
+      current:plans!subscriptions_plan_id_fkey ( name, duration_months ),
+      pending:plans!subscriptions_pending_plan_id_fkey ( name, duration_months )
+    `
+    )
+    .eq('org_id', orgId)
+    .maybeSingle()
+  const one = <T>(v: T | T[] | null | undefined) =>
+    (Array.isArray(v) ? v[0] : v) ?? null
+  const current = one(data?.current)
+  const pending = one(data?.pending)
+  return {
+    current: current ? planLabel(current.name, current.duration_months) : null,
+    pending: pending ? planLabel(pending.name, pending.duration_months) : null,
+  }
+}
+
+/** A Billing line in the workspace Activity feed. Never fails the action it records. */
+async function logBillingEvent(
+  orgId: string,
+  event: {
+    type: string
+    summary: (actor: string) => string
+    changes?: ActivityChange[]
+    note?: string | null
+  }
+) {
+  const session = await verifySession()
+  if (!session) return
+  const supabase = await createClient()
+  await logActivity(supabase, {
+    orgId,
+    actorId: session.id,
+    actorKind: 'member',
+    type: event.type,
+    summary: event.summary(await actorNameOf(supabase, session.id)),
+    entityType: 'subscription',
+    changes: event.changes,
+    note: event.note,
+  })
+}
 
 async function requireBillingAdmin(orgSlug: string) {
   const workspace = await getWorkspace(orgSlug)
@@ -102,6 +156,8 @@ export async function changePlanAction(
   if (!parsed.success) return { ok: false, error: 'Choose a plan.' }
 
   const planName = TIER_NAMES[parsed.data.planId]
+  const before = await readPlans(workspace.id)
+  const target = `${planName} (${parsed.data.cycle})`
   const result = await invokeManageSubscription({
     action: 'change',
     orgId: workspace.id,
@@ -135,6 +191,36 @@ export async function changePlanAction(
   }
 
   revalidatePath(`/${orgSlug}/billing`)
+
+  const fmt = await getFormatter()
+  const planChange: ActivityChange = {
+    label: 'Plan',
+    from: before.current,
+    to: target,
+  }
+  if (data.status === 'switched') {
+    await logBillingEvent(workspace.id, {
+      type: 'plan_changed',
+      summary: (actor) => `${actor} changed the plan to ${target}`,
+      changes: [planChange],
+    })
+  } else if (data.status === 'scheduled') {
+    const effectiveAt = (data.effectiveAt as string | undefined) ?? null
+    await logBillingEvent(workspace.id, {
+      type: 'plan_change_scheduled',
+      summary: (actor) => `${actor} booked a change to ${target}`,
+      changes: [planChange],
+      note: effectiveAt
+        ? `Takes effect ${fmt.date(effectiveAt, 'date')}`
+        : 'Takes effect at the end of the billing period',
+    })
+  } else if (data.status === 'payment_failed') {
+    await logBillingEvent(workspace.id, {
+      type: 'plan_change_failed',
+      summary: (actor) => `${actor} tried to change the plan to ${target}`,
+      note: 'The payment was declined, so the plan stayed the same',
+    })
+  }
 
   switch (data.status) {
     case 'switched':
@@ -225,6 +311,7 @@ export async function cancelPlanChangeAction(
     return { ok: false, error: GENERIC_ERROR }
   }
 
+  const before = await readPlans(workspace.id)
   const result = await invokeManageSubscription({
     action: 'cancel_change',
     orgId: workspace.id,
@@ -232,6 +319,15 @@ export async function cancelPlanChangeAction(
   })
   if ('error' in result)
     return { ok: false, error: result.error ?? GENERIC_ERROR }
+
+  await logBillingEvent(workspace.id, {
+    type: 'plan_change_cancelled',
+    summary: (actor) =>
+      before.pending
+        ? `${actor} cancelled the change to ${before.pending}`
+        : `${actor} cancelled the upcoming plan change`,
+    note: before.current ? `Staying on ${before.current}` : null,
+  })
 
   revalidatePath(`/${orgSlug}/billing`)
   return { ok: true }
@@ -256,6 +352,7 @@ export async function cancelSubscriptionAction(
     return { ok: false, error: GENERIC_ERROR }
   }
 
+  const before = await readPlans(workspace.id)
   const result = await invokeManageSubscription({
     action: 'cancel',
     orgId: workspace.id,
@@ -263,6 +360,23 @@ export async function cancelSubscriptionAction(
   })
   if ('error' in result)
     return { ok: false, error: result.error ?? GENERIC_ERROR }
+
+  const cancelAt = (result.data.cancelAt as string | null) ?? null
+  const fmt = await getFormatter()
+  await logBillingEvent(workspace.id, {
+    type: 'subscription_cancelled',
+    summary: (actor) =>
+      `${actor} cancelled the ${before.current ?? 'paid'} subscription`,
+    changes: [
+      { label: 'Renewal', from: 'On', to: 'Off' },
+      ...(before.current
+        ? [{ label: 'Plan after renewal', from: before.current, to: 'Free' }]
+        : []),
+    ],
+    note: cancelAt
+      ? `The plan keeps working until ${fmt.date(cancelAt, 'date')}`
+      : null,
+  })
 
   revalidatePath(`/${orgSlug}/billing`)
   return {
@@ -295,6 +409,12 @@ export async function resumeSubscriptionAction(
   })
   if ('error' in result)
     return { ok: false, error: result.error ?? GENERIC_ERROR }
+
+  await logBillingEvent(workspace.id, {
+    type: 'subscription_resumed',
+    summary: (actor) => `${actor} kept the subscription`,
+    changes: [{ label: 'Renewal', from: 'Off', to: 'On' }],
+  })
 
   revalidatePath(`/${orgSlug}/billing`)
   return { ok: true }

@@ -3,23 +3,20 @@
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
-import { toast } from 'sonner'
 
 import { FxBadge } from '@/components/shared/fx-badge'
 import { FxButton } from '@/components/shared/fx-button'
 import { useWorkspace } from '@/features/dashboard/context/workspace-context'
 
+import { useLocale } from '@/context/locale-provider'
+import { initialsOf } from '@/lib/initials'
 import { formatCurrency } from '@/lib/money'
-import { createInvoiceAction } from '../../actions'
-import {
-  NON_INVOICEABLE_STATUSES,
-  PROJECT_STATUS_CONFIG,
-} from '../../constants'
+import { cn } from '@/lib/utils'
+import { PROJECT_STATUS_CONFIG } from '../../constants'
 import type { Project, ProjectStatus } from '../../types'
 import { ProjectInvoiceContext } from '../../types/invoice'
-import { NewInvoiceSheet } from '../meta/new-invoice-sheet'
+import { NewInvoiceButton } from '../meta/new-invoice-button'
 import { EditProjectSheet } from './edit-project-sheet'
-import { useLocale } from '@/context/locale-provider'
 
 interface ProjectDetailHeaderProps {
   project: Project
@@ -35,11 +32,11 @@ export function ProjectDetailHeader({
   hasExistingInvoice,
 }: ProjectDetailHeaderProps) {
   const locale = useLocale()
-  const [isInvoiceSheetOpen, setIsInvoiceSheetOpen] = useState(false)
-  const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false)
   const [isUpdateProjectOpen, setIsUpdateProjectOpen] = useState(false)
 
   const { orgSlug, currency } = useWorkspace()
+  // const owner = project.owner
+  const owner = { name: 'Navaneethan ' }
 
   const formattedValue = formatCurrency(
     project.contractValue ?? project.retainerAmount ?? 0,
@@ -54,49 +51,6 @@ export function ProjectDetailHeader({
   const config =
     PROJECT_STATUS_CONFIG[project.status as ProjectStatus] ||
     PROJECT_STATUS_CONFIG.draft
-  // Determine if an invoice already exists for this project
-
-  const handleGenerateInvoice = async (data: {
-    projectId: string
-    notes: string
-    totalAmount: number
-    periodStart?: string | null
-  }) => {
-    setIsSubmittingInvoice(true)
-
-    const res = await createInvoiceAction({
-      projectId: data.projectId,
-      orgSlug,
-      notes: data.notes,
-      periodStart: data.periodStart,
-    })
-
-    setIsSubmittingInvoice(false)
-
-    if (!res.ok) {
-      toast.error(res.error)
-      return
-    }
-
-    toast.success('Invoice generated')
-    setIsInvoiceSheetOpen(false)
-  }
-
-  const handleOpenInvoiceSheet = () => {
-    if (isInvoiceError) {
-      toast.error(
-        'Unable to load invoicing data. Please refresh and try again.'
-      )
-      return
-    }
-    if (NON_INVOICEABLE_STATUSES.has(project.status)) {
-      toast.error(
-        `This project is ${project.status} and can no longer be invoiced.`
-      )
-      return
-    }
-    setIsInvoiceSheetOpen(true)
-  }
 
   return (
     <>
@@ -126,8 +80,10 @@ export function ProjectDetailHeader({
             </FxBadge>
           </div>
 
-          {/* Sub-line Details (Client, Contract, Milestones) */}
-          <div className="grid w-full grid-cols-3 gap-4 text-[13px]">
+          {/* Sub-line Details (Client, Owner, Contract, Milestones) */}
+          <div
+            className={`grid w-full gap-4 text-[13px] ${owner ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-3'}`}
+          >
             {/* Client Info */}
             <div className="flex min-w-0 items-center gap-2">
               <div
@@ -141,8 +97,31 @@ export function ProjectDetailHeader({
               </span>
             </div>
 
+            {/* Project Owner */}
+            {owner && (
+              <div className="flex min-w-0 items-center gap-2">
+                <div
+                  aria-hidden="true"
+                  className="bg-primary compact:flex! text-primary-foreground hidden h-6 w-6 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-bold select-none"
+                >
+                  {initialsOf(owner.name, null)}
+                </div>
+                <span className="text-muted-foreground flex min-w-0 gap-1">
+                  <span className="shrink-0">Owner</span>
+                  <span className="truncate font-medium" title={owner.name}>
+                    {owner.name}
+                  </span>
+                </span>
+              </div>
+            )}
+
             {/* Contract / Budget */}
-            <div className="text-muted-foreground compact:flex-row flex min-w-0 flex-col items-center justify-start gap-1 text-center md:items-center md:justify-center">
+            <div
+              className={cn(
+                'text-muted-foreground compact:flex-row flex min-w-0 flex-col items-center justify-start gap-1 text-center md:items-center md:justify-center',
+                owner && 'items-start'
+              )}
+            >
               <span>Contract</span>
               <span>{formattedValue}</span>
             </div>
@@ -170,25 +149,15 @@ export function ProjectDetailHeader({
             <span className="leading-tight">Update Project</span>
           </FxButton>
 
-          <FxButton
-            variant="default"
-            onClick={handleOpenInvoiceSheet}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 h-auto justify-center px-3 py-2 text-center text-[13px] font-semibold whitespace-normal sm:h-9 sm:whitespace-nowrap"
-          >
-            <span className="leading-tight">New Invoice</span>
-          </FxButton>
+          <NewInvoiceButton
+            project={project}
+            invoiceProjects={invoiceProjects}
+            isInvoiceError={isInvoiceError}
+            hasExistingInvoice={hasExistingInvoice}
+          />
         </nav>
       </header>
 
-      <NewInvoiceSheet
-        open={isInvoiceSheetOpen}
-        onOpenChange={setIsInvoiceSheetOpen}
-        defaultProjectId={project.id}
-        projects={invoiceProjects}
-        onSubmit={handleGenerateInvoice}
-        isSubmitting={isSubmittingInvoice}
-        hasExistingInvoice={hasExistingInvoice}
-      />
       <EditProjectSheet
         project={project}
         open={isUpdateProjectOpen}

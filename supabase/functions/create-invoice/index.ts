@@ -143,7 +143,7 @@ serve(async (req) => {
   const { data: invoice, error: invoiceError } = await supabase
     .from('invoices')
     .select(
-      'id, amount, currency, status, invoice_number, description, organizations(slug, name), projects(client_id, name)'
+      'id, amount, currency, status, invoice_number, description, stripe_invoice_id, organizations(slug, name), projects(client_id, name)'
     )
     .eq('id', invoiceId)
     .maybeSingle()
@@ -160,6 +160,27 @@ serve(async (req) => {
       { error: `Invoice is ${invoice.status} and cannot be paid` },
       409
     )
+  }
+
+  // Already issued as a Stripe invoice: pay THAT one. A Checkout session here would create
+  // a second Stripe invoice for the same bill, with the first still open and payable.
+  if (invoice.stripe_invoice_id) {
+    try {
+      const issued = await stripe.invoices.retrieve(invoice.stripe_invoice_id)
+      if (issued.status === 'open' && issued.hosted_invoice_url) {
+        return json({ url: issued.hosted_invoice_url }, 200)
+      }
+      if (issued.status === 'paid') {
+        return json({ error: 'This invoice has already been paid' }, 409)
+      }
+      // void / uncollectible: no longer payable, so Checkout below is the way to pay.
+    } catch (err) {
+      console.error(
+        `could not load stripe invoice ${invoice.stripe_invoice_id}:`,
+        (err as Error).message
+      )
+      return json({ error: 'Could not load the invoice from Stripe' }, 502)
+    }
   }
 
   const minorUnits = Math.round(Number(invoice.amount) * 100)

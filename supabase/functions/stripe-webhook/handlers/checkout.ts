@@ -1,5 +1,6 @@
 import Stripe from 'npm:stripe@14'
 
+import { logInvoicePaid } from '../lib/activity.ts'
 import { recordSubscriptionInvoice } from '../lib/billing-payments.ts'
 import { stripe, supabase } from '../lib/clients.ts'
 import type { PendingInviteJob } from '../lib/invites.ts'
@@ -48,46 +49,15 @@ export async function handleCheckoutCompleted(
           invoice_url: hostedInvoiceUrl,
         })
         .eq('id', invoiceId)
-        .select('org_id, project_id, invoice_number, amount, currency')
+        .select(
+          'org_id, project_id, invoice_number, amount, currency, due_date'
+        )
         .maybeSingle()
 
       console.log(`Invoice ${invoiceId} marked as paid.`)
 
       if (paidInvoice?.org_id) {
-        const amount = Number(paidInvoice.amount)
-        const money = Number.isFinite(amount)
-          ? new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: (paidInvoice.currency as string) || 'USD',
-              // Plain "$", never "US$", whatever the locale above becomes.
-              currencyDisplay: 'narrowSymbol',
-              maximumFractionDigits: 0,
-            }).format(amount)
-          : null
-
-        const { error: feedError } = await supabase
-          .from('activity_events')
-          .insert({
-            org_id: paidInvoice.org_id,
-            actor_id: null,
-            actor_kind: 'system',
-            type: 'invoice_paid',
-            summary: `Invoice ${paidInvoice.invoice_number} was paid${money ? ` — ${money}` : ''}`,
-            project_id: paidInvoice.project_id,
-            entity_type: 'invoice',
-            entity_id: invoiceId,
-            payload: {
-              invoice_number: paidInvoice.invoice_number,
-              amount: paidInvoice.amount,
-            },
-          })
-
-        if (feedError) {
-          console.error(
-            'activity_events insert failed (invoice_paid):',
-            feedError.message
-          )
-        }
+        await logInvoicePaid({ ...paidInvoice, id: invoiceId })
       }
     }
     return pendingInviteJob

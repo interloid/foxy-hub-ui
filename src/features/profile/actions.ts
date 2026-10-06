@@ -89,7 +89,6 @@ export async function requestEmailChange(
   )
 
   if (error) {
-    console.log(error)
     console.error('request email change failed:', error.code, error.message)
     return {
       ok: false,

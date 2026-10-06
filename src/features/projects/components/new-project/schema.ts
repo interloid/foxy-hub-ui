@@ -215,6 +215,9 @@ export const allocationSchema = z
     daysPerWeek: z.string(),
     billRate: z.string().optional(),
     effectiveFrom: z.date({ error: 'Pick a start date' }),
+    // undefined = follow the project's target end date (the default); null = the user cleared
+    // it (open-ended); a Date = the user's own pick. See `resolveEffectiveTo`.
+    effectiveTo: z.date().nullable().optional(),
   })
   .superRefine((data, ctx) => {
     checkAmount(ctx, 'hoursPerDay', data.hoursPerDay, {
@@ -222,6 +225,16 @@ export const allocationSchema = z
       required: true,
       max: 24,
     })
+    if (
+      data.effectiveTo instanceof Date &&
+      data.effectiveTo <= data.effectiveFrom
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['effectiveTo'],
+        message: 'Must be after the effective from date',
+      })
+    }
     const hours = readAmount(data.hoursPerDay)
     if (hours !== undefined && hours > 0 && hours < 0.25) {
       ctx.addIssue({
@@ -300,6 +313,15 @@ export function hasBillRate(raw: string | undefined): boolean {
   return value !== undefined && !Number.isNaN(value) && value > 0
 }
 export type AllocationValues = z.infer<typeof allocationSchema>
+
+/** The end date a row actually uses: its own pick, open-ended, or the project's end date. */
+export function resolveEffectiveTo(
+  row: Pick<AllocationValues, 'effectiveTo'>,
+  targetEndDate: Date | undefined
+): Date | null {
+  if (row.effectiveTo === undefined) return targetEndDate ?? null
+  return row.effectiveTo
+}
 export type TeamStepValues = z.infer<typeof teamStepSchema>
 export type NewProjectWizardValues = z.infer<typeof newProjectWizardSchema>
 

@@ -111,7 +111,7 @@ export async function recordSubscriptionInvoice(
   const { data: plan } = priceId
     ? await supabase
         .from('plans')
-        .select('id')
+        .select('id, name')
         .eq('price_id', priceId)
         .maybeSingle()
     : { data: null }
@@ -155,6 +155,101 @@ export async function recordSubscriptionInvoice(
   )
   if (error) {
     throw new Error(`Could not record payment ${invoice.id}: ${error.message}`)
+  }
+
+  // The workspace Activity feed's Billing line - only when the payment actually changes to
+  // paid or failed, so the paired events Stripe sends for one payment write one line.
+  if (
+    !keepStatus &&
+    (truth === 'paid' || truth === 'failed') &&
+    existing?.status !== truth
+  ) {
+    await logSubscriptionPayment(
+      sub.org_id,
+      invoice,
+      truth,
+      plan?.name ?? null,
+      {
+        ...(applyExtra ? extra : {}),
+      }
+    )
+  }
+}
+
+async function logSubscriptionPayment(
+  orgId: string,
+  invoice: Stripe.Invoice,
+  status: 'paid' | 'failed',
+  planName: string | null,
+  extra: Record<string, unknown>
+) {
+  const { data: payment } = await supabase
+    .from('billing_payments')
+    .select('id')
+    .eq('stripe_invoice_id', invoice.id)
+    .maybeSingle()
+  if (!payment) return
+
+  const type =
+    status === 'paid' ? 'billing_payment_succeeded' : 'billing_payment_failed'
+
+  // Two webhook deliveries can both see the old status; the second finds this row.
+  const { data: already } = await supabase
+    .from('activity_events')
+    .select('id')
+    .eq('type', type)
+    .eq('entity_id', payment.id)
+    .limit(1)
+  if (already && already.length > 0) return
+
+  const cents = status === 'paid' ? invoice.amount_paid : invoice.amount_due
+  const money = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: (invoice.currency || 'usd').toUpperCase(),
+    currencyDisplay: 'narrowSymbol',
+  }).format(cents / 100)
+  const what = planName ? `the ${planName} plan` : 'the subscription'
+  const reason =
+    typeof extra.failure_message === 'string' ? extra.failure_message : null
+
+  const { error } = await supabase.from('activity_events').insert({
+    org_id: orgId,
+    actor_id: null,
+    actor_kind: 'system',
+    type,
+    summary:
+      status === 'paid'
+        ? `Payment of ${money} for ${what} went through`
+        : `Payment of ${money} for ${what} failed`,
+    entity_type: 'billing_payment',
+    entity_id: payment.id,
+    payload: {
+      amount_cents: cents,
+      currency: invoice.currency,
+      stripe_invoice_id: invoice.id,
+      changes: [
+        {
+          label: 'Payment',
+          from: null,
+          to: status === 'paid' ? 'Paid' : 'Failed',
+        },
+      ],
+      ...(status === 'failed'
+        ? {
+            note: [
+              reason,
+              invoice.next_payment_attempt
+                ? 'Stripe will retry the card'
+                : 'No more automatic retries - update the card on Billing',
+            ]
+              .filter(Boolean)
+              .join(' - '),
+          }
+        : {}),
+    },
+  })
+  if (error) {
+    console.error(`activity_events insert failed (${type}):`, error.message)
   }
 }
 

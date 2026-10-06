@@ -1,24 +1,60 @@
 'use server'
 
 import { issueInvoiceAction } from '@/features/portal/actions'
-import { getUserLocale, getWorkspace, isAdminRole } from '@/lib/dal'
+import { actorNameOf, logActivity, type ActivityChange } from '@/lib/activity'
+import {
+  getFormatter,
+  getUserLocale,
+  getWorkspace,
+  isAdminRole,
+  verifySession,
+} from '@/lib/dal'
 import { demoBlocked } from '@/lib/demo'
 import { isBillingRole } from '@/lib/role'
 import { formatCurrency } from '@/lib/money'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { ActionResult } from '../onboarding/types'
-import { NON_INVOICEABLE_STATUSES } from './constants'
+import { NON_INVOICEABLE_STATUSES, PROJECT_STATUS_CONFIG } from './constants'
 import { buildInvoiceDraft } from './queries/get-invoice'
 import { getProjectsData } from './queries/get-projects'
 import { createMilestoneSchema } from './schema'
-import { CreateDeliveryInput, UpdateProjectInput } from './types'
+import {
+  CreateDeliveryInput,
+  DeliveryStatus,
+  ProjectStatus,
+  UpdateProjectInput,
+} from './types'
 import {
   CreateMilestoneInput,
   MilestoneItem,
   UpdateMilestoneParams,
 } from './types/milestone'
+
+const DELIVERY_STATUS_LABEL: Record<DeliveryStatus, string> = {
+  pending: 'Pending',
+  submitted: 'Submitted',
+  approved: 'Approved',
+  rejected: 'Rejected',
+}
+
+const MILESTONE_STATUS_LABEL: Record<string, string> = {
+  pending: 'Pending',
+  in_progress: 'In progress',
+  completed: 'Completed',
+}
+
+const projectStatusLabel = (status: string) =>
+  PROJECT_STATUS_CONFIG[status as ProjectStatus]?.label ?? status
+
+/** An update's body as the feed quotes it - one line, cut at a word. */
+function excerpt(text: string, max = 140) {
+  const line = text.replace(/\s+/g, ' ').trim()
+  if (line.length <= max) return line
+  return `${line.slice(0, max).replace(/\s+\S*$/, '')}...`
+}
 
 const MINIMUM_CHARGE: Record<string, number> = {
   USD: 0.5,
@@ -191,6 +227,33 @@ export async function createInvoiceAction(rawParams: unknown): Promise<
     console.error(`invoice ${invoiceId} saved but not issued:`, issued.error)
   }
 
+  const session = await verifySession()
+  if (session) {
+    const { data: invoice } = await supabase
+      .from('invoices')
+      .select('invoice_number')
+      .eq('id', invoiceId)
+      .maybeSingle()
+    const number = invoice?.invoice_number || 'an invoice'
+
+    await logActivity(supabase, {
+      orgId: draft.orgId,
+      actorId: session.id,
+      actorKind: 'member',
+      type: 'invoice_created',
+      summary: `${await actorNameOf(supabase, session.id)} raised ${number} for ${formatCurrency(draft.amount, draft.currency)} on ${draft.projectName}`,
+      projectId: draft.projectId,
+      entityType: 'invoice',
+      entityId: invoiceId,
+      payload: {
+        invoice_number: invoice?.invoice_number ?? null,
+        amount: draft.amount,
+        currency: draft.currency,
+      },
+      note: notes,
+    })
+  }
+
   revalidatePath(`/${orgSlug}/projects/${projectId}`)
   revalidatePath(`/${orgSlug}`)
   revalidatePath(`/${orgSlug}/invoices`)
@@ -276,7 +339,7 @@ export async function createMilestone(input: CreateMilestoneInput) {
   // 2. Verify that the target project belongs to the current workspace
   const { data: project, error: projErr } = await supabase
     .from('projects')
-    .select('id')
+    .select('id, name')
     .eq('id', input.projectId)
     .eq('org_id', workspace.id)
     .single()
@@ -302,6 +365,24 @@ export async function createMilestone(input: CreateMilestoneInput) {
     throw new Error(error.message || 'Failed to create milestone')
   }
 
+  const session = await verifySession()
+  if (session) {
+    const fmt = await getFormatter()
+    await logActivity(supabase, {
+      orgId: workspace.id,
+      actorId: session.id,
+      actorKind: 'member',
+      type: 'milestone_created',
+      summary: `${await actorNameOf(supabase, session.id)} added milestone ${newMilestone.title} to ${project.name}`,
+      projectId: input.projectId,
+      entityType: 'milestone',
+      entityId: newMilestone.id,
+      note: newMilestone.due_date
+        ? `Due ${fmt.date(newMilestone.due_date, 'date')}`
+        : null,
+    })
+  }
+
   revalidatePath(`/${input.orgSlug}/projects/${input.projectId}`)
   return newMilestone
 }
@@ -312,6 +393,13 @@ export async function approveDeliveryAction(
   orgSlug: string
 ): Promise<ActionResult> {
   const supabase = await createClient()
+
+  // For the feed's "Status  Submitted -> Approved" - the RPC doesn't say what it replaced.
+  const { data: before } = await supabase
+    .from('deliveries')
+    .select('status')
+    .eq('id', deliveryId)
+    .maybeSingle()
 
   const { error } = await supabase.rpc('update_delivery_status', {
     p_status: 'approved',
@@ -324,10 +412,55 @@ export async function approveDeliveryAction(
     return { ok: false, error: 'Could not approve this deliverable.' }
   }
 
+  await logDeliveryApproved(deliveryId, before?.status ?? null)
+
   // Both places a client can be looking at it from.
   revalidatePath(`/portal/${orgSlug}/projects/${projectId}`)
   revalidatePath(`/portal/${orgSlug}`)
   return { ok: true }
+}
+
+/**
+ * Only the project's client can approve, and `activity_events` admits staff writers only -
+ * so this one event is written with the service role, like the Stripe webhook's. The
+ * approval has already succeeded; a failure here is logged, never surfaced.
+ */
+async function logDeliveryApproved(
+  deliveryId: string,
+  previousStatus: DeliveryStatus | null
+) {
+  const session = await verifySession()
+  if (!session) return
+
+  try {
+    const admin = createAdminClient()
+    const { data: delivery } = await admin
+      .from('deliveries')
+      .select('id, title, org_id, project_id')
+      .eq('id', deliveryId)
+      .maybeSingle()
+    if (!delivery) return
+
+    await logActivity(admin, {
+      orgId: delivery.org_id,
+      actorId: session.id,
+      actorKind: 'client',
+      type: 'delivery_approved',
+      summary: `${await actorNameOf(admin, session.id)} approved ${delivery.title}`,
+      projectId: delivery.project_id,
+      entityType: 'delivery',
+      entityId: delivery.id,
+      changes: [
+        {
+          label: 'Status',
+          from: previousStatus ? DELIVERY_STATUS_LABEL[previousStatus] : null,
+          to: DELIVERY_STATUS_LABEL.approved,
+        },
+      ],
+    })
+  } catch (err) {
+    console.error('delivery_approved activity failed:', (err as Error).message)
+  }
 }
 
 export async function submitDeliveryForApproval(
@@ -344,7 +477,7 @@ export async function submitDeliveryForApproval(
 
   const { data: delivery, error: fetchErr } = await supabase
     .from('deliveries')
-    .select('id, project:projects!inner(id, org_id)')
+    .select('id, title, project:projects!inner(id, org_id)')
     .eq('id', deliveryId)
     .eq('project_id', projectId)
     .eq('project.org_id', workspace.id)
@@ -363,6 +496,28 @@ export async function submitDeliveryForApproval(
   if (error) {
     console.error('Failed to submit delivery:', error)
     throw new Error('Failed to update delivery status.')
+  }
+
+  const session = await verifySession()
+  if (session) {
+    await logActivity(supabase, {
+      orgId: workspace.id,
+      actorId: session.id,
+      actorKind: 'member',
+      type: 'delivery_submitted',
+      summary: `${await actorNameOf(supabase, session.id)} sent ${delivery.title} for client sign-off`,
+      projectId,
+      entityType: 'delivery',
+      entityId: deliveryId,
+      // The update above only matches a pending delivery, so that is what it was.
+      changes: [
+        {
+          label: 'Status',
+          from: DELIVERY_STATUS_LABEL.pending,
+          to: DELIVERY_STATUS_LABEL.submitted,
+        },
+      ],
+    })
   }
 
   revalidatePath(`/${orgSlug}/projects/${projectId}`)
@@ -388,11 +543,31 @@ export async function postUpdateAction(
     throw new Error('Unauthorized')
   }
 
-  await createProjectUpdate({
+  const update = await createProjectUpdate({
     projectId,
     authorId: user.id, // Securely set by server session
     body,
   })
+
+  const { data: project } = await supabase
+    .from('projects')
+    .select('org_id, name')
+    .eq('id', projectId)
+    .maybeSingle()
+
+  if (project) {
+    await logActivity(supabase, {
+      orgId: project.org_id,
+      actorId: user.id,
+      actorKind: 'member',
+      type: 'update_posted',
+      summary: `${await actorNameOf(supabase, user.id)} posted an update on ${project.name}`,
+      projectId,
+      entityType: 'update',
+      entityId: update.id,
+      note: excerpt(body),
+    })
+  }
 
   revalidatePath(`/${orgSlug}/projects/${projectId}`)
 }
@@ -424,7 +599,7 @@ export async function uploadDeliveryAssets(
 
   const { data: project, error: projErr } = await supabase
     .from('projects')
-    .select('id')
+    .select('id, name')
     .eq('id', projectId)
     .eq('org_id', workspace.id)
     .single()
@@ -453,6 +628,23 @@ export async function uploadDeliveryAssets(
 
     if (dbError) throw dbError
   }
+
+  const session = await verifySession()
+  if (session && files.length > 0) {
+    const what = files.length === 1 ? files[0]!.name : `${files.length} files`
+    await logActivity(supabase, {
+      orgId: workspace.id,
+      actorId: session.id,
+      actorKind: 'member',
+      type: 'asset_uploaded',
+      summary: `${await actorNameOf(supabase, session.id)} uploaded ${what} to ${project.name}`,
+      projectId,
+      entityType: 'delivery',
+      entityId: deliveryId,
+      payload: { file_names: files.map((f) => f.name) },
+    })
+  }
+
   return { ok: true }
 }
 
@@ -475,7 +667,7 @@ export async function createDelivery(input: CreateDeliveryInput) {
 
   const { data: project, error: projErr } = await supabase
     .from('projects')
-    .select('id')
+    .select('id, name')
     .eq('id', input.projectId)
     .eq('org_id', workspace.id)
     .single()
@@ -503,6 +695,17 @@ export async function createDelivery(input: CreateDeliveryInput) {
     console.error('Error creating delivery:', error)
     throw new Error('Failed to create delivery.')
   }
+
+  await logActivity(supabase, {
+    orgId: workspace.id,
+    actorId: user.id,
+    actorKind: 'member',
+    type: 'delivery_created',
+    summary: `${await actorNameOf(supabase, user.id)} added ${data.title} to ${project.name}`,
+    projectId: input.projectId,
+    entityType: 'delivery',
+    entityId: data.id,
+  })
 
   if (input.milestoneId) {
     const { data: milestone } = await supabase
@@ -567,7 +770,7 @@ export async function updateMilestoneWithValidation({
 
   const { data: project, error: projectError } = await supabase
     .from('projects')
-    .select('start_date, due_date, created_at')
+    .select('org_id, name, start_date, due_date, created_at')
     .eq('id', projectId)
     .single()
 
@@ -596,6 +799,14 @@ export async function updateMilestoneWithValidation({
       )
     }
   }
+
+  // Read before the update, so the feed records what actually changed - and only says
+  // "completed" on the change itself.
+  const { data: before } = await supabase
+    .from('milestones')
+    .select('status, title, due_date')
+    .eq('id', milestoneId)
+    .maybeSingle()
 
   if (status === 'completed') {
     const { data: deliverables, error: deliveriesError } = await supabase
@@ -630,6 +841,57 @@ export async function updateMilestoneWithValidation({
 
   if (updateError || !updatedMilestone) {
     throw new Error(updateError?.message || 'Failed to update milestone.')
+  }
+
+  if (before) {
+    const fmt = await getFormatter()
+    const statusLabel = (value: string) =>
+      MILESTONE_STATUS_LABEL[value] ?? value
+    const dueLabel = (value: string | null) =>
+      value ? fmt.date(value, 'date') : 'No date'
+
+    const changes: ActivityChange[] = []
+    if (before.title !== updatedMilestone.title) {
+      changes.push({
+        label: 'Title',
+        from: before.title,
+        to: updatedMilestone.title,
+      })
+    }
+    if ((before.due_date ?? null) !== (updatedMilestone.due_date ?? null)) {
+      changes.push({
+        label: 'Due date',
+        from: before.due_date ? dueLabel(before.due_date) : null,
+        to: dueLabel(updatedMilestone.due_date),
+      })
+    }
+    if (before.status !== updatedMilestone.status) {
+      changes.push({
+        label: 'Status',
+        from: statusLabel(before.status),
+        to: statusLabel(updatedMilestone.status),
+      })
+    }
+
+    const completedNow =
+      updatedMilestone.status === 'completed' && before.status !== 'completed'
+    const session = changes.length > 0 ? await verifySession() : null
+    if (session) {
+      const actor = await actorNameOf(supabase, session.id)
+      await logActivity(supabase, {
+        orgId: project.org_id,
+        actorId: session.id,
+        actorKind: 'member',
+        type: completedNow ? 'milestone_completed' : 'milestone_updated',
+        summary: completedNow
+          ? `${actor} completed ${updatedMilestone.title} on ${project.name}`
+          : `${actor} updated milestone ${updatedMilestone.title} on ${project.name}`,
+        projectId,
+        entityType: 'milestone',
+        entityId: milestoneId,
+        changes,
+      })
+    }
   }
 
   return {
@@ -675,7 +937,11 @@ export async function updateProjectWithValidation(input: UpdateProjectInput) {
       throw new Error('Failed to verify project invoices.')
     }
 
-    const invoiceList = invoices || []
+    // A voided invoice is neither owed nor billed, so it neither blocks completion nor
+    // counts toward the contract value.
+    const invoiceList = (invoices || []).filter(
+      (inv) => inv.status !== 'cancelled'
+    )
 
     const hasUnpaidInvoices = invoiceList.some((inv) => inv.status !== 'paid')
     if (hasUnpaidInvoices) {
@@ -703,6 +969,13 @@ export async function updateProjectWithValidation(input: UpdateProjectInput) {
       }
     }
   }
+
+  // What it was, so the feed can show "Status  Pending -> In Progress".
+  const { data: previous } = await supabase
+    .from('projects')
+    .select('org_id, name, status, description')
+    .eq('id', input.projectId)
+    .maybeSingle()
 
   const clientPatch: { client_org_id?: string } = {}
 
@@ -744,6 +1017,48 @@ export async function updateProjectWithValidation(input: UpdateProjectInput) {
   if (updateError) {
     console.error('Error updating project:', updateError)
     throw new Error(updateError.message || 'Failed to update project.')
+  }
+
+  if (previous) {
+    const changes: ActivityChange[] = []
+    if (previous.name !== trimmedName) {
+      changes.push({ label: 'Name', from: previous.name, to: trimmedName })
+    }
+    if (previous.status !== input.status) {
+      changes.push({
+        label: 'Status',
+        from: projectStatusLabel(previous.status),
+        to: projectStatusLabel(input.status),
+      })
+    }
+    if (clientPatch.client_org_id) {
+      const { data: client } = await supabase
+        .from('clients')
+        .select('name')
+        .eq('id', clientPatch.client_org_id)
+        .maybeSingle()
+      changes.push({
+        label: 'Client',
+        from: null,
+        to: client?.name || 'Client',
+      })
+    }
+    const descriptionChanged =
+      (previous.description ?? '') !== (input.description?.trim() ?? '')
+
+    if (changes.length > 0 || descriptionChanged) {
+      await logActivity(supabase, {
+        orgId: previous.org_id,
+        actorId: user.id,
+        actorKind: 'member',
+        type: 'project_updated',
+        summary: `${await actorNameOf(supabase, user.id)} ${descriptionChanged && changes.length === 0 ? 'edited the description of' : 'changed'} ${trimmedName}`,
+        projectId: input.projectId,
+        entityType: 'project',
+        entityId: input.projectId,
+        changes,
+      })
+    }
   }
 
   revalidatePath(`/${input.orgSlug}/projects/${input.projectId}`)
